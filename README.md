@@ -1,6 +1,6 @@
 # **The Conveyance Manifesto:** 
-Compassionate Design, 
-Resourceful** Minimalism, 
+**Compassionate** Design, 
+Resourceful** Minimalism,** 
 and Guiding **by** Example
 
 By Az (@HereLiesAz)
