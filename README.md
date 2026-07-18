@@ -1,10 +1,10 @@
-# The Conveyance Manifesto**:** 
+## The Conveyance Manifesto**:** 
 
-# Compassionate Design, 
+## Compassionate Design, 
 
-# **Resourceful** Minimalism, 
+## **Resourceful** Minimalism, 
 
-# and Guiding **by** Example
+## and Guiding **by** Example
 
 By Az (@HereLiesAz)
 
