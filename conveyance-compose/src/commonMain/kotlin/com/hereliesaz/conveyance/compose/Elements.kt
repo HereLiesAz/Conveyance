@@ -1,0 +1,104 @@
+package com.hereliesaz.conveyance.compose
+
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.Stable
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
+import com.hereliesaz.conveyance.ElementId
+
+/**
+ * Where a named element is, and whether the person can currently see it.
+ *
+ * [bounds] is deliberately **unclipped**: it is where the element actually is, even when it has
+ * scrolled out of view. Clipped bounds collapse to zero the moment an element leaves the viewport,
+ * and an escort aimed at a zero rect travels to the window's top-left corner instead of to the field
+ * the person forgot to fill in. Since a gate is very often below the fold, that is the common case
+ * rather than the edge case.
+ *
+ * [visible] carries the other half of the answer. An escort to something off-screen has to bring it
+ * into view first and articulate second; without this flag it would articulate something nobody is
+ * looking at.
+ */
+@Immutable
+data class Placement(
+    val bounds: Rect,
+    val visible: Boolean,
+)
+
+/**
+ * Where every named element currently is.
+ *
+ * This registry is what turns the core's addresses into geometry, and it is the load-bearing piece
+ * of the whole binding. A consequence names the element that changes; a gate names the element where
+ * it is resolved; a place names the element it grows out of. None of that means anything on screen
+ * until something can answer "and where is that, right now".
+ *
+ * Placements are held in observable state, so a motion that begins while the world is still settling
+ * picks up the corrected position rather than animating toward where a thing used to be.
+ */
+@Stable
+class ElementRegistry {
+
+    private val placements = mutableStateMapOf<ElementId, Placement>()
+
+    operator fun get(id: ElementId): Placement? = placements[id]
+
+    /** Unclipped bounds, present whether or not the element is currently on screen. */
+    fun bounds(id: ElementId): Rect? = placements[id]?.bounds
+
+    /** Whether an address currently resolves to a composed element. */
+    fun resolves(id: ElementId): Boolean = placements.containsKey(id)
+
+    /** Whether the person can actually see it right now. An escort must check this first. */
+    fun visible(id: ElementId): Boolean = placements[id]?.visible == true
+
+    internal fun place(id: ElementId, placement: Placement) {
+        placements[id] = placement
+    }
+
+    internal fun forget(id: ElementId) {
+        placements.remove(id)
+    }
+
+    /** Every address currently composed. Used by the audits, not by product code. */
+    val placed: Set<ElementId> get() = placements.keys.toSet()
+}
+
+private val NoRegistry = ElementRegistry()
+
+val LocalElements = staticCompositionLocalOf { NoRegistry }
+
+/**
+ * Give this element its address.
+ *
+ * Registration follows the element through recomposition and scrolling because it is driven by
+ * layout rather than by composition: `onGloballyPositioned` fires whenever the element actually
+ * moves, which is exactly when a motion aimed at it would otherwise be aiming at the wrong place.
+ * Deregistration is tied to leaving the composition, so an address never outlives the thing it names
+ * and an escort can never travel to a control that has since been removed.
+ */
+@Composable
+fun Modifier.element(id: ElementId): Modifier {
+    val registry = LocalElements.current
+    DisposableEffect(registry, id) {
+        onDispose { registry.forget(id) }
+    }
+    return onGloballyPositioned { coordinates ->
+        val size = Size(coordinates.size.width.toFloat(), coordinates.size.height.toFloat())
+        registry.place(
+            id,
+            Placement(
+                bounds = Rect(coordinates.positionInRoot(), size),
+                visible = !coordinates.boundsInRoot().isEmpty,
+            ),
+        )
+    }
+}
