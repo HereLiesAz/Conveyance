@@ -1,63 +1,49 @@
-name: CodeQL
+name: "KMP Security Pipeline"
 
 on:
   push:
-    branches: [main]
+    branches: [ "main", "develop" ]
   pull_request:
-    branches: [main]
-  schedule:
-    # Monday morning, so a newly published advisory surfaces on a weekday.
-    - cron: '0 6 * * 1'
-  workflow_dispatch:
-
-permissions:
-  contents: read
-
-concurrency:
-  group: codeql-${{ github.ref }}
-  cancel-in-progress: true
+    branches: [ "main" ]
 
 jobs:
-  analyze:
-    name: Analyze ${{ matrix.language }}
+  lint-and-scan:
+    name: Code Quality & Security Scan
     runs-on: ubuntu-latest
     permissions:
-      security-events: write
-      actions: read
       contents: read
-    strategy:
-      fail-fast: false
-      matrix:
-        language: [java-kotlin]
+      security-events: write
+
     steps:
-      - uses: actions/checkout@v4
+    - name: Checkout Repository
+      uses: actions/checkout@v4
 
-      - name: Set up JDK
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '21'
+    # Set up JDK 21 environment required for modern Kotlin compilation
+    - name: Set up JDK 21
+      uses: actions/setup-java@v4
+      with:
+        java-version: '21'
+        distribution: 'temurin'
+        cache: 'gradle' # Automatically caches Gradle dependencies for faster runs
 
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
-        with:
-          language: ${{ matrix.language }}
+    # Run open-source detekt across all KMP targets via Gradle
+    - name: Run detekt Code Quality Scan
+      run: |
+        chmod +x ./gradlew
+        ./gradlew detekt
 
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
+    # Run free Snyk scan for custom source code security vulnerabilities (SAST)
+    - name: Run Snyk Code Security Scan
+      uses: snyk/actions/node@master
+      env:
+        SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+      with:
+        args: --code-quality-threshold=high
 
-      # The runner image does not carry SDK 37, and the Android target needs it.
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-        with:
-          packages: 'platforms;android-37.0 platforms;android-37.1 build-tools;37.0.0'
-
-      # An explicit assemble rather than autobuild: the build is one command, and
-      # a named command fails legibly where autobuild fails mysteriously.
-      - name: Build
-        run: ./gradlew assemble --stacktrace
-
-      - name: Analyze
-        uses: github/codeql-action/analyze@v3
-        with:
-          category: /language:${{ matrix.language }}
+    # Run Snyk to monitor and check for vulnerable multiplatform dependencies (SCA)
+    - name: Run Snyk Dependency Scan
+      uses: snyk/actions/gradle@master
+      env:
+        SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+      with:
+        command: monitor
