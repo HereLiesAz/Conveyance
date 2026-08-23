@@ -14,17 +14,19 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.positionInRoot
 import com.hereliesaz.conveyance.ElementId
 
 /**
  * Where a named element is, and whether the person can currently see it.
  *
- * [bounds] is deliberately **unclipped**: it is where the element actually is, even when it has
+ * [bounds] is deliberately **unclipped**, and reflects any scaling applied to the element or its
+ * ancestors: both corners are mapped through the transform, so the rect is always coherent.
+ *
+ * Unclipped: it is where the element actually is, even when it has
  * scrolled out of view. Clipped bounds collapse to zero the moment an element leaves the viewport,
  * and an escort aimed at a zero rect travels to the window's top-left corner instead of to the field
  * the person forgot to fill in. Since a gate is very often below the fold, that is the common case
@@ -142,11 +144,18 @@ fun Modifier.element(id: ElementId): Modifier {
         onDispose { registry.forget(id) }
     }
     return bringIntoViewRequester(requester).onGloballyPositioned { coordinates ->
-        val size = Size(coordinates.size.width.toFloat(), coordinates.size.height.toFloat())
+        // Both corners are mapped through the ancestor transforms, never just the origin. Mapping
+        // only the origin and pairing it with the raw layout size yields an incoherent rect the
+        // moment anything is scaled -- a transformed position wearing an untransformed size -- and
+        // a morph aimed at it would arrive in the right place at the wrong size.
+        val size = coordinates.size
         registry.place(
             id,
             Placement(
-                bounds = Rect(coordinates.positionInRoot(), size),
+                bounds = Rect(
+                    coordinates.localToRoot(Offset.Zero),
+                    coordinates.localToRoot(Offset(size.width.toFloat(), size.height.toFloat())),
+                ),
                 visible = !coordinates.boundsInRoot().isEmpty,
             ),
         )
