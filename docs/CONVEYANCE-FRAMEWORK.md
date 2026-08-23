@@ -562,3 +562,37 @@ Notes on the binding:
 - `ElementRef` is produced by a modifier, so origins and gate locations are real measured positions — Escort and Enter are geometry, not configuration.
 - The grammar lives in the runtime. Product code never names a spring.
 - The Conscience is a Kotlin compiler plugin plus a lint ruleset; audits 3, 4, 5, 8 and 10 are compile-time, the rest are lint.
+
+---
+
+# Appendix C — Amendments after prior-art review
+
+Everything above Appendix B was written before reading any existing implementation, so that the
+design would follow from the manifesto rather than from code. It was then measured against
+[AzNavRail](https://github.com/HereLiesAz/AzNavRail) — see
+[that repo's `docs/CONVEYANCE-REVIEW.md`](https://github.com/HereLiesAz/AzNavRail/blob/main/docs/CONVEYANCE-REVIEW.md)
+for the full comparison. Three things there were better than the spec, and are adopted here.
+
+**C.1 — The Conscience reports in tiers, and says so.** Audits split into blocking errors and
+non-blocking warnings, with machine-readable output (SARIF, CI annotations) alongside the human
+report. The rationale is AzNavRail's and is better than the spec's original hand-wave:
+*conservative static analysis cannot see every dynamic case, but silence would be the more expensive
+lie.* A warning that cannot be proven is still worth emitting; it is not worth blocking on.
+
+**C.2 — Haptics carry kind as well as magnitude.** Part IV assigns haptics to consequence magnitude.
+Sharpen that to **two voices and no more**: `commit` — you did a thing that took effect — and
+`modeChange` — the world you are operating in is now a different world. Magnitude modulates each
+voice's intensity. Nothing fires per drag frame; a cycler speaks once, when it commits, not on each
+step through its options.
+
+**C.3 — "Per-element, never screen-blanking" generalises beyond progress.** Law 1 implies it, but
+state it operationally: any state that belongs to one element is rendered on that element, never
+promoted to a surface-wide or screen-wide treatment. A global loading overlay, a page-level error
+banner and a screen-blanking scrim are all the same mistake at different scales — the state is
+detached from the thing it is about, and the person has to be told which thing that was.
+
+**C.4 — A note on what Yield is not.** Hiding an element's content and drawing an indicator in its
+place is a *swap*, not a Yield. The element stops being itself for the duration, which severs exactly
+the identity link the mechanism exists to preserve. The engaged element must **deform while remaining
+recognisably itself** — compress, fill, thicken — so that at every instant it is visibly the thing
+that was pressed.
