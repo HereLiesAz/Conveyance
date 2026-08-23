@@ -41,14 +41,7 @@ enum class Weight {
          * an undoable deletion is still a deletion, and should not feel like flipping a switch.
          */
         fun of(consequence: Consequence, scope: Scope, reversible: Boolean): Weight {
-            val base = when (consequence) {
-                is Consequence.Reveal -> Light
-                is Consequence.Alter -> Light
-                is Consequence.Create -> Medium
-                is Consequence.Send -> Medium
-                is Consequence.Enter -> Heavy
-                is Consequence.Destroy -> Heavy
-            }
+            val base = baseOf(consequence)
             val scoped = when (scope) {
                 Scope.Detail -> base
                 Scope.Item -> base
@@ -56,6 +49,22 @@ enum class Weight {
                 Scope.Everything -> Heavy
             }
             return if (reversible) scoped.lighter().atLeast(base) else scoped
+        }
+
+        /**
+         * The floor for a consequence class, before scope or reversibility.
+         *
+         * Nothing may sink below its class base — not a reversal, not familiarity. Deleting is
+         * Heavy on the ten-thousandth time as surely as the first, because the cost to the person
+         * did not change just because their hand got quicker.
+         */
+        fun baseOf(consequence: Consequence): Weight = when (consequence) {
+            is Consequence.Reveal -> Light
+            is Consequence.Alter -> Light
+            is Consequence.Create -> Medium
+            is Consequence.Send -> Medium
+            is Consequence.Enter -> Heavy
+            is Consequence.Destroy -> Heavy
         }
     }
 }
