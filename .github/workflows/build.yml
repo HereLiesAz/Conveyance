@@ -40,6 +40,12 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
+      # The runner image does not carry SDK 37, and the Android target needs it.
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'platforms;android-37.0 platforms;android-37.1 build-tools;37.0.0'
+
       - name: Build and test
         run: ./gradlew build --stacktrace
 
