@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [ "main" ]
 
+permissions:
+  contents: read
+
 jobs:
   lint-and-scan:
     name: Code Quality & Security Scan
@@ -26,23 +29,42 @@ jobs:
         distribution: 'temurin'
         cache: 'gradle' # Automatically caches Gradle dependencies for faster runs
 
+    # The Android target will not configure without an SDK, and the runner image has no SDK 37.
+    - name: Set up Android SDK
+      uses: android-actions/setup-android@v3
+      with:
+        packages: 'platforms;android-37.0 platforms;android-37.1 build-tools;37.0.0'
+
     # Run open-source detekt across all KMP targets via Gradle
     - name: Run detekt Code Quality Scan
       run: |
         chmod +x ./gradlew
         ./gradlew detekt
 
-    # Run free Snyk scan for custom source code security vulnerabilities (SAST)
+    # Snyk needs a token. Without one these steps fail on authentication rather than on anything
+    # about this code, so they run only when the secret is actually configured.
+    - name: Check for Snyk credentials
+      id: snyk
+      run: echo "configured=${{ secrets.SNYK_TOKEN != '' }}" >> "$GITHUB_OUTPUT"
+
+    # SAST over the source. `snyk code test` does not need a resolved dependency graph, so it does
+    # not need Gradle -- the previous `snyk test` did, and failed trying to run it.
     - name: Run Snyk Code Security Scan
+      if: steps.snyk.outputs.configured == 'true'
       uses: snyk/actions/node@master
       env:
         SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
       with:
-        args: --code-quality-threshold=high
+        command: code test
+        args: --severity-threshold=high
 
-    # Run Snyk to monitor and check for vulnerable multiplatform dependencies (SCA)
+    # SCA over the dependency graph. This one does run Gradle, so it needs a JDK *inside* the
+    # container: snyk/actions/gradle inherits JAVA_HOME from the host, where the path does not
+    # exist in the image, and every run died with "JAVA_HOME is set to an invalid directory".
+    # The jdk21 image ships its own.
     - name: Run Snyk Dependency Scan
-      uses: snyk/actions/gradle@master
+      if: steps.snyk.outputs.configured == 'true'
+      uses: snyk/actions/gradle-jdk21@master
       env:
         SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
       with:
