@@ -117,13 +117,13 @@ Invest your time in making your most critical interactions sing<sup>[1](#works-c
 
 ---
 
-## Twain's Rules, Which Were Design Mandates All Along
+## Twain's Rules of Writing... Design Mandates All Along
 
-In 1895 Mark Twain took eighteen rules of literary art and beat Fenimore Cooper to death with them. He was writing about prose. He was not writing about interfaces, because there weren't any.
+In 1895 Mark Twain took eighteen rules of literary art and beat Fenimore Cooper to death with them. He was writing about writing, not interfaces per se--then again, print was arguably the ONLY interface of the sort at the time. So read them anyway. 
 
-Read them anyway. Almost every one of them is a design mandate that has been sitting in plain sight for a hundred and thirty years, waiting for somebody to notice that a composable is a word, a screen is a sentence, and a user flow is a paragraph. Once you see that, Twain stops being a literary critic and starts being the most quotable UX reviewer who ever lived.
+Almost every one of them is a design mandate sitting in plain sight for 130 years, waiting to be noticed. A composable is a word, a screen is a sentence, and a user flow is a paragraph. Composables can themselves be designed with too many syllables when a monosyllabic composable would do just as well, and resonate with more people. Once you see that, Twain stops being a literary critic and starts being the most quotable UX reviewer who ever lived.
 
-Here they are, recounted as what they actually are.
+Here they are, recounted word for word as I paraphrased them. 
 
 **A tale shall accomplish something and arrive somewhere.** So shall a screen. If a person can enter a flow and not come out the other side having done the thing they came to do, you have built a corridor with no room at the end of it.
 

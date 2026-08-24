@@ -18,6 +18,10 @@ kotlin {
         val desktopTest by getting {
             dependencies {
                 implementation(kotlin("test"))
+                implementation(project(":conveyance-auditor"))
+                // The auditor keeps Jackson internal, correctly; the harness serialises the bundle
+                // itself and so needs its own.
+                implementation(libs.jackson.kotlin)
             }
         }
     }

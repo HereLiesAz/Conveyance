@@ -21,7 +21,11 @@ import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.animation.core.Animatable
 import androidx.compose.ui.graphics.graphicsLayer
+import com.hereliesaz.conveyance.Act
 import com.hereliesaz.conveyance.ActId
+import com.hereliesaz.conveyance.ActState
+import com.hereliesaz.conveyance.AuditElement
+import com.hereliesaz.conveyance.AuditFrame
 import com.hereliesaz.conveyance.Census
 import com.hereliesaz.conveyance.ElementId
 import com.hereliesaz.conveyance.Employment
@@ -95,8 +99,13 @@ class ElementRegistry {
     /** Elements that are some gate's address. Where a person is carried when something is missing. */
     private val gateAddresses = mutableStateMapOf<ElementId, Boolean>()
 
-    /** Which act each offered element is offering, so the two halves can be compared. */
-    private val offered = mutableStateMapOf<ActId, ElementId>()
+    /**
+     * The act each element is offering, kept whole rather than by identity.
+     *
+     * Holding the act itself is what makes an audit possible at all: its verb, its weight, whether
+     * it can be taken back. An id would have been enough to count with and useless to judge by.
+     */
+    private val offered = mutableStateMapOf<ActId, Pair<Act, ElementId>>()
 
     /**
      * The element an escort has just delivered someone to, which that element renders as
@@ -130,8 +139,8 @@ class ElementRegistry {
         employments[id] = employment
     }
 
-    internal fun offer(act: ActId, at: ElementId) {
-        offered[act] = at
+    internal fun offer(act: Act, at: ElementId) {
+        offered[act.id] = act to at
     }
 
     internal fun markGate(id: ElementId) {
@@ -150,7 +159,7 @@ class ElementRegistry {
      * not compute, a grouping it did not impose.
      */
     fun jobsOf(id: ElementId): Set<Job> = buildSet {
-        if (offered.values.any { it == id }) add(Job.Invite)
+        if (offered.values.any { it.second == id }) add(Job.Invite)
         if (gateAddresses.containsKey(id)) {
             add(Job.Invite)
             add(Job.Locate)
@@ -179,8 +188,8 @@ class ElementRegistry {
      */
     fun census(): Census {
         val composed = placements.keys.toSet()
-        val offering = offered.filterValues { it in composed }
-        val invitingIds = offering.values.toSet()
+        val offering = offered.filterValues { it.second in composed }
+        val invitingIds = offering.values.map { it.second }.toSet()
 
         var content = 0
         var ambient = 0
@@ -196,16 +205,47 @@ class ElementRegistry {
 
         return Census(
             acts = offered.size,
-            reachable = offering.count { placements[it.value]?.visible == true },
+            reachable = offering.count { placements[it.value.second]?.visible == true },
             elements = composed.size,
             inviting = invitingIds.size,
             content = content,
             ambient = ambient,
-            unreachable = offered.filterValues { it !in composed }.keys.toList(),
+            unreachable = offered.filterValues { it.second !in composed }.keys.toList(),
             mute = composed.filter { id ->
                 id !in invitingIds && Job.Invite in jobsOf(id)
             },
         )
+    }
+
+    /**
+     * Everything the framework knows about this surface, for something that will be shown only the
+     * pixels.
+     *
+     * This is the half a screenshot cannot contain, and the reason grading a naive viewer is
+     * possible at all: the framework holds the answers, so the gap between what a first-time
+     * observer predicts and what is actually true can be measured rather than guessed at.
+     */
+    fun auditFrame(surface: String): AuditFrame {
+        val byElement = offered.values.associateBy { it.second }
+        val elements = placements.map { (id, placement) ->
+            val act = byElement[id]?.first
+            AuditElement(
+                id = id,
+                left = placement.bounds.left,
+                top = placement.bounds.top,
+                width = placement.bounds.width,
+                height = placement.bounds.height,
+                visible = placement.visible,
+                act = act?.id,
+                verb = act?.verb,
+                consequence = act?.consequence?.let { "${act.verb} -> ${it.target}" },
+                weight = act?.weight,
+                reversible = act?.reversible == true,
+                blocked = act?.state() is ActState.Blocked,
+                jobs = jobsOf(id),
+            )
+        }
+        return AuditFrame(surface = surface, census = census(), elements = elements)
     }
 
     internal fun forget(id: ElementId) {
