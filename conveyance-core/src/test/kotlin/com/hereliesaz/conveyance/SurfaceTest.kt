@@ -1,6 +1,7 @@
 package com.hereliesaz.conveyance
 
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
@@ -56,17 +57,25 @@ class SurfaceTest {
         assertTrue(true, "Construction did not throw.")
     }
 
+    /**
+     * The old defect was a `Map<Channel, Meaning>` that could pair a channel with the wrong
+     * meaning. A `Set<Channel>` has no second value to get wrong: there is no runtime check to
+     * write here, because there is no longer any expression that could fail one. What *is*
+     * checkable is that reading a declared channel's meaning back out still gives the one true
+     * answer — not a tautology about the element, but the actual bijection [ChannelTest] proves
+     * elsewhere, exercised through the type this test is about.
+     */
     @Test
     fun `a channel can only ever mean what it carries, because there is nowhere left to say otherwise`() {
-        // The old defect was a Map<Channel, Meaning> that could pair a channel with the wrong
-        // meaning. A Set<Channel> has no second value to get wrong -- Opacity in the set means
-        // exactly Meaning.TransitionOnly, because that is the only meaning Opacity carries.
         val element = DeclaredElement(
             ElementId("a"),
             Employment.Working(Job.Invite, Job.Report),
             channels = setOf(Channel.Opacity, Channel.Elevation),
         )
-        assertTrue(Channel.Opacity in element.channels)
-        assertTrue(element.channels.all { it.carries == it.carries }, "Tautological, and that is the point.")
+        assertEquals(
+            setOf(Meaning.TransitionOnly, Meaning.Reversibility),
+            element.channels.map { it.carries }.toSet(),
+            "Opacity means transition-only and Elevation means reversibility -- nothing else is reachable.",
+        )
     }
 }

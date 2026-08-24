@@ -37,10 +37,16 @@ class AuditReportTest {
         assertEquals(0.5f, report.predictable)
     }
 
+    /**
+     * An empty verdict list means one of two very different things — a surface with nothing
+     * interactive on it, or a judge that was asked and said nothing useful — and [AuditReport]
+     * cannot tell which just by looking at the list. `predictable` reports that honestly, as
+     * `null`, rather than picking one of the two meanings and reporting a fabricated perfect score.
+     */
     @Test
-    fun `a surface nobody could read is not a surface with no verdicts`() {
+    fun `nothing to grade is reported as nothing, not as a perfect score`() {
         val silent = AuditReport("empty", emptyList(), emptyList())
-        assertEquals(1f, silent.predictable, "Nothing to predict is not a failure to predict.")
+        assertEquals(null, silent.predictable, "There is no fraction to compute here.")
         assertEquals(0, silent.misleading)
     }
 

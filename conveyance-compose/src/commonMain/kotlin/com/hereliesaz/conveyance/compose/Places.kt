@@ -21,6 +21,8 @@ import androidx.compose.ui.unit.Constraints
 import com.hereliesaz.conveyance.Place
 import com.hereliesaz.conveyance.PlaceId
 import com.hereliesaz.conveyance.Weight
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /**
  * Where a person is, and how they got there.
@@ -71,7 +73,19 @@ class PlacesState internal constructor(root: Place) {
     internal val beneath: Place?
         get() = if (receding != null) stack.lastOrNull() else stack.getOrNull(stack.lastIndex - 1)
 
-    internal suspend fun enter(place: Place, weight: Weight) {
+    /**
+     * Serializes [enter] and [back].
+     *
+     * Both are `suspend` and both mutate [stack], [extent] and [receding] across several
+     * suspension points. Nothing about a system back gesture guarantees it cannot land while a
+     * person's own tap is still mid-[enter] -- and two interleaved writers driving one
+     * [Animatable] and one stack is not a state a person could ever have asked for, just one nobody
+     * ruled out. A journey is serialized the way an act already is: the second one waits, rather
+     * than the two of them corrupting each other's motion.
+     */
+    private val inFlight = Mutex()
+
+    internal suspend fun enter(place: Place, weight: Weight): Unit = inFlight.withLock {
         stack += place
         extent.snapTo(0f)
         extent.animateTo(1f, Motion.spec(weight))
@@ -83,14 +97,14 @@ class PlacesState internal constructor(root: Place) {
      * Returning false rather than throwing lets a host decide what a back gesture means at the
      * root, which is a question about the product rather than about this framework.
      */
-    suspend fun back(weight: Weight = Weight.Heavy): Boolean {
-        if (stack.size <= 1) return false
+    suspend fun back(weight: Weight = Weight.Heavy): Boolean = inFlight.withLock {
+        if (stack.size <= 1) return@withLock false
         receding = stack.removeAt(stack.lastIndex)
         extent.snapTo(1f)
         extent.animateTo(0f, Motion.spec(weight))
         receding = null
         extent.snapTo(1f)
-        return true
+        true
     }
 }
 
@@ -128,30 +142,36 @@ fun Places(
             val origin = moving.origin?.let { registry.anchor(it) }
             val extent = places.extent.value
 
-            if (origin == null || extent >= 1f || window.isEmpty) {
+            // One call site for content(moving), always -- the branch decides which Modifier to
+            // hand it, never which composable to call. The first version branched on an if/else
+            // around two textually distinct `Box { content(moving) }` calls, and Compose groups a
+            // branch by its source position: the instant extent crossed 1f the whole subtree the
+            // person had just arrived at was disposed under the abandoned branch and rebuilt fresh
+            // under the other one, silently resetting any local state inside it (scroll position,
+            // focus, an in-progress field) at the exact moment Law 2 promises continuity. A
+            // Modifier is just a value; swapping which one a single call site receives does not
+            // restructure the composition, so the subtree is never torn down.
+            val motion = if (origin == null || extent >= 1f || window.isEmpty) {
                 // Nothing to grow from, or already arrived. A root place is always simply here.
-                Box(Modifier.fillMaxSize()) { content(moving) }
+                Modifier.fillMaxSize()
             } else {
-                Box(
-                    Modifier.layout { measurable, _ ->
-                        val left = lerp(origin.left, window.left, extent)
-                        val top = lerp(origin.top, window.top, extent)
-                        val width = lerp(origin.width, window.width, extent)
-                        val height = lerp(origin.height, window.height, extent)
-                        val placeable = measurable.measure(
-                            Constraints.fixed(
-                                width.toInt().coerceAtLeast(1),
-                                height.toInt().coerceAtLeast(1),
-                            ),
-                        )
-                        layout(placeable.width, placeable.height) {
-                            placeable.place(left.toInt(), top.toInt())
-                        }
-                    },
-                ) {
-                    content(moving)
+                Modifier.layout { measurable, _ ->
+                    val left = lerp(origin.left, window.left, extent)
+                    val top = lerp(origin.top, window.top, extent)
+                    val width = lerp(origin.width, window.width, extent)
+                    val height = lerp(origin.height, window.height, extent)
+                    val placeable = measurable.measure(
+                        Constraints.fixed(
+                            width.toInt().coerceAtLeast(1),
+                            height.toInt().coerceAtLeast(1),
+                        ),
+                    )
+                    layout(placeable.width, placeable.height) {
+                        placeable.place(left.toInt(), top.toInt())
+                    }
                 }
             }
+            Box(motion) { content(moving) }
         }
     }
 }

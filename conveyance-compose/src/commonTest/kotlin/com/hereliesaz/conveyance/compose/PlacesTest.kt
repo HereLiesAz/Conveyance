@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -211,6 +212,179 @@ class PlacesTest {
 
         assertFalse(went, "Backing out of the root should report that there was nowhere to go.")
         assertEquals(1, reach.state().depth, "The root must survive a back gesture.")
+    }
+
+    /**
+     * The claim continuity actually rests on: a place surviving the transition it is having.
+     *
+     * The first version of [Places] rendered the moving place from two textually distinct
+     * `Box { content(moving) } ` call sites -- one for mid-transition, one for settled -- chosen
+     * by an `if`/`else`. Compose groups a branch by its source position, so the instant `extent`
+     * crossed 1f and the branch flipped, the entire subtree the person had just arrived at was
+     * disposed and rebuilt fresh: any `remember` inside it -- scroll position, focus, an
+     * in-progress field -- reset at the exact moment Law 2 promises continuity. This counts how
+     * many times a `remember { }` block inside the entered place actually runs its initializer; it
+     * must run exactly once, however many frames the transition takes.
+     */
+    @Test
+    fun `local state inside the entered place survives the settle transition`() = runComposeUiTest {
+        var initializerRuns = 0
+        val reach = Reach()
+        val registry = ElementRegistry()
+        setContent {
+            CompositionLocalProvider(
+                LocalElements provides registry,
+                LocalPractice provides Practice(),
+                LocalGhosts provides Ghosts(),
+            ) {
+                reach.scope = rememberCoroutineScope()
+                Box(Modifier.size(400.dp)) {
+                    Places(root = Place.root("home")) { place ->
+                        reach.places = LocalPlaces.current
+                        if (place.isRoot) {
+                            Box(Modifier.size(80.dp).element(card))
+                        } else {
+                            remember { initializerRuns++ }
+                        }
+                    }
+                }
+            }
+        }
+        waitForIdle()
+        mainClock.autoAdvance = false
+
+        runOnUiThread { reach.run { reach.state().enter(detail, Weight.Heavy) } }
+        // Drive well past the point the transition settles.
+        repeat(200) {
+            mainClock.advanceTimeBy(16)
+            waitForIdle()
+        }
+
+        assertEquals(
+            1,
+            initializerRuns,
+            "remember{} ran $initializerRuns times; the entered place's subtree was torn down " +
+                "and rebuilt when the transition settled, rather than surviving it.",
+        )
+    }
+
+    /**
+     * A back gesture landing while a person's own tap is still mid-[PlacesState.enter] is not
+     * exotic timing — a system back button and a UI tap are two independent input sources with no
+     * shared clock. Both [PlacesState.enter] and [PlacesState.back] are `suspend` and both mutate
+     * the same stack, [PlacesState.extent] and `receding` across several suspension points; with
+     * nothing serializing them, an interleaved [PlacesState.back] and [PlacesState.enter] could
+     * corrupt each other's motion. This launches both as close to simultaneously as the coroutine
+     * scheduler allows and asserts the outcome is the one coherent, sequential result rather than
+     * a corrupted depth.
+     */
+    @Test
+    fun `a back gesture landing mid-enter does not corrupt the stack`() = runComposeUiTest {
+        val reach = Reach()
+        host(reach) { Alignment.BottomEnd }
+        waitForIdle()
+        mainClock.autoAdvance = false
+
+        val second = Place.from("second", origin = card, subject = SubjectId("photo.2"))
+
+        runOnUiThread { reach.run { reach.state().enter(detail, Weight.Heavy) } }
+        repeat(80) { mainClock.advanceTimeBy(16); waitForIdle() }
+        assertEquals(2, reach.state().depth, "Precondition: one place deep before the race.")
+
+        // Launched back-to-back, before either has had a chance to run past its first suspension
+        // point -- the scenario a Mutex exists to serialize rather than leave to scheduling luck.
+        runOnUiThread {
+            reach.run { reach.state().back(Weight.Heavy) }
+            reach.run { reach.state().enter(second, Weight.Heavy) }
+        }
+        repeat(200) { mainClock.advanceTimeBy(16); waitForIdle() }
+
+        assertEquals(
+            2,
+            reach.state().depth,
+            "One place removed, one added: the net depth is unambiguous however they interleaved.",
+        )
+        assertEquals(
+            second.id,
+            reach.state().current.id,
+            "back() must have finished -- home on top, receding cleared -- before enter() started " +
+                "mutating the same stack, or this would land somewhere else entirely.",
+        )
+    }
+
+    /**
+     * The scenario `anchor()` and the whole tenancy rework exist for, and the one no other test
+     * exercised: a detail place that shows the same subject as the element it grew out of, so both
+     * legitimately answer to the identical [ElementId] -- the real shape of the Gallery demo, where
+     * a thumbnail and its detail portrait both register `subjectElement(subject)`. Asking the
+     * ordinary "where is this address" question here would have the geometry resolve to the moving
+     * place's own bounds and chase its own tail; `anchor()` has to reach *underneath* it, to the
+     * thumbnail, instead.
+     */
+    @Test
+    fun `a place grows from the thumbnail underneath it, even when both share one address`() = runComposeUiTest {
+        val shared = ElementId("subject:photo.1")
+        val detailPlace = Place.from("detail", origin = shared, subject = SubjectId("photo.1"))
+        val reach = Reach()
+        var registry: ElementRegistry? = null
+
+        setContent {
+            val local = remember { ElementRegistry() }
+            registry = local
+            CompositionLocalProvider(
+                LocalElements provides local,
+                LocalPractice provides Practice(),
+                LocalGhosts provides Ghosts(),
+            ) {
+                reach.scope = rememberCoroutineScope()
+                Box(Modifier.size(400.dp)) {
+                    Places(root = Place.root("tray")) { place ->
+                        reach.places = LocalPlaces.current
+                        if (place.isRoot) {
+                            Box(Modifier.fillMaxSize()) {
+                                Box(Modifier.align(Alignment.BottomEnd).size(80.dp).element(shared))
+                            }
+                        } else {
+                            // The detail place answers to the SAME address as the thumbnail above.
+                            Box(Modifier.fillMaxSize().element(shared))
+                        }
+                    }
+                }
+            }
+        }
+        mainClock.autoAdvance = false
+        waitForIdle()
+
+        val thumbnail = requireNotNull(registry).bounds(shared)!!
+        runOnUiThread { reach.run { reach.state().enter(detailPlace, Weight.Heavy) } }
+        mainClock.advanceTimeBy(16)
+        waitForIdle()
+
+        val born = requireNotNull(registry).bounds(shared)!!
+        assertTrue(
+            abs(born.width - thumbnail.width) < thumbnail.width * 0.35f,
+            "The place should be born the size of the thumbnail underneath it, not chase its own " +
+                "claim on the same address (thumbnail=${thumbnail.width}, born=${born.width}).",
+        )
+
+        // Advance well past the first frame, into the middle of the growth -- at extent 0 the
+        // detail's own just-written bounds are numerically indistinguishable from the thumbnail's
+        // (lerp at t=0 reproduces its input bit-for-bit), so only once extent has genuinely moved
+        // does "the tenant underneath" and "the newest tenant" actually diverge and this become a
+        // real test rather than a coincidence.
+        repeat(10) { mainClock.advanceTimeBy(16); waitForIdle() }
+
+        // By now the detail has composed and claimed `shared` too, so the address has two tenants
+        // -- exactly the state anchor() exists to resolve correctly. Asked directly, it must still
+        // answer with the stable thumbnail underneath, not the detail's own just-written bounds:
+        // the newest tenant asking "where is my address" would otherwise be answered with itself.
+        assertEquals(
+            thumbnail,
+            requireNotNull(registry).anchor(shared),
+            "anchor() must resolve to the tenant underneath, not the newest one -- which, once the " +
+                "detail has composed and moved on from the thumbnail's size, is its own claim on " +
+                "the address it shares with the thumbnail.",
+        )
     }
 
     private fun Offset.distanceTo(other: Offset): Float = (this - other).getDistance()

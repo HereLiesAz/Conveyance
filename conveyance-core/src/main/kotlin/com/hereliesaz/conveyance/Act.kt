@@ -99,7 +99,9 @@ class Act private constructor(
          *
          * There is no overload for a place with no antecedent. A teleport leaves a person needing a
          * breadcrumb trail — in words — to rebuild the map they just lost, and [Place.root] is the
-         * only exception, which is not entered because it is where they begin.
+         * only exception, which is not entered because it is where they begin. [Consequence.Enter]
+         * refuses a root place in its own `init`, so this fails at construction rather than at
+         * whatever later reads [Consequence.target] -- an audit, a render, anything downstream.
          */
         fun enter(
             id: String,

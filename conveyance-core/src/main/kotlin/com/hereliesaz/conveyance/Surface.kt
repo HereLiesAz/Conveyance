@@ -20,14 +20,20 @@ enum class Rank { Primary, Secondary, Tertiary }
 @JvmInline
 value class Label(val text: String) {
     init {
-        val words = text.trim().split(Regex("\\s+")).filter { it.isNotBlank() }
+        // \p{Zs} is the Unicode "space separator" category -- U+00A0 (non-breaking space) and its
+        // relatives among them. Plain \s is ASCII-only on the JVM, and a label built from pasted
+        // text is exactly where a non-breaking space shows up: it would fuse two words into one
+        // opaque token, hiding both the true word count and any TELLS word inside it.
+        val words = text.trim().split(Regex("[\\s\\p{Zs}]+")).filter { it.isNotBlank() }
         require(words.isNotEmpty()) { "A label cannot be blank." }
         require(words.size <= 4) {
             "\"$text\" is ${words.size} words. Name the thing or the act; if behaviour cannot carry " +
                 "the meaning, the design needs changing rather than captioning."
         }
-        require(text.trim().lastOrNull() !in setOf('.', '!', '?')) {
-            "\"$text\" ends as a sentence. A label names; it does not narrate."
+        // Anywhere in the string, not just the last character. "Save. Exit" is two sentences
+        // wearing one label; checking only the final character let it through.
+        require(text.none { it in SENTENCE_ENDS }) {
+            "\"$text\" reads as a sentence. A label names; it does not narrate."
         }
         val tells = words.any { it.trim(',', '.', '!', '?').lowercase() in TELLS }
         require(!tells) { "\"$text\" tells the person what to do. Name the thing or the act instead." }
@@ -36,6 +42,8 @@ value class Label(val text: String) {
     override fun toString() = text
 
     private companion object {
+        val SENTENCE_ENDS = setOf('.', '!', '?')
+
         /** Words that address the reader directly rather than naming a thing. */
         val TELLS = setOf(
             "tap", "click", "press", "swipe", "drag", "select", "choose", "enter",

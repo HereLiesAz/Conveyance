@@ -143,4 +143,46 @@ class OfferTest {
         assertEquals(1, practice.count(send.id))
         assertFalse(scope!!.owesTell, "Once done, the Tell is spent and must not repeat.")
     }
+
+    /**
+     * The other half of the Escort: the emphasis is supposed to stop once the person has acted on
+     * the thing it carried them to, not linger forever as a stale pointer nobody clears.
+     */
+    @Test
+    fun `acting on the escorted-to element settles its own articulation`() = runComposeUiTest {
+        val registry = ElementRegistry()
+        val practice = Practice()
+        val chosen = mutableStateOf(false)
+        val gate = Gate("recipient.chosen", livesAt = field) { chosen.value }
+        val send = Act.send("invoice.send", invoice, avatar, requires = listOf(gate))
+        val choose = Act.alter("recipient.choose", invoice, "recipient", field) {
+            chosen.value = true
+            com.hereliesaz.conveyance.Outcome.Done
+        }
+        var reaching: ActScope? = null
+        var choosing: ActScope? = null
+
+        setContent {
+            CompositionLocalProvider(LocalElements provides registry, LocalPractice provides practice) {
+                Column {
+                    Offer(send) { reaching = this; Box(Modifier.size(40.dp)) }
+                    Offer(choose, element = field) { choosing = this; Box(Modifier.size(40.dp)) }
+                }
+            }
+        }
+        waitForIdle()
+
+        runOnUiThread { requireNotNull(reaching).engage() }
+        waitForIdle()
+        assertEquals(field, registry.articulating, "The escort should have landed here.")
+
+        runOnUiThread { requireNotNull(choosing).engage() }
+        waitForIdle()
+
+        assertEquals(
+            null,
+            registry.articulating,
+            "Acting on the escorted-to element should settle its own emphasis.",
+        )
+    }
 }

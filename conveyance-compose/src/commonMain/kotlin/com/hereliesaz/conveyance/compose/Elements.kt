@@ -267,6 +267,7 @@ class ElementRegistry {
             mute = composed.filter { id ->
                 id !in invitingIds && Job.Invite in jobsOf(id)
             },
+            contested = composed.filter { id -> (tenancy[id]?.size ?: 0) > 1 },
         )
     }
 

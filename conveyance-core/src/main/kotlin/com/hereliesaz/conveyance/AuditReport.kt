@@ -51,9 +51,21 @@ data class AuditReport(
     val wrong: Int get() = verdicts.count { it.grade == Grade.Wrong }
     val noIdea: Int get() = verdicts.count { it.grade == Grade.NoIdea }
 
-    /** Right answers as a fraction. Reported, never a gate — see [misleading]. */
-    val predictable: Float
-        get() = if (verdicts.isEmpty()) 1f else right.toFloat() / verdicts.size
+    /**
+     * Right answers as a fraction of everything predicted — or `null` when there is nothing to
+     * compute a fraction over.
+     *
+     * Deliberately not defaulted to a number. A surface with nothing interactive and a judge that
+     * returned no predictions at all produce the identical empty [verdicts] list, and collapsing
+     * that ambiguity into `1f` would report "flawlessly predictable" for a case that might just as
+     * well mean nothing was learned — the same mistake this framework already refuses to make at
+     * the harness level, where "nobody looked" and "somebody looked and found nothing wrong" are
+     * kept as opposite results rather than folded into one silent pass.
+     *
+     * Reported, never a gate — see [misleading].
+     */
+    val predictable: Float?
+        get() = verdicts.takeIf { it.isNotEmpty() }?.let { right.toFloat() / it.size }
 
     /**
      * The number worth acting on.

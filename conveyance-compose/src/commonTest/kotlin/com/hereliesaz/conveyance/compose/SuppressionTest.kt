@@ -65,6 +65,12 @@ class SuppressionTest {
         assertNull(registry.articulating, "Held, not merely delayed by one frame.")
 
         dragging.value = false
+        // Short of the 200ms settle window -- if the carry ignored the settle window entirely
+        // and fired the instant the gesture ended, this is exactly where it would be caught.
+        mainClock.advanceTimeBy(80L)
+        waitForIdle()
+        assertNull(registry.articulating, "The gesture just ended; the settle window has not passed yet.")
+
         mainClock.advanceTimeBy(1_000L)
         waitForIdle()
 

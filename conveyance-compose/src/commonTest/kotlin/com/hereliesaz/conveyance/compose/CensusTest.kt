@@ -169,4 +169,38 @@ class CensusTest {
         assertEquals(1, registry.census().acts)
         assertTrue(registry.bounds(ElementId("absent")) == null)
     }
+
+    /**
+     * Tenancy exists so a place transition can let a detail place share its subject's address with
+     * the thumbnail it grew out of -- but nothing about the mechanism itself distinguishes that from
+     * two unrelated elements that happened to pick the same [ElementId] by accident. Before tenancy,
+     * a flat map made that mistake invisible by construction: the second registration silently won.
+     * Tenancy without a report would have made it invisible on purpose. It is reported instead.
+     */
+    @Test
+    fun `two unrelated elements sharing one address are reported as contested`() = runComposeUiTest {
+        val registry = ElementRegistry()
+        val collided = ElementId("card")
+
+        setContent {
+            host(registry) {
+                Column {
+                    Box(Modifier.size(40.dp).element(collided))
+                    Box(Modifier.size(40.dp).element(collided))
+                }
+            }
+        }
+        waitForIdle()
+
+        val census = registry.census()
+        assertTrue(census.hasContestedAddresses)
+        assertContains(census.contested, collided)
+        assertEquals(
+            1,
+            census.elements,
+            "One address is still one composed element by count, however many things answer to it -- " +
+                "which is exactly why it needs its own report rather than showing up as a shortfall " +
+                "in a count nobody would think to double-check.",
+        )
+    }
 }
