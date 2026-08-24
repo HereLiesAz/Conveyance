@@ -16,7 +16,7 @@ class ConscienceTest {
         chrome: List<Label> = emptyList(),
     ) = DeclaredElement(
         id = id,
-        employment = Employment.Working(Job.Invite, Job.Report),
+        employment = Employment.Working(Job.Invite, Job.Report, Job.Interrupt),
         rank = rank,
         chrome = chrome,
     )

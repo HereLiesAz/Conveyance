@@ -13,7 +13,7 @@ import kotlin.test.assertTrue
 class SurfaceTest {
 
     private fun element(id: String, rank: Rank) =
-        DeclaredElement(ElementId(id), Employment.Working(Job.Invite, Job.Report), rank = rank)
+        DeclaredElement(ElementId(id), Employment.Working(Job.Invite, Job.Report, Job.Interrupt), rank = rank)
 
     @Test
     fun `two primaries on a surface cannot be constructed`() {
@@ -69,7 +69,7 @@ class SurfaceTest {
     fun `a channel can only ever mean what it carries, because there is nowhere left to say otherwise`() {
         val element = DeclaredElement(
             ElementId("a"),
-            Employment.Working(Job.Invite, Job.Report),
+            Employment.Working(Job.Invite, Job.Report, Job.Interrupt),
             channels = setOf(Channel.Opacity, Channel.Elevation),
         )
         assertEquals(
