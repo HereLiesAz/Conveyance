@@ -17,7 +17,7 @@ coroutines = "1.11.0"
 detekt = "1.23.8"
 # The auditor calls Claude to run the two rules no structural check can settle.
 anthropic = "2.57.0"
-jackson = "2.19.4"
+jackson = "2.22.2"
 jvmToolchain = "21"
 
 [libraries]
