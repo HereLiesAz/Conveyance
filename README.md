@@ -27,7 +27,7 @@ That's bad conveyance.
 
 By contrast, there are games that, even when playing them for the first time, it all simply *clicks*. Nobody hands you a manual. No text boxes pop up to explain the rules. Yet, somehow, you know exactly what to do. The environment subtly guides your hand. Doing something instantly confirms you are on the right track and naturally leads you to what's next. You don't feel you are being taught; you feel like you're just doing it, and you know how to do it. It is an invisible, effortless flow that makes you feel smart, competent, and completely in control.
 
-I have Arin Hanson to thank for explaining all of this, and his example of excellent conveyance is Megaman X. Classic Megaman does it too. Portal and Portal 2 are pretty good at conveying what needs to be done in the same way. Another game, Stanley: a Postmodern Parable, was explicitly designed to play with the concept and leave you feeling nihilistic in the process.
+I have Arin Hanson aka [Egoraptor](https://www.youtube.com/watch?v=8FpigqfcvlM) to thank for explaining all of this, and his example of excellent conveyance is Megaman X. Classic Megaman does it too. Portal and Portal 2 are pretty good at conveying what needs to be done in the same way. Another game, Stanley: a Postmodern Parable, was explicitly designed to play with the concept and leave you feeling nihilistic in the process.
 
 Most people absolutely recognize this feeling when they experience it. Unfortunately, experiencing it is incredibly rare.
 
