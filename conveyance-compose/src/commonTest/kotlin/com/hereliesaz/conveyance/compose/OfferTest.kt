@@ -8,7 +8,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.runComposeUiTest
@@ -23,6 +25,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 @OptIn(ExperimentalTestApi::class)
@@ -184,5 +187,47 @@ class OfferTest {
             registry.articulating,
             "Acting on the escorted-to element should settle its own emphasis.",
         )
+    }
+
+    /**
+     * The same act legitimately offered from two elements at once -- a list row and the detail
+     * place growing out of it, mid-transition, the identical reason element addresses are
+     * tenanted rather than owned ([ElementRegistry]'s own `tenancy`). Before this was tenanted the
+     * same way, [ElementRegistry.offer]/[ElementRegistry.withdraw] shared one flat entry per
+     * [com.hereliesaz.conveyance.ActId]: the second `Offer` to mount silently overwrote the first's
+     * claim, and *either one* leaving the composition erased the entry outright -- even while the
+     * other was still mounted and still offering it.
+     */
+    @Test
+    fun `one of two offers on the same act leaving does not erase the surviving one`() = runComposeUiTest {
+        val registry = ElementRegistry()
+        val send = Act.send("invoice.send", invoice, avatar)
+        val rowElement = ElementId("row.invoice.41")
+        val detailElement = ElementId("detail.invoice.41")
+        var rowPresent by mutableStateOf(true)
+
+        setContent {
+            CompositionLocalProvider(LocalElements provides registry) {
+                Column {
+                    if (rowPresent) Offer(send, element = rowElement) { Box(Modifier.size(40.dp)) }
+                    Offer(send, element = detailElement) { Box(Modifier.size(40.dp)) }
+                }
+            }
+        }
+        waitForIdle()
+        assertNotNull(
+            registry.offering(detailElement),
+            "The detail's own Offer should be registered before the row ever leaves.",
+        )
+
+        rowPresent = false
+        waitForIdle()
+
+        assertNotNull(
+            registry.offering(detailElement),
+            "The row's Offer left the composition, but the detail's Offer for the identical act " +
+                "is still mounted; its registration must survive the row's departure.",
+        )
+        assertEquals(1, registry.census().acts, "One act, still offered once, however many claimed it.")
     }
 }

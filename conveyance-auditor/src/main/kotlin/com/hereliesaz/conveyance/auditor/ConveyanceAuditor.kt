@@ -45,20 +45,33 @@ class ConveyanceAuditor(
      * @param frame what is actually true, which the viewer never sees.
      */
     fun audit(png: ByteArray, frame: AuditFrame): AuditReport {
-        val predictions = predict(png)
-        return grade(predictions, frame)
+        val naive = predict(png)
+        return grade(naive, frame)
     }
 
+    /**
+     * What the naive viewer said, in their own words, before the truth arrives: what they expect
+     * ([Naive.predictions]) and what they'd want to know before touching anything
+     * ([Naive.missing]). Kept as one pass-one result rather than two calls, since both come out of
+     * the same single, truth-blind look at [png].
+     */
+    private data class Naive(val predictions: List<Prediction>, val missing: List<String>)
+
     /** Pass one. Pixels in, expectations out. Nothing else crosses this boundary. */
-    private fun predict(png: ByteArray): List<Prediction> = parse(judge.look(png, PREDICT))
+    private fun predict(png: ByteArray): Naive = parse(judge.look(png, PREDICT))
 
     /** Pass two. The truth arrives only now, and only to judge an answer already given. */
-    private fun grade(predictions: List<Prediction>, frame: AuditFrame): AuditReport {
+    private fun grade(naive: Naive, frame: AuditFrame): AuditReport {
         val truth = json.writeValueAsString(frame)
-        val guesses = json.writeValueAsString(predictions)
+        val guesses = json.writeValueAsString(naive.predictions)
+        val wished = json.writeValueAsString(naive.missing)
         // No image on this pass. The grader is weighing an answer already committed to, and showing
         // it the screen would only invite it to form its own opinion and mark against that.
-        val text = judge.look(null, "$GRADE\n\nWHAT THEY SAID:\n$guesses\n\nWHAT IS TRUE:\n$truth")
+        val text = judge.look(
+            null,
+            "$GRADE\n\nWHAT THEY SAID:\n$guesses\n\n" +
+                "WHAT THEY SAID THEY WISHED THEY KNEW:\n$wished\n\nWHAT IS TRUE:\n$truth",
+        )
         val parsed = json.readTree(strip(text))
         val verdicts = parsed.path("verdicts").map { node ->
             Verdict(
@@ -73,14 +86,18 @@ class ConveyanceAuditor(
         return AuditReport(frame.surface, verdicts, omissions, judge.name)
     }
 
-    private fun parse(text: String): List<Prediction> =
-        json.readTree(strip(text)).path("predictions").map { node ->
+    private fun parse(text: String): Naive {
+        val node = json.readTree(strip(text))
+        val predictions = node.path("predictions").map { prediction ->
             Prediction(
-                where = node.path("where").asText(""),
-                expectation = node.path("expectation").asText(""),
-                certain = node.path("certain").asBoolean(false),
+                where = prediction.path("where").asText(""),
+                expectation = prediction.path("expectation").asText(""),
+                certain = prediction.path("certain").asBoolean(false),
             )
         }
+        val missing = node.path("missing").map { it.asText() }
+        return Naive(predictions, missing)
+    }
 
     /** Models fence JSON more often than not, and a fence is not a parse error worth failing on. */
     private fun strip(text: String): String =
@@ -125,7 +142,10 @@ class ConveyanceAuditor(
 
             Then list omissions: anything in the truth that a person would need before acting and
             that the screen does not convey. An act that is Heavy or not reversible, where nothing
-            visible says so, is always an omission.
+            visible says so, is always an omission. You will also see what they said, unprompted
+            and before seeing any of this, that they wished they'd known -- fold whichever of
+            those turn out to genuinely be true, per what is actually true, into the omissions
+            list too; discard the rest.
 
             Reply with JSON only:
             {"verdicts":[{"element":"...","grade":"Right|Wrong|NoIdea","predicted":"...",

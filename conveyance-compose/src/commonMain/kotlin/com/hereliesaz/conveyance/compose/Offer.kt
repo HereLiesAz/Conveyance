@@ -112,14 +112,21 @@ fun Offer(
 
     var state by remember(act.id) { mutableStateOf<ActState>(ActState.Ready) }
 
+    // This call site's identity, which is what the registry tenants an ActId to -- the same
+    // pattern Modifier.element uses for ElementId. Two Offers may legitimately answer for the
+    // same act at once (a list row and the detail place growing out of it, mid-transition), and
+    // telling them apart is what stops one of them leaving the composition from wiping out a
+    // still-mounted sibling's registration.
+    val claim = remember(act.id) { Any() }
+
     // Registering the act against its element is what lets the surface be counted: how much is on
     // screen, against how much can be done there.
     DisposableEffect(registry, act.id, element) {
-        registry.offer(act, element)
+        registry.offer(act, element, claim)
         // A gate's address is doing a job -- it is where a person is carried when something is
         // missing -- and nobody should have to write that down.
         act.requires.forEach { registry.markGate(it.livesAt) }
-        onDispose { registry.withdraw(act.id) }
+        onDispose { registry.withdraw(act.id, claim) }
     }
 
     // The Refuse signature: resist at the point of contact, leaning toward the gate, before the
