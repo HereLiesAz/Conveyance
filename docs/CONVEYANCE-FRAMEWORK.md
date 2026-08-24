@@ -439,9 +439,9 @@ The framework's verification layer: static audits at build time, runtime asserti
 
 It is the least automatable check on the list and it is reported, never blocked, because no tool can tell which detail was necessary. What the tool can do is notice when an act with a Heavy weight or no inverse presents no perceivable signal of either, and say so.
 
-Audits 3, 4, 5, 8 and 10 are structural — they are consequences of required fields and of vocabulary that does not exist, so they mostly cannot be violated in the first place. Audits 1, 6, 7 and 9 are judgment calls the tool can only flag, not decide; they report and require an explicit, reviewed waiver rather than blocking.
+Audits 2, 6, 7 and 9 have since moved into the structural tier, in the Kotlin binding: chrome text is a `Label`, refused at construction if it reads as an instruction rather than a name; a `Surface` refuses a second primary; a `Product` refuses a keystone count outside 1–3; and a channel can only ever mean what it carries, because `DeclaredElement.channels` is a `Set<Channel>` rather than a map that could pair one against the wrong meaning. There is no longer anywhere to write the violation down, which is a stronger guarantee than a lint rule that merely flags one. Audits 3, 4, 5, 8 and 10 are structural for the same reason — consequences of required fields and of vocabulary that does not exist — though the platform-boundary checks among them (Orphan Feedback, Duration) mostly rather than always cannot be violated, since nothing stops a call straight past the binding into a platform API; closing that gap is what the compiler-plugin layer in Appendix C is for. Only audit 1, Idle Worker, remains a judgment call the tool can only flag, not decide; it reports and requires an explicit, reviewed waiver rather than blocking.
 
-**Surplusage, not surplus.** Twain's word is a legal term of art: matter that can be struck without affecting the validity of what remains. It is not a synonym for "extra" — it names extra *that carries nothing*, and by naming it that precisely it licenses the rest. So the audits that are judgements (1, 6, 7, 9, 11) do not block; they demand a reason. A waiver is accepted when it states what the element carries, and the stating is the whole cost. An absolute rule would have been "eschew surplus" — cruder, and not what he wrote.
+**Surplusage, not surplus.** Twain's word is a legal term of art: matter that can be struck without affecting the validity of what remains. It is not a synonym for "extra" — it names extra *that carries nothing*, and by naming it that precisely it licenses the rest. So the audits that remain judgements (1, 11) do not block; they demand a reason. A waiver is accepted when it states what the element carries, and the stating is the whole cost. An absolute rule would have been "eschew surplus" — cruder, and not what he wrote.
 
 **The Conscience obeys the Two-Sided Rule.** It never lectures. A failure names the element, names the law, and offers the compliant construction as a diff — it escorts the developer to the fix, exactly as §5.2 escorts the user to the gate. A build error that explains a philosophy is a tooltip, and this framework does not ship tooltips.
 
@@ -679,7 +679,7 @@ Notes on the binding:
 - `ActScope` exposes the current state, so a single lambda paints Ready, Blocked, Yielding, Settled and Refused. It is not possible to write a control that handles only one of them.
 - `ElementRef` is produced by a modifier, so origins and gate locations are real measured positions — Escort and Enter are geometry, not configuration.
 - The grammar lives in the runtime. Product code never names a spring.
-- The Conscience is a Kotlin compiler plugin plus a lint ruleset; audits 3, 4, 5, 8 and 10 are compile-time, the rest are lint.
+- The Conscience is a Kotlin compiler plugin plus a lint ruleset; audits 2, 3, 4, 5, 6, 7, 8, 9 and 10 are compile-time — 2, 6, 7 and 9 by construction (`Label`, `Surface`, `Product`, `DeclaredElement.channels`), the rest by the plugin — and 1 and 11 are lint.
 
 ---
 
