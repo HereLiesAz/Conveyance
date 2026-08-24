@@ -42,6 +42,7 @@ import com.hereliesaz.conveyance.compose.ConveyanceHost
 import com.hereliesaz.conveyance.compose.Motion
 import com.hereliesaz.conveyance.compose.Offer
 import com.hereliesaz.conveyance.compose.element
+import com.hereliesaz.conveyance.compose.subjectElement
 import com.hereliesaz.conveyance.compose.tell
 import com.hereliesaz.conveyance.compose.yielding
 import kotlinx.coroutines.delay
@@ -67,8 +68,12 @@ private val people = listOf(Person("mara", "M"), Person("ines", "I"), Person("ot
  * caption explains that, and none could explain it as well.
  */
 @Composable
-fun Gallery(initial: Int = 4) {
-    ConveyanceHost(modifier = Modifier.background(Look.ground)) {
+fun Gallery(
+    initial: Int = 4,
+    /** Passed only by the audit harness, so a screen can be graded from outside. */
+    registry: com.hereliesaz.conveyance.compose.ElementRegistry? = null,
+) {
+    ConveyanceHost(modifier = Modifier.background(Look.ground), registry = registry) {
         val photographs = remember {
             mutableStateListOf(*(1..initial).map { SubjectId("photo.$it") }.toTypedArray())
         }
@@ -86,12 +91,37 @@ fun Gallery(initial: Int = 4) {
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 people.forEach { person ->
-                    Face(
-                        person = person,
-                        chosen = chosen == person,
-                        heat = (received[person.id] ?: 0) / 4f,
-                        onChoose = { chosen = person },
-                    )
+                    // Choosing a recipient is an act, and has to be declared as one. The framework
+                    // caught this: the faces were tappable but modelled as nothing, so the census
+                    // reported an invitation with no act behind it and two faces accounted for by
+                    // nobody. A control the model does not know about cannot be conveyed, graded,
+                    // or undone.
+                    val choose = Act.alter(
+                        id = "recipient.choose.${person.id}",
+                        subject = SubjectId("recipient"),
+                        property = "recipient",
+                        target = person.element,
+                        scope = Scope.Detail,
+                        // Choosing someone else puts it back, so this costs nothing and should
+                        // feel like it costs nothing.
+                        inverse = Act.alter(
+                            id = "recipient.clear.${person.id}",
+                            subject = SubjectId("recipient"),
+                            property = "recipient",
+                            target = person.element,
+                        ),
+                    ) {
+                        chosen = person
+                        Outcome.Done
+                    }
+                    Offer(choose, element = person.element) {
+                        Face(
+                            person = person,
+                            chosen = chosen == person,
+                            heat = (received[person.id] ?: 0) / 4f,
+                            scope = this,
+                        )
+                    }
                 }
             }
 
@@ -124,7 +154,7 @@ fun Gallery(initial: Int = 4) {
                         recipient?.let { received[it.id] = (received[it.id] ?: 0) + 1 }
                         Outcome.Done
                     }
-                    Offer(send) { Photograph(subject, this) }
+                    Offer(send, element = subjectElement(subject)) { Photograph(subject, this) }
                 }
             }
         }
@@ -139,7 +169,7 @@ fun Gallery(initial: Int = 4) {
  * because shape carries state.
  */
 @Composable
-private fun Face(person: Person, chosen: Boolean, heat: Float, onChoose: () -> Unit) {
+private fun Face(person: Person, chosen: Boolean, heat: Float, scope: ActScope) {
     val engaged by animateFloatAsState(
         targetValue = if (chosen) 1f else 0f,
         animationSpec = Motion.spec(com.hereliesaz.conveyance.Weight.Light),
@@ -150,8 +180,8 @@ private fun Face(person: Person, chosen: Boolean, heat: Float, onChoose: () -> U
             .size(58.dp)
             .clip(RoundedCornerShape(percent = (50 - engaged * 18f).toInt()))
             .background(if (heat > 0f) Look.heat(heat) else Look.rank(Rank.Secondary))
-            .clickable { onChoose() }
-            .element(person.element),
+            .tell(scope.owesTell, scope.weight)
+            .clickable { scope.engage() },
         contentAlignment = Alignment.Center,
     ) {
         Text(
