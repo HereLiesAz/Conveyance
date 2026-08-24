@@ -21,7 +21,11 @@ import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.animation.core.Animatable
 import androidx.compose.ui.graphics.graphicsLayer
+import com.hereliesaz.conveyance.ActId
+import com.hereliesaz.conveyance.Census
 import com.hereliesaz.conveyance.ElementId
+import com.hereliesaz.conveyance.Employment
+import com.hereliesaz.conveyance.Job
 import com.hereliesaz.conveyance.SubjectId
 import com.hereliesaz.conveyance.Weight
 
@@ -76,6 +80,25 @@ class ElementRegistry {
     private val tokens = mutableMapOf<ElementId, @Composable () -> Unit>()
 
     /**
+     * What an element claims to be for, in the rare case it has to say.
+     *
+     * Declaration is the exception here, not the rule. A declared job is a label, and labels
+     * ossify: the element gains or loses behaviour, the label does not move, and the count quietly
+     * starts measuring the declaration instead of the thing. Worse, a two-job minimum invites
+     * everyone to write exactly two and stop thinking, which is how a parameter becomes a formality.
+     *
+     * So [jobsOf] derives what it can from what the framework already knows, and this map only
+     * carries what it cannot see.
+     */
+    private val employments = mutableStateMapOf<ElementId, Employment>()
+
+    /** Elements that are some gate's address. Where a person is carried when something is missing. */
+    private val gateAddresses = mutableStateMapOf<ElementId, Boolean>()
+
+    /** Which act each offered element is offering, so the two halves can be compared. */
+    private val offered = mutableStateMapOf<ActId, ElementId>()
+
+    /**
      * The element an escort has just delivered someone to, which that element renders as
      * articulation until it is dismissed.
      *
@@ -103,10 +126,93 @@ class ElementRegistry {
 
     internal fun token(id: ElementId): (@Composable () -> Unit)? = tokens[id]
 
+    internal fun employ(id: ElementId, employment: Employment) {
+        employments[id] = employment
+    }
+
+    internal fun offer(act: ActId, at: ElementId) {
+        offered[act] = at
+    }
+
+    internal fun markGate(id: ElementId) {
+        gateAddresses[id] = true
+    }
+
+    /**
+     * What an element is actually doing, worked out rather than asked for.
+     *
+     * Everything here is already known: an element backing an act invites; a gate's address is
+     * where an unmet condition gets resolved; an element with a travelling token is one a verb can
+     * carry. None of that should be typed by anyone, and an element is free to pick up and drop
+     * jobs as its surroundings change without a stale label contradicting it.
+     *
+     * The union with a declaration is for what the framework genuinely cannot see -- a value it did
+     * not compute, a grouping it did not impose.
+     */
+    fun jobsOf(id: ElementId): Set<Job> = buildSet {
+        if (offered.values.any { it == id }) add(Job.Invite)
+        if (gateAddresses.containsKey(id)) {
+            add(Job.Invite)
+            add(Job.Locate)
+        }
+        if (tokens.containsKey(id)) add(Job.Identify)
+        when (val declared = employments[id]) {
+            is Employment.Working -> addAll(declared.jobs)
+            else -> Unit
+        }
+    }
+
+    internal fun withdraw(act: ActId) {
+        offered.remove(act)
+    }
+
+    /**
+     * Count what is on screen against what can be done with it.
+     *
+     * Live, and free: the registry already knew every addressed element, and Offer already knew
+     * every act. Nothing here is new information -- the two halves simply had never been asked to
+     * compare notes.
+     *
+     * An element that has not declared what it is for counts as chrome. That is deliberate rather
+     * than punitive: undeclared is exactly the state of an element nobody has had to justify, and
+     * this measurement exists to find those.
+     */
+    fun census(): Census {
+        val composed = placements.keys.toSet()
+        val offering = offered.filterValues { it in composed }
+        val invitingIds = offering.values.toSet()
+
+        var content = 0
+        var ambient = 0
+        composed.forEach { id ->
+            if (id in invitingIds) return@forEach
+            if (employments[id] == Employment.Ambient) {
+                ambient++
+                return@forEach
+            }
+            val jobs = jobsOf(id)
+            if (jobs.any { it == Job.Identify || it == Job.Report }) content++
+        }
+
+        return Census(
+            acts = offered.size,
+            reachable = offering.count { placements[it.value]?.visible == true },
+            elements = composed.size,
+            inviting = invitingIds.size,
+            content = content,
+            ambient = ambient,
+            unreachable = offered.filterValues { it !in composed }.keys.toList(),
+            mute = composed.filter { id ->
+                id !in invitingIds && Job.Invite in jobsOf(id)
+            },
+        )
+    }
+
     internal fun forget(id: ElementId) {
         placements.remove(id)
         requesters.remove(id)
         tokens.remove(id)
+        employments.remove(id)
         if (articulating == id) articulating = null
     }
 
@@ -161,12 +267,20 @@ fun Modifier.element(
     id: ElementId,
     /** How to draw this element elsewhere, when a verb carries it across the window. */
     token: (@Composable () -> Unit)? = null,
+    /**
+     * What this element is for, *only* where the framework cannot work it out.
+     *
+     * Most elements should leave this null: backing an act, being a gate's address and carrying a
+     * travelling token are all derived. Declare only what is genuinely invisible from the model.
+     */
+    employment: Employment? = null,
 ): Modifier {
     val registry = LocalElements.current
     val requester = remember(id) { BringIntoViewRequester() }
-    DisposableEffect(registry, id, token) {
+    DisposableEffect(registry, id, token, employment) {
         registry.attach(id, requester)
         if (token != null) registry.attachToken(id, token)
+        if (employment != null) registry.employ(id, employment)
         onDispose { registry.forget(id) }
     }
 

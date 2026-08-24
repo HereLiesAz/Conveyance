@@ -115,6 +115,56 @@ Invest your time in making your most critical interactions sing<sup>[1](#works-c
 
 ---
 
+---
+
+## Twain's Rules, Which Were Design Mandates All Along
+
+In 1895 Mark Twain took eighteen rules of literary art and beat Fenimore Cooper to death with them. He was writing about prose. He was not writing about interfaces, because there weren't any.
+
+Read them anyway. Almost every one of them is a design mandate that has been sitting in plain sight for a hundred and thirty years, waiting for somebody to notice that a composable is a word, a screen is a sentence, and a user flow is a paragraph. Once you see that, Twain stops being a literary critic and starts being the most quotable UX reviewer who ever lived.
+
+Here they are, recounted as what they actually are.
+
+**A tale shall accomplish something and arrive somewhere.** So shall a screen. If a person can enter a flow and not come out the other side having done the thing they came to do, you have built a corridor with no room at the end of it.
+
+**The episodes shall be necessary parts of the tale, and shall help to develop it.** Every element is necessary *and* moves the person forward. Necessary alone is not enough — a thing can be needed and still be inert, and inert things are the ones standing around watching the one guy dig.
+
+**The personages shall be alive, except in the case of corpses, and the reader shall be able to tell the corpses from the others.** This is the one that corrects the zealots, and I was one of them. You may have dead controls. What you may not have is a control whose deadness is a mystery — a grey rectangle that might be broken, might be waiting on something, might be a label. If it's a corpse, let it look like a corpse. If it's alive but gated, that's a different thing entirely, and it should carry you to whatever is holding it back.
+
+**The personages shall exhibit a sufficient excuse for being there.** If you cannot say what an element is doing on the screen, it isn't.
+
+**When they talk, the talk shall sound like human talk, have a discoverable meaning and purpose, stay near the subject, and stop when there is nothing more to say.** Every word of that is a copy rule, and the last clause is the one nobody obeys. Interfaces do not stop talking. They have nothing more to say and they keep saying it.
+
+**When the author describes a personage, the conduct of that personage shall justify the description.** A button labelled "Save" saves. Not "syncs, eventually, if online." The label is a promise and the behaviour is the proof.
+
+**A personage's voice shall not change register mid-paragraph.** Your product does not get to be breezy on the empty state and legalistic in the error. Pick a voice; it is the same product either way.
+
+**Crass stupidities shall not be played off on the reader as craft.** A five-step wizard for a two-field form is not thoroughness. A confirmation dialog is not safety. Do not dress up a failure of design as diligence and expect the person to thank you for it.
+
+**The personages shall confine themselves to possibilities.** Do not offer what you cannot do. An enabled control that fails on principle is a lie told in advance.
+
+**The characters shall be so clearly defined that the reader can tell beforehand what each will do in a given emergency.** *This is conveyance.* Twain got there first and said it better than I did. And it is the only rule on this list that is a genuine test: point at a control the person has never touched and ask what it will do. If they can tell you, you're done. If they can't, nothing else on this page will save you.
+
+**Say what you are proposing to say, not merely come near it.** The element does the thing. It does not gesture at the thing and leave the person to finish the sentence.
+
+**Use the right word, not its second cousin.** Use the right component. A dialog where an inline edit belongs is the second cousin. So is a toast where a state change belongs.
+
+**Eschew surplusage.** And note that he did not write "eschew surplus," which is shorter and would have been the obvious joke. *Surplusage* is a legal term of art — it means matter that can be struck out without affecting the validity of what remains. That is a far better definition than "extra." Anything you could delete and lose nothing by deleting, delete. Anything you're keeping past that point, you must be able to say what it carries — and if you can't say it in a sentence, it wasn't carrying anything. The word permits its own exception, precisely, and only to whoever can name the reason.
+
+**Not omit necessary details.** The guard on the other side, and the one minimalists always skip. Stripping a screen until a person cannot tell what will happen to them is not restraint, it's concealment with better taste. Surplusage and omission are a matched pair. Twain guarded both edges. Guard both edges.
+
+**Avoid slovenliness of form.** Alignment, spacing, and shape are not decoration. Sloppiness reads as indifference, and indifference is a message.
+
+**Use good grammar.** Motion is your grammar. One meaning per signature, used everywhere, used for nothing else. A grammar with exceptions is not a grammar, and cannot be learned by watching.
+
+**Employ a simple and straightforward style.** Yes.
+
+And one rule you must **not** adopt, which is worth more than the ones you should:
+
+**"Make the reader love the good people and hate the bad ones."** In fiction that is craft. In an interface it is engineering someone's feelings toward the option you'd prefer they pick, and it has a name: the dark pattern. Conveyance tells people what things do. It does not tell them how to feel about them. Forcing all eighteen rules to fit would itself be surplusage — and getting caught doing that, in an essay about Twain, would be embarrassing.
+
+---
+
 ## The Core Philosophy: Compassionate Design
 
 Underpinning conveyance and resourceful minimalism is a profound commitment to the user. In the realm of UX design, it is crucial to recognize the distinct difference between empathy and compassion. Empathy is the ability to understand and share the feelings or frustrations of a user<sup>[6](#works-cited)</sup>. But empathy is a passive state. *Compassion* is the active desire and ensuing action taken to alleviate that frustration and improve the user's well-being<sup>[7](#works-cited)</sup>.
@@ -147,4 +197,5 @@ Give your users the benefit of the doubt. Trust their intrinsic ability to obser
 6. Designing with Empathy: The Heart of UX — [Creative & Creator](https://www.creativeandcreator.com/post/designing-with-empathy-the-heart-of-ux)
 7. Design Thinking – Empathy: The Key to Compassionate Design — [Cillion](https://cillionconsulting.com/design-thinking-empathy/)
 8. UX Design and Empathy, are we doing it right? — [DesignerUp](https://designerup.co/blog/ux-design-and-empathy/)
-9. Compassionate design: considerations that impact the users' dignity, empowerment and sense of security — [Cambridge Design Science](https://www.cambridge.org/core/journals/design-science/article/compassionate-design-considerations-that-impact-the-users-dignity-empowerment-and-sense-of-security/95275A041DDAE8BA31005C98E602857B)
+9. Fenimore Cooper's Literary Offenses — Mark Twain, 1895 — [twain.lib.virginia.edu](https://twain.lib.virginia.edu/projects/rissetto/offense.html)
+10. Compassionate design: considerations that impact the users' dignity, empowerment and sense of security — [Cambridge Design Science](https://www.cambridge.org/core/journals/design-science/article/compassionate-design-considerations-that-impact-the-users-dignity-empowerment-and-sense-of-security/95275A041DDAE8BA31005C98E602857B)

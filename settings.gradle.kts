@@ -20,3 +20,4 @@ dependencyResolutionManagement {
 include(":conveyance-core")
 include(":conveyance-compose")
 include(":conveyance-demo")
+include(":conveyance-auditor")

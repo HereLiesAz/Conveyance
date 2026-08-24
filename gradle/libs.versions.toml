@@ -15,6 +15,9 @@ minSdk = "24"
 coroutines = "1.11.0"
 # detekt: required by the KMP Security Pipeline workflow, which runs ./gradlew detekt.
 detekt = "1.23.8"
+# The auditor calls Claude to run the two rules no structural check can settle.
+anthropic = "2.57.0"
+jackson = "2.19.4"
 jvmToolchain = "21"
 
 [libraries]
@@ -22,6 +25,8 @@ kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-c
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutines" }
 junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher", version = "1.13.4" }
 androidx-material3 = { module = "androidx.compose.material3:material3", version.ref = "androidxMaterial3" }
+anthropic-java = { module = "com.anthropic:anthropic-java", version.ref = "anthropic" }
+jackson-kotlin = { module = "com.fasterxml.jackson.module:jackson-module-kotlin", version.ref = "jackson" }
 
 [plugins]
 compose = { id = "org.jetbrains.compose", version.ref = "compose" }
