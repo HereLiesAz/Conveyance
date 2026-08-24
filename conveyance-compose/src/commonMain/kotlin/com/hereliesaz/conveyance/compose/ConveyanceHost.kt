@@ -38,6 +38,7 @@ fun ConveyanceHost(
     val practice = remember { Practice() }
     val ghosts = remember { Ghosts() }
     val stage = remember { Stage() }
+    val suppression = remember { Suppression() }
 
     CompositionLocalProvider(
         LocalElements provides elements,
@@ -45,6 +46,7 @@ fun ConveyanceHost(
         LocalGhosts provides ghosts,
         LocalStage provides stage,
         LocalReducedMotion provides reducedMotion,
+        LocalSuppression provides suppression,
     ) {
         Box(modifier.fillMaxSize()) {
             content()
