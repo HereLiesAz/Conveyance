@@ -3,6 +3,7 @@ plugins {
     alias(libs.plugins.android.kmp.library)
     alias(libs.plugins.compose.compiler)
     alias(libs.plugins.compose)
+    `maven-publish`
 }
 
 kotlin {
@@ -42,4 +43,18 @@ kotlin {
 
 tasks.withType<Test>().configureEach {
     testLogging { events("passed", "failed", "skipped") }
+}
+
+// Kotlin Multiplatform registers one publication per target on its own; there is nothing to
+// create here, only a shared description for whichever one a consumer ends up resolving.
+publishing {
+    publications.withType<MavenPublication>().configureEach {
+        pom {
+            name.set("Conveyance Compose")
+            description.set(
+                "The Compose binding: the Escort, the Migration, the Ghost, Enter and Return, " +
+                    "rendered as motion the framework draws rather than the application.",
+            )
+        }
+    }
 }

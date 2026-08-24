@@ -3,6 +3,11 @@
 
 **By Az ([@HereLiesAz](https://github.com/HereLiesAz))**
 
+> This is the philosophy. To see it implemented as a Kotlin Multiplatform SDK, start with
+> **[Getting Started](docs/GETTING-STARTED.md)** — a working screen in about ten minutes — or go
+> straight to the **[full spec](docs/CONVEYANCE-FRAMEWORK.md)** for how every law and audit is
+> precisely defined.
+
 ---
 
 ## Introduction: You Got the Gift
