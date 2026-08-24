@@ -20,7 +20,7 @@ jobs:
     name: Validate Gradle wrapper
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Validate wrapper checksum
         uses: gradle/actions/wrapper-validation@v6
 
@@ -29,7 +29,7 @@ jobs:
     needs: wrapper
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Set up JDK
         uses: actions/setup-java@v4
@@ -42,7 +42,7 @@ jobs:
 
       # The runner image does not carry SDK 37, and the Android target needs it.
       - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
         with:
           packages: 'platforms;android-37.0 platforms;android-37.1 build-tools;37.0.0'
 

@@ -85,6 +85,16 @@ class ActScope internal constructor(
 fun Offer(
     act: Act,
     modifier: Modifier = Modifier,
+    /**
+     * The address this act is offered at.
+     *
+     * Defaults to the act's own, which is right when the control is whatever this composable draws.
+     * Pass the visible element's address when the act is offered *by* something that already has
+     * one -- a row, a face, a card. Otherwise the act registers at a wrapper nobody can see, the
+     * thing a person actually touches is accounted for by nothing, and the census reports an
+     * invitation with no act behind it. That is exactly how this parameter was discovered.
+     */
+    element: ElementId = act.elementId,
     content: @Composable ActScope.() -> Unit,
 ) {
     val registry = LocalElements.current
@@ -97,8 +107,8 @@ fun Offer(
 
     // Registering the act against its element is what lets the surface be counted: how much is on
     // screen, against how much can be done there.
-    DisposableEffect(registry, act.id) {
-        registry.offer(act.id, act.elementId)
+    DisposableEffect(registry, act.id, element) {
+        registry.offer(act, element)
         // A gate's address is doing a job -- it is where a person is carried when something is
         // missing -- and nobody should have to write that down.
         act.requires.forEach { registry.markGate(it.livesAt) }
@@ -147,7 +157,7 @@ fun Offer(
                 translationX = resist.value.x
                 translationY = resist.value.y
             }
-            .element(act.elementId, token = { ActScope.pinned(act, ActState.Ready).content() }),
+            .element(element, token = { ActScope.pinned(act, ActState.Ready).content() }),
     ) {
         scope.content()
     }
