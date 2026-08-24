@@ -1,17 +1,34 @@
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
+    alias(libs.plugins.android.kmp.library)
     alias(libs.plugins.compose.compiler)
     alias(libs.plugins.compose)
 }
 
 kotlin {
     jvmToolchain(libs.versions.jvmToolchain.get().toInt())
+
+    // Mobile and tablets are the reason this framework exists at all -- a desktop-only demo never
+    // put a gesture, an Escort, or a felt refusal under an actual thumb. This target is what
+    // conveyance-demo-android links against; nothing here is desktop-specific, so it costs nothing
+    // to share.
+    androidLibrary {
+        namespace = "com.hereliesaz.conveyance.demo"
+        compileSdk = libs.versions.compileSdk.get().toInt()
+        minSdk = libs.versions.minSdk.get().toInt()
+    }
     jvm("desktop")
 
     sourceSets {
+        commonMain.dependencies {
+            implementation(project(":conveyance-compose"))
+            implementation(compose.runtime)
+            implementation(compose.foundation)
+            implementation(compose.material)
+            implementation(compose.ui)
+        }
         val desktopMain by getting {
             dependencies {
-                implementation(project(":conveyance-compose"))
                 implementation(compose.desktop.currentOs)
             }
         }

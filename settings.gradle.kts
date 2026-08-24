@@ -20,4 +20,5 @@ dependencyResolutionManagement {
 include(":conveyance-core")
 include(":conveyance-compose")
 include(":conveyance-demo")
+include(":conveyance-demo-android")
 include(":conveyance-auditor")
