@@ -12,6 +12,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
@@ -24,6 +25,7 @@ import com.hereliesaz.conveyance.Route
 import com.hereliesaz.conveyance.Signature
 import com.hereliesaz.conveyance.Step
 import com.hereliesaz.conveyance.Weight
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 /** Every act is addressable, because a refusal has to start somewhere and a result has to land. */
@@ -104,6 +106,8 @@ fun Offer(
     val stage = LocalStage.current
     val places = LocalPlaces.current
     val reduced = LocalReducedMotion.current
+    val suppression = LocalSuppression.current
+    val suppressed = rememberEscortSuppressed(suppression)
     val coroutineScope = rememberCoroutineScope()
 
     var state by remember(act.id) { mutableStateOf<ActState>(ActState.Ready) }
@@ -124,9 +128,11 @@ fun Offer(
     val resist = remember(act.id) { Animatable(Offset.Zero, Offset.VectorConverter) }
 
     // While at rest, track the world: a gate satisfied elsewhere unblocks this control with no
-    // notification, no refresh, and nothing for the person to dismiss.
+    // notification, no refresh, and nothing for the person to dismiss -- whether that satisfaction
+    // was written through Compose snapshot state or through a plain var this act's gate happens to
+    // read. rememberLive is what makes the second case not depend on luck.
+    val live by rememberLive(act.id) { act.state() }
     val atRest = state is ActState.Ready || state is ActState.Blocked
-    val live = act.state()
     LaunchedEffect(atRest, live) {
         if (atRest) state = live
     }
@@ -148,7 +154,12 @@ fun Offer(
                             is Step.Stranded -> step.gate.livesAt
                             Step.Ready -> terminal.gate.livesAt
                         }
+                        // The resistance is felt immediately -- that is contact, not travel, and
+                        // holding it back would make the refusal look like nothing happened. The
+                        // carry itself waits out any gesture still in progress, so arriving
+                        // somewhere new never snatches the screen out from under a person's finger.
                         registry.lean(resist, act, destination)
+                        snapshotFlow { suppressed.value }.first { !it }
                         registry.escortTo(destination)
                     }
                     ActState.Settled -> {
