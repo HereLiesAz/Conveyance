@@ -8,6 +8,7 @@ plugins {
     alias(libs.plugins.kotlin.jvm) apply false
     alias(libs.plugins.kotlin.multiplatform) apply false
     alias(libs.plugins.android.kmp.library) apply false
+    alias(libs.plugins.android.application) apply false
     alias(libs.plugins.compose) apply false
     alias(libs.plugins.compose.compiler) apply false
     alias(libs.plugins.detekt)
@@ -27,8 +28,9 @@ subprojects {
     apply(plugin = "io.gitlab.arturbosch.detekt")
 
     // The demo is an application built to prove the framework, not a piece of the framework's
-    // API surface -- there is nothing there a consumer needs a reference for.
-    if (name != "conveyance-demo") {
+    // API surface -- there is nothing there a consumer needs a reference for. Its Android launcher
+    // is even less of one: an Activity and a manifest, nothing else.
+    if (name != "conveyance-demo" && name != "conveyance-demo-android") {
         apply(plugin = "org.jetbrains.dokka")
     }
 
