@@ -18,14 +18,22 @@ import com.hereliesaz.conveyance.ElementId
 import com.hereliesaz.conveyance.SubjectId
 import com.hereliesaz.conveyance.Weight
 
-/** A place in a collection: something that is there, or the residue of something that was. */
-private sealed interface Slot<out T> {
+/**
+ * A place in a collection: something that is there, or the residue of something that was.
+ *
+ * Internal rather than private, and [resolveSlots] and [pruneLikeness] below plain functions
+ * rather than `@Composable` ones, so the slot-resolution logic -- what a collection actually does
+ * with a list, a set of ghosts and a remembered order -- can be tested directly, as data in and
+ * data out, without composing anything or waiting on a garbage collector to prove a cache is
+ * pruned correctly.
+ */
+internal sealed interface Slot<out T> {
     data class Present<T>(val item: T) : Slot<T>
     data class Gone(val subject: SubjectId) : Slot<Nothing>
 }
 
 /** The subject either half of a [Slot] is about, regardless of which one it is. */
-private fun <T> Slot<T>.subject(key: (T) -> SubjectId): SubjectId = when (this) {
+internal fun <T> Slot<T>.subject(key: (T) -> SubjectId): SubjectId = when (this) {
     is Slot.Present -> key(item)
     is Slot.Gone -> subject
 }
@@ -74,7 +82,7 @@ fun <T> Collection(
     // never sheds would grow for as long as the collection stays mounted, holding a full T (with
     // whatever it references: attachments, images) for every subject that was ever Present.
     val likeness = remember { mutableMapOf<SubjectId, T>() }
-    likeness.keys.retainAll(slots.mapTo(mutableSetOf()) { it.subject(key) })
+    pruneLikeness(likeness, slots, key)
 
     // Bias runs from the centre (0) to the corner (near 1). The creation control does not jump
     // between two positions; it travels, because the travel is the part that teaches where it went.
@@ -167,9 +175,12 @@ private fun GhostSlot(residue: Residue, onRecover: () -> Unit, content: @Composa
  *
  * The remembered order is what makes a Ghost appear where its subject was rather than appended at
  * the end. A residue that has been recovered or released simply stops resolving and its slot closes.
+ *
+ * Not `@Composable`. Nothing in here reads composition-local state or calls another composable --
+ * `order` arrives already remembered by the caller -- so leaving the annotation off is what makes
+ * this callable directly from a test with a plain list standing in for `order`.
  */
-@Composable
-private fun <T> resolveSlots(
+internal fun <T> resolveSlots(
     items: List<T>,
     key: (T) -> SubjectId,
     ghosts: Ghosts,
@@ -209,6 +220,18 @@ private fun <T> resolveSlots(
         order.addAll(resolved)
     }
     return slots
+}
+
+/**
+ * Drop every entry [likeness] holds for a subject [slots] no longer accounts for.
+ *
+ * The whole fix, isolated to one line so it can be asserted on directly: given a map and the
+ * slots that are currently true, this is what "pruned" means. No composition, no garbage
+ * collector, no timing -- just whether the keys left in the map afterward are exactly the
+ * subjects [slots] still names.
+ */
+internal fun <T> pruneLikeness(likeness: MutableMap<SubjectId, T>, slots: List<Slot<T>>, key: (T) -> SubjectId) {
+    likeness.keys.retainAll(slots.mapTo(mutableSetOf()) { it.subject(key) })
 }
 
 /**
