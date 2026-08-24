@@ -15,6 +15,8 @@ minSdk = "24"
 coroutines = "1.11.0"
 # detekt: required by the KMP Security Pipeline workflow, which runs ./gradlew detekt.
 detekt = "1.23.8"
+# The generated API reference, built from the KDoc already written throughout the codebase.
+dokka = "2.2.0"
 # The auditor calls Claude to run the two rules no structural check can settle.
 anthropic = "2.57.0"
 jackson = "2.22.2"
@@ -36,3 +38,4 @@ android-kmp-library = { id = "com.android.kotlin.multiplatform.library", version
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
 detekt = { id = "io.gitlab.arturbosch.detekt", version.ref = "detekt" }
+dokka = { id = "org.jetbrains.dokka", version.ref = "dokka" }
