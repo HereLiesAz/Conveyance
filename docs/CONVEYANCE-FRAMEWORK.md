@@ -32,7 +32,30 @@ That inversion is the whole framework. The rest is bookkeeping.
 
 ---
 
-# Part I — The Five Laws
+# Part I — The Rules, and the Mechanisms
+
+## The rules are Twain's
+
+The manifesto now carries [Twain's eighteen rules recounted as design mandates](../README.md#twains-rules-which-were-design-mandates-all-along), and those are the framework's rules. They are better than the ones this document originally opened with: older, sharper, memorable, and written by someone with no stake in any of this.
+
+This part is not a second set of rules. It is the small number of **mechanisms** by which a Compose application can be made to obey them without anyone remembering to. The relationship is one-way — the rules judge, the mechanisms enforce:
+
+| Twain | Enforced by |
+|---|---|
+| The reader can tell beforehand what each will do | The grammar (Law 3), and the Prediction Test (§9.3) |
+| The episodes shall be necessary parts, and help develop it | Employment (Law 4) |
+| Alive, except corpses — and tell the corpses apart | Gates and the Escort (Law 5, §2.2) |
+| When they talk it shall be for a reason, and stop | The Instruction audit (§6.1) |
+| Use the right word, not its second cousin | The Absent Vocabulary (Part VIII) |
+| Eschew surplusage | Employment, Channel Economy, the Keystone budget |
+| Not omit necessary details | The Necessary Detail audit (§7, audit 11) |
+| Avoid slovenliness of form; use good grammar | Channel Economy (Part IV), the grammar (Part III) |
+| Say what you propose to say, not merely come near it | One Element (Law 1), Continuity (Law 2) |
+
+Two of those rows are new, and they are new because the rules found holes the mechanisms did not have. They are marked where they appear.
+
+## The Five Laws
+
 
 Every mechanism in this document is an enforcement of one of these. They are ordered by how much they cost to violate.
 
@@ -73,6 +96,13 @@ This is resourceful minimalism made checkable. Jobs are enumerable (§4.2), and 
 ### Law 5 — Benefit of the Doubt
 
 **Never warn where you can reverse. Never instruct where you can demonstrate. Never block where you can escort.**
+
+*Corrected by Twain.* This law originally banned the disabled state outright. That was an overreach. Twain permits corpses and asks only that the reader be able to tell them from the living — which is the better rule, because sometimes a control genuinely is dead and dressing it as live is its own lie. The correct division:
+
+- **Gated** — alive, waiting on a condition that has an address. Escort. Never grey out.
+- **Dead** — genuinely inoperative, and honest about it. Permitted, and required to be unmistakable: not a translucent version of a live control, which is the ambiguity the ban was aimed at in the first place.
+
+What remains banned is the *illegible* corpse — the greyed rectangle that might be broken, might be loading, might be a label.
 
 The three most common patronizing constructs — the confirmation dialog, the tooltip, the greyed-out control — each have a compassionate mechanical replacement (the Ghost, the Tell, the Escort). All three are in the framework; none of the originals are.
 
@@ -388,8 +418,15 @@ The framework's verification layer: static audits at build time, runtime asserti
 | 8 | **Reversibility** | A destructive `Consequence` has no `inverse` | Law 5, §5.3 |
 | 9 | **Channel** | A channel varies without carrying its assigned meaning — decorative color, resting opacity, borrowed motion signature | Part IV, §3.1 |
 | 10 | **Dead End** | A `Gate` has no `livesAt`, or `livesAt` is unreachable from the blocked element | §2.2, §5.2 |
+| 11 | **Necessary Detail** | A consequence's magnitude, cost, or irreversibility is not represented anywhere the person can perceive before acting | Twain, *not omit necessary details* |
+
+**Audit 11 exists because this framework's most likely failure is its own.** Everything above pushes hard against text, against instruction, against explanation — and until Twain's list was applied, nothing anywhere in the design pushed back. A product can satisfy every other audit here while concealing something a person needed in order to decide. Surplusage and omission are a matched pair; guarding one edge and not the other is how minimalism becomes concealment with better taste.
+
+It is the least automatable check on the list and it is reported, never blocked, because no tool can tell which detail was necessary. What the tool can do is notice when an act with a Heavy weight or no inverse presents no perceivable signal of either, and say so.
 
 Audits 3, 4, 5, 8 and 10 are structural — they are consequences of required fields and of vocabulary that does not exist, so they mostly cannot be violated in the first place. Audits 1, 6, 7 and 9 are judgment calls the tool can only flag, not decide; they report and require an explicit, reviewed waiver rather than blocking.
+
+**Surplusage, not surplus.** Twain's word is a legal term of art: matter that can be struck without affecting the validity of what remains. It is not a synonym for "extra" — it names extra *that carries nothing*, and by naming it that precisely it licenses the rest. So the audits that are judgements (1, 6, 7, 9, 11) do not block; they demand a reason. A waiver is accepted when it states what the element carries, and the stating is the whole cost. An absolute rule would have been "eschew surplus" — cruder, and not what he wrote.
 
 **The Conscience obeys the Two-Sided Rule.** It never lectures. A failure names the element, names the law, and offers the compliant construction as a diff — it escorts the developer to the fix, exactly as §5.2 escorts the user to the gate. A build error that explains a philosophy is a tooltip, and this framework does not ship tooltips.
 
@@ -452,9 +489,19 @@ Six elements became two, four strings became zero, and the person now knows — 
 
 That transfer is conveyance. It is also the entire return on the framework: **the cost is paid once, in grammar; the benefit compounds across every feature you ever ship.**
 
-### 9.3 Grading an existing product
+### 9.3 The Prediction Test
 
-Score 0–2 on each: One Element, Continuity, Grammar consistency, Employment, Reversibility, Instruction load, Channel discipline, Keystone discipline. Sixteen points. Most shipping products score 3–6, and almost all of the recoverable ground is in Law 1 and Law 5, which are also the cheapest to fix.
+Twain's eleventh rule — *so clearly defined that the reader can tell beforehand what each will do* — is the only rule on his list that is a procedure, and it is the acceptance test this framework spent its first draft without.
+
+Point at a control the person has never touched. Before they touch it, ask what it will do. Score three ways: **right**, **wrong**, **no idea**. Wrong is worse than no idea, because a wrong prediction means the interface actively misled them.
+
+Nothing in Part VII can perform this test, and that is the point of running it. Every audit checks structure — jobs declared, channels assigned, gates addressed — and a product can pass all of them while remaining unpredictable to a human being. This is the test that catches the unlabelled grey square that satisfies every structural rule and tells nobody anything.
+
+Run it on the three most consequential controls of every surface, on someone who has not seen the product. It takes about four minutes and it is worth more than the rest of Part VII put together.
+
+### 9.4 Grading an existing product
+
+Score 0–2 on each: One Element, Continuity, Grammar consistency, Employment, Reversibility, Instruction load, Channel discipline, Keystone discipline, and Necessary Detail. Eighteen points — and run the Prediction Test alongside, because a high score with poor prediction means the structure is right and the design still is not. Most shipping products score 3–6, and almost all of the recoverable ground is in Law 1 and Law 5, which are also the cheapest to fix.
 
 ---
 
@@ -521,6 +568,10 @@ ABSENT     Toast · Dialog · Spinner · Tooltip · enabled: Boolean · duration
 
 AUDITS     Idle Worker · Instruction · Teleport · Orphan Feedback · Duration
            Primary Contention · Keystone Budget · Reversibility · Channel · Dead End
+           Necessary Detail
+
+TEST       point at a control they have never touched; ask what it will do before
+           they touch it. Right / wrong / no idea. Wrong is worse than no idea.
 
 TEXT       nouns and verbs on screen; full sentences in the accessibility tree; never both
 ```
