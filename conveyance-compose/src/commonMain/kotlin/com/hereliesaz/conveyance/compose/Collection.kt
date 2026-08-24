@@ -8,6 +8,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
@@ -17,6 +18,7 @@ import com.hereliesaz.conveyance.Act
 import com.hereliesaz.conveyance.ElementId
 import com.hereliesaz.conveyance.SubjectId
 import com.hereliesaz.conveyance.Weight
+import kotlinx.coroutines.launch
 
 /**
  * A place in a collection: something that is there, or the residue of something that was.
@@ -67,6 +69,7 @@ fun <T> Collection(
     item: @Composable (T) -> Unit,
 ) {
     val ghosts = LocalGhosts.current
+    val recovery = rememberCoroutineScope()
     val order = remember { mutableStateListOf<SubjectId>() }
     val slots = resolveSlots(items, key, ghosts, order)
 
@@ -116,7 +119,13 @@ fun <T> Collection(
                     is Slot.Gone -> ghosts[slot.subject]?.let { residue ->
                         GhostSlot(
                             residue = residue,
-                            onRecover = { ghosts.recover(residue.subject) },
+                            // Recover hands back the inverse rather than performing it, so it
+                            // moves through the same five states as any other act. Discarding
+                            // that return value here would clear the residue without ever
+                            // running what actually restores the subject.
+                            onRecover = {
+                                recovery.launch { ghosts.recover(residue.subject)?.engage() }
+                            },
                             content = { likeness[slot.subject]?.let { item(it) } },
                         )
                     }

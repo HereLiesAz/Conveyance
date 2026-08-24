@@ -175,8 +175,13 @@ fun Offer(
                         when (val consequence = act.consequence) {
                             // Entering is the one verb whose destination is not another element --
                             // it is the whole window -- so it is the places host that renders it,
-                            // not the stage.
-                            is Consequence.Enter -> places?.enter(consequence.place, act.weight)
+                            // not the stage. Started on the places host's own scope
+                            // (enterAsync), never this control's: the moment the push this makes
+                            // reaches the stack, this very control is what recomposition replaces
+                            // with the place growing out of it -- a coroutine scoped here would
+                            // be cancelled by its own first effect, before the growth animation
+                            // ran a second frame.
+                            is Consequence.Enter -> places?.enterAsync(consequence.place, act.weight)
                             else -> registry.carry(stage, act, reduced)
                         }
                     }

@@ -144,4 +144,8 @@ exercising most of the grammar, 100+ deterministic tests.
   Toast/Snackbar/Dialog construction, no literal animation duration in product code — enforced by a
   Kotlin compiler plugin. That plugin doesn't exist; today nothing stops a call straight past the
   binding into a platform API.
-- **`Reveal` and `Destroy`** are implemented in the framework but not yet exercised in the demo app.
+- **`Job.Interrupt` has no live binding yet.** Law 4 now requires three jobs, and an element that
+  starts something is expected to own stopping it — but `Offer` has no way to cancel an act already
+  in flight. The vocabulary exists in `conveyance-core`; nothing in `conveyance-compose` implements
+  it, so `Job.Interrupt` is only reachable from the static `Surface` declarations today, the same gap
+  as the audit path above.

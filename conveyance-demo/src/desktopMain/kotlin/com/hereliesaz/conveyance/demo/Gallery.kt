@@ -12,8 +12,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -30,6 +32,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.hereliesaz.conveyance.Act
+import com.hereliesaz.conveyance.ActState
 import com.hereliesaz.conveyance.ElementId
 import com.hereliesaz.conveyance.Gate
 import com.hereliesaz.conveyance.Outcome
@@ -40,6 +43,7 @@ import com.hereliesaz.conveyance.SubjectId
 import com.hereliesaz.conveyance.compose.ActScope
 import com.hereliesaz.conveyance.compose.Collection
 import com.hereliesaz.conveyance.compose.ConveyanceHost
+import com.hereliesaz.conveyance.compose.LocalGhosts
 import com.hereliesaz.conveyance.compose.LocalPlaces
 import com.hereliesaz.conveyance.compose.Motion
 import com.hereliesaz.conveyance.compose.Offer
@@ -51,6 +55,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 private val tray = ElementId("tray")
+private val tallyElement = ElementId("tally")
+
+private fun discardElement(subject: SubjectId): ElementId = ElementId("discard:${subject.value}")
 
 data class Person(val id: String, val initial: String) {
     val element: ElementId get() = ElementId("person:$id")
@@ -96,10 +103,13 @@ fun Gallery(
                         photographs -= viewing
                         received[person.id] = (received[person.id] ?: 0) + 1
                     },
+                    onDiscarded = { photographs -= it },
+                    onRestored = { photographs += it },
                 )
             } else {
                 Tray(
                     photographs = photographs,
+                    received = received,
                     onCreate = {
                         minted += 1
                         photographs += SubjectId("photo.$minted")
@@ -121,6 +131,7 @@ fun Gallery(
 @Composable
 private fun Tray(
     photographs: List<SubjectId>,
+    received: Map<String, Int>,
     onCreate: () -> Unit,
     nextName: () -> SubjectId,
 ) {
@@ -150,8 +161,28 @@ private fun Tray(
             )
             Offer(open, element = subjectElement(subject)) { Photograph(subject, this) }
         }
+
+        // Who has how much is already true the moment a send settles -- it is only unseen, not
+        // undecided. Revealing it names no destination and moves no one: the count sits exactly
+        // where it already lived, in the corner of the same screen that made it true.
+        Offer(
+            act = Act.reveal(id = "tally.reveal", target = tallyElement),
+            modifier = Modifier.align(Alignment.BottomStart),
+            element = tallyElement,
+        ) {
+            val known = state is ActState.Settled
+            Text(
+                text = if (known) tallyLine(received) else "Sent",
+                color = Look.quiet,
+                fontSize = 12.sp,
+                modifier = Modifier.tell(owesTell, weight).clickable { engage() },
+            )
+        }
     }
 }
+
+private fun tallyLine(received: Map<String, Int>): String =
+    people.joinToString(" · ") { "${it.initial} ${received[it.id] ?: 0}" }
 
 /**
  * One photograph, and the people it can go to.
@@ -174,9 +205,16 @@ private fun Detail(
     received: Map<String, Int>,
     onChoose: (Person) -> Unit,
     onSent: (Person) -> Unit,
+    onDiscarded: (SubjectId) -> Unit,
+    onRestored: (SubjectId) -> Unit,
 ) {
     val places = LocalPlaces.current
+    val ghosts = LocalGhosts.current
     val leaving = rememberCoroutineScope()
+    // Ghosts, not the photograph list, say whether this subject was discarded: a sent photograph
+    // also leaves the list, and is not waiting anywhere for anyone. Only a destruction leaves a
+    // residue, so holding one is the one true signal that this is that case and not the other.
+    val ghosted = ghosts.holds(subject)
 
     Box(
         modifier = Modifier
@@ -185,69 +223,116 @@ private fun Detail(
             .clickable { leaving.launch { places?.back() } },
         contentAlignment = Alignment.Center,
     ) {
+        // Scrollable rather than fixed: mid-journey, this place is still growing out of the
+        // thumbnail it came from and may not yet have the room its content wants. A column that
+        // demands its full height up front would starve whatever is last in it -- scrolling lets
+        // every child claim its own natural size regardless of how much of the journey is done.
         Column(
-            modifier = Modifier.padding(26.dp),
+            modifier = Modifier.padding(26.dp).verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(22.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            val send = Act.send(
-                id = "send.${subject.value}",
-                subject = subject,
-                to = (chosen ?: people.first()).element,
-                scope = Scope.Item,
-                requires = listOf(
-                    // The gate knows where it is answered, which is what lets a refusal become a
-                    // journey instead of a sign.
-                    Gate("recipient.chosen", livesAt = people.first().element) { chosen != null },
-                ),
-            ) {
-                delay(240)
-                chosen?.let(onSent)
-                Outcome.Done
-            }
+            if (!ghosted) {
+                val send = Act.send(
+                    id = "send.${subject.value}",
+                    subject = subject,
+                    to = (chosen ?: people.first()).element,
+                    scope = Scope.Item,
+                    requires = listOf(
+                        // The gate knows where it is answered, which is what lets a refusal
+                        // become a journey instead of a sign.
+                        Gate("recipient.chosen", livesAt = people.first().element) { chosen != null },
+                    ),
+                ) {
+                    delay(240)
+                    chosen?.let(onSent)
+                    Outcome.Done
+                }
 
-            Offer(send, element = subjectElement(subject)) { Portrait(subject, this) }
+                Offer(send, element = subjectElement(subject)) { Portrait(subject, this) }
 
-            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                people.forEach { person ->
-                    // Choosing a recipient is an act, and has to be declared as one. The framework
-                    // caught this: the faces were tappable but modelled as nothing, so the census
-                    // reported an invitation with no act behind it and faces accounted for by
-                    // nobody. A control the model does not know about cannot be conveyed, graded,
-                    // or undone.
-                    val choose = Act.alter(
-                        id = "recipient.choose.${person.id}",
-                        subject = SubjectId("recipient"),
-                        property = "recipient",
-                        target = person.element,
-                        scope = Scope.Detail,
-                        // Choosing someone else puts it back, so this costs nothing and should
-                        // feel like it costs nothing.
-                        inverse = Act.alter(
-                            id = "recipient.clear.${person.id}",
+                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    people.forEach { person ->
+                        // Choosing a recipient is an act, and has to be declared as one. The
+                        // framework caught this: the faces were tappable but modelled as
+                        // nothing, so the census reported an invitation with no act behind it
+                        // and faces accounted for by nobody. A control the model does not know
+                        // about cannot be conveyed, graded, or undone.
+                        val choose = Act.alter(
+                            id = "recipient.choose.${person.id}",
                             subject = SubjectId("recipient"),
                             property = "recipient",
                             target = person.element,
-                        ),
-                    ) {
-                        onChoose(person)
-                        Outcome.Done
-                    }
-                    Offer(choose, element = person.element) {
-                        Face(
-                            person = person,
-                            chosen = chosen == person,
-                            heat = (received[person.id] ?: 0) / 4f,
-                            scope = this,
-                        )
+                            scope = Scope.Detail,
+                            // Choosing someone else puts it back, so this costs nothing and
+                            // should feel like it costs nothing.
+                            inverse = Act.alter(
+                                id = "recipient.clear.${person.id}",
+                                subject = SubjectId("recipient"),
+                                property = "recipient",
+                                target = person.element,
+                            ),
+                        ) {
+                            onChoose(person)
+                            Outcome.Done
+                        }
+                        Offer(choose, element = person.element) {
+                            Face(
+                                person = person,
+                                chosen = chosen == person,
+                                heat = (received[person.id] ?: 0) / 4f,
+                                scope = this,
+                            )
+                        }
                     }
                 }
-            }
 
-            // The stakes, shown before they are taken rather than discovered afterwards. Nothing
-            // here explains the interface; it states what the act costs, which is the necessary
-            // detail the tray omitted.
-            Text("Once", color = Look.quiet, fontSize = 13.sp)
+                // The stakes, shown before they are taken rather than discovered afterwards.
+                // Nothing here explains the interface; it states what the act costs, which is
+                // the necessary detail the tray omitted.
+                Text("Once", color = Look.quiet, fontSize = 13.sp)
+
+                // The restore is built before the destruction that needs it, because a
+                // destruction cannot be declared without one. The destroy act has to name
+                // itself to leave its own residue -- `lateinit` rather than a self-referential
+                // initializer, since a local `val` can't see itself even from inside a lambda
+                // that only runs later, on engagement.
+                val restore = Act.create("photo.restore.${subject.value}", subject, into = tray) {
+                    onRestored(subject)
+                    Outcome.Done
+                }
+                lateinit var discard: Act
+                discard = Act.destroy(
+                    id = "photo.discard.${subject.value}",
+                    subject = subject,
+                    target = tray,
+                    inverse = restore,
+                ) {
+                    ghosts.leave(discard, at = tray)
+                    onDiscarded(subject)
+                    Outcome.Done
+                }
+                Offer(discard, element = discardElement(subject)) {
+                    Text(
+                        text = "Discard",
+                        color = Look.quiet,
+                        fontSize = 13.sp,
+                        modifier = Modifier.tell(owesTell, weight).clickable { engage() },
+                    )
+                }
+            } else {
+                // The gap the photograph left, drawn here rather than in the tray, because this
+                // is where the person is looking. The residue itself -- recoverable, waiting --
+                // lives in the tray's grid; what belongs here is only the fact that it is gone.
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(1.2f)
+                        .clip(RoundedCornerShape(18.dp))
+                        .background(Look.rank(Rank.Secondary).copy(alpha = 0.18f)),
+                )
+                Text("Discarded. Return to find it waiting.", color = Look.quiet, fontSize = 13.sp)
+            }
         }
     }
 }
