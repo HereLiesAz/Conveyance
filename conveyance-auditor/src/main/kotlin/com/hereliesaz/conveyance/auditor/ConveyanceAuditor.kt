@@ -1,13 +1,5 @@
 package com.hereliesaz.conveyance.auditor
 
-import com.anthropic.client.AnthropicClient
-import com.anthropic.client.okhttp.AnthropicOkHttpClient
-import com.anthropic.models.messages.Base64ImageSource
-import com.anthropic.models.messages.ContentBlockParam
-import com.anthropic.models.messages.ImageBlockParam
-import com.anthropic.models.messages.MessageCreateParams
-import com.anthropic.models.messages.Model
-import com.anthropic.models.messages.TextBlockParam
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import com.hereliesaz.conveyance.AuditFrame
@@ -16,7 +8,6 @@ import com.hereliesaz.conveyance.ElementId
 import com.hereliesaz.conveyance.Grade
 import com.hereliesaz.conveyance.Prediction
 import com.hereliesaz.conveyance.Verdict
-import java.util.Base64
 
 /**
  * Runs the two rules no structural check can settle.
@@ -35,8 +26,15 @@ import java.util.Base64
  * That separation is the whole design. Everything else here is plumbing.
  */
 class ConveyanceAuditor(
-    private val client: AnthropicClient = AnthropicOkHttpClient.fromEnv(),
-    private val model: Model = Model.of("claude-opus-5"),
+    /**
+     * Who does the looking.
+     *
+     * Defaults to whatever this machine can reach, which with nothing configured is a model running
+     * locally and no key at all. The judge's identity is recorded on the report, because a verdict
+     * from a small local model and a verdict from a frontier one are not the same evidence and
+     * should never be filed as though they were.
+     */
+    private val judge: Judge = Judges.detect(),
 ) {
     private val json = ObjectMapper().registerKotlinModule()
 
@@ -52,46 +50,15 @@ class ConveyanceAuditor(
     }
 
     /** Pass one. Pixels in, expectations out. Nothing else crosses this boundary. */
-    private fun predict(png: ByteArray): List<Prediction> {
-        val response = client.messages().create(
-            MessageCreateParams.builder()
-                .model(model)
-                .maxTokens(MAX_TOKENS)
-                .addUserMessageOfBlockParams(
-                    listOf(
-                        ContentBlockParam.ofImage(
-                            ImageBlockParam.builder()
-                                .source(
-                                    Base64ImageSource.builder()
-                                        .data(Base64.getEncoder().encodeToString(png))
-                                        // Required on the wire. The builder accepts its absence
-                                        // and the API rejects it, so omitting this compiles and
-                                        // then fails in CI with a 400.
-                                        .mediaType(Base64ImageSource.MediaType.IMAGE_PNG)
-                                        .build(),
-                                )
-                                .build(),
-                        ),
-                        ContentBlockParam.ofText(TextBlockParam.builder().text(PREDICT).build()),
-                    ),
-                )
-                .build(),
-        )
-        return parse(response.content().mapNotNull { it.text().orElse(null) }.joinToString("\n") { it.text() })
-    }
+    private fun predict(png: ByteArray): List<Prediction> = parse(judge.look(png, PREDICT))
 
     /** Pass two. The truth arrives only now, and only to judge an answer already given. */
     private fun grade(predictions: List<Prediction>, frame: AuditFrame): AuditReport {
         val truth = json.writeValueAsString(frame)
         val guesses = json.writeValueAsString(predictions)
-        val response = client.messages().create(
-            MessageCreateParams.builder()
-                .model(model)
-                .maxTokens(MAX_TOKENS)
-                .addUserMessage("$GRADE\n\nWHAT THEY SAID:\n$guesses\n\nWHAT IS TRUE:\n$truth")
-                .build(),
-        )
-        val text = response.content().mapNotNull { it.text().orElse(null) }.joinToString("\n") { it.text() }
+        // No image on this pass. The grader is weighing an answer already committed to, and showing
+        // it the screen would only invite it to form its own opinion and mark against that.
+        val text = judge.look(null, "$GRADE\n\nWHAT THEY SAID:\n$guesses\n\nWHAT IS TRUE:\n$truth")
         val parsed = json.readTree(strip(text))
         val verdicts = parsed.path("verdicts").map { node ->
             Verdict(
@@ -103,7 +70,7 @@ class ConveyanceAuditor(
             )
         }
         val omissions = parsed.path("omissions").map { it.asText() }
-        return AuditReport(frame.surface, verdicts, omissions)
+        return AuditReport(frame.surface, verdicts, omissions, judge.name)
     }
 
     private fun parse(text: String): List<Prediction> =
@@ -122,8 +89,6 @@ class ConveyanceAuditor(
             .ifBlank { "{}" }
 
     private companion object {
-        const val MAX_TOKENS = 8_000L
-
         val PREDICT = """
             You have never seen this application before. You are looking at one screen of it.
 

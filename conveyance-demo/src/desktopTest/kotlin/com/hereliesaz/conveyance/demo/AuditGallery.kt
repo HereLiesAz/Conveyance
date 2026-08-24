@@ -5,6 +5,8 @@ import androidx.compose.ui.unit.Density
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import com.hereliesaz.conveyance.auditor.ConveyanceAuditor
+import com.hereliesaz.conveyance.auditor.JudgeUnreachable
+import com.hereliesaz.conveyance.auditor.Judges
 import com.hereliesaz.conveyance.compose.ElementRegistry
 import java.io.File
 import kotlin.test.Test
@@ -67,24 +69,36 @@ class AuditGallery {
     /**
      * The real thing: predict, then grade.
      *
-     * Requires ANTHROPIC_API_KEY. Without it this reports and returns, because the alternative is a
-     * permanently red check that teaches everyone to stop reading CI.
+     * Takes whichever judge this machine can reach — a key from any provider if one is configured,
+     * otherwise a model running locally with no key at all. If nothing is reachable it says so and
+     * returns, because a check that cannot run somewhere is not a check there, and a permanently
+     * red one teaches everyone to stop reading CI.
+     *
+     * It does **not** quietly pass. "Nobody was there to look" and "somebody looked and found
+     * nothing wrong" are opposite results, and the output says which one happened.
      */
     @Test
     fun `grade the gallery against a naive viewer`() {
         val png = File(out, "gallery.png")
         val bundle = File(out, "gallery.json")
         if (!png.exists() || !bundle.exists()) {
-            println("AUDIT SKIPPED: run `emit the audit bundle` first")
-            return
-        }
-        if (System.getenv("ANTHROPIC_API_KEY").isNullOrBlank()) {
-            println("AUDIT SKIPPED: no ANTHROPIC_API_KEY in this environment")
+            println("AUDIT NOT RUN: emit the audit bundle first")
             return
         }
 
         val frame = render { registry -> registry.auditFrame("gallery") }
-        val report = ConveyanceAuditor().audit(png.readBytes(), frame)
+        val judge = Judges.detect()
+        val report = try {
+            ConveyanceAuditor(judge).audit(png.readBytes(), frame)
+        } catch (unreachable: JudgeUnreachable) {
+            println("AUDIT NOT RUN: ${unreachable.message}")
+            println("  Set any provider key, or run a local vision model: ollama pull ${Judges.DEFAULT_LOCAL_MODEL}")
+            return
+        } catch (offline: java.io.IOException) {
+            println("AUDIT NOT RUN: ${judge.name} could not be reached (${offline.message})")
+            println("  Set any provider key, or run a local vision model: ollama pull ${Judges.DEFAULT_LOCAL_MODEL}")
+            return
+        }
         File(out, "gallery-report.json").writeText(json.writeValueAsString(report))
 
         println("AUDIT: $report")

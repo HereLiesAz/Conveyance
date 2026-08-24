@@ -38,6 +38,14 @@ data class AuditReport(
     val surface: String,
     val verdicts: List<Verdict>,
     val omissions: List<String>,
+    /**
+     * Who did the looking.
+     *
+     * Recorded because a verdict from a small local model and a verdict from a frontier one are not
+     * the same evidence, and filing them as though they were is how a measurement quietly stops
+     * meaning anything.
+     */
+    val judge: String = "unrecorded",
 ) {
     val right: Int get() = verdicts.count { it.grade == Grade.Right }
     val wrong: Int get() = verdicts.count { it.grade == Grade.Wrong }
@@ -56,5 +64,5 @@ data class AuditReport(
     val misleading: Int get() = verdicts.count { it.grade == Grade.Wrong }
 
     override fun toString(): String =
-        "$surface: $right right, $wrong wrong, $noIdea no idea; ${omissions.size} omissions"
+        "$surface [$judge]: $right right, $wrong wrong, $noIdea no idea; ${omissions.size} omissions"
 }
