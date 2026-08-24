@@ -126,13 +126,30 @@ class ElementRegistry {
     /** Elements that are some gate's address. Where a person is carried when something is missing. */
     private val gateAddresses = mutableStateMapOf<ElementId, Boolean>()
 
+    /** One claimant's hold on an [ActId] -- the same shape [Tenant] gives an [ElementId], and for
+     *  the same reason: the offering composable's own identity, so a departing claimant can hand
+     *  the id back to whoever else still holds it instead of erasing it outright. */
+    private class OfferClaim(val owner: Any, val act: Act, val at: ElementId)
+
     /**
      * The act each element is offering, kept whole rather than by identity.
      *
      * Holding the act itself is what makes an audit possible at all: its verb, its weight, whether
      * it can be taken back. An id would have been enough to count with and useless to judge by.
+     *
+     * Tenanted, like [tenancy]: the same [ActId] can legitimately be offered from more than one
+     * composable at once -- the same act rendered in both a list row and the detail place growing
+     * out of it, mid-transition, the identical reason [ElementId] addresses are tenanted rather
+     * than owned. A flat single-claim map made one of those composables leaving the composition
+     * silently erase a still-mounted sibling's registration; see [currentOffers] for what a read
+     * actually gets.
      */
-    private val offered = mutableStateMapOf<ActId, Pair<Act, ElementId>>()
+    private val offered = mutableStateMapOf<ActId, List<OfferClaim>>()
+
+    /** The newest claimant for each currently-offered [ActId] -- what every read in this class
+     *  other than [offer]/[withdraw] means by "the" offer, the [tenant] of [offer] cases. */
+    private val currentOffers: Map<ActId, Pair<Act, ElementId>>
+        get() = offered.mapNotNull { (id, claims) -> claims.lastOrNull()?.let { id to (it.act to it.at) } }.toMap()
 
     /**
      * The element an escort has just delivered someone to, which that element renders as
@@ -182,8 +199,9 @@ class ElementRegistry {
         claim(id, owner).employment = employment
     }
 
-    internal fun offer(act: Act, at: ElementId) {
-        offered[act.id] = act to at
+    internal fun offer(act: Act, at: ElementId, owner: Any) {
+        val held = offered[act.id].orEmpty().filterNot { it.owner === owner }
+        offered[act.id] = held + OfferClaim(owner, act, at)
     }
 
     internal fun markGate(id: ElementId) {
@@ -202,7 +220,7 @@ class ElementRegistry {
      * not compute, a grouping it did not impose.
      */
     fun jobsOf(id: ElementId): Set<Job> = buildSet {
-        if (offered.values.any { it.second == id }) add(Job.Invite)
+        if (currentOffers.values.any { it.second == id }) add(Job.Invite)
         if (gateAddresses.containsKey(id)) {
             add(Job.Invite)
             add(Job.Locate)
@@ -214,8 +232,9 @@ class ElementRegistry {
         }
     }
 
-    internal fun withdraw(act: ActId) {
-        offered.remove(act)
+    internal fun withdraw(id: ActId, owner: Any) {
+        val remaining = offered[id].orEmpty().filterNot { it.owner === owner }
+        if (remaining.isEmpty()) offered.remove(id) else offered[id] = remaining
     }
 
     /**
@@ -226,7 +245,7 @@ class ElementRegistry {
      * gate. Both halves were already required for other reasons, so the whole flowchart of a
      * product's preconditions is derivable and cannot drift out of step with the acts it describes.
      */
-    fun offering(id: ElementId): Act? = offered.values.firstOrNull { it.second == id }?.first
+    fun offering(id: ElementId): Act? = currentOffers.values.firstOrNull { it.second == id }?.first
 
     /**
      * Count what is on screen against what can be done with it.
@@ -241,7 +260,8 @@ class ElementRegistry {
      */
     fun census(): Census {
         val composed = composed()
-        val offering = offered.filterValues { it.second in composed }
+        val current = currentOffers
+        val offering = current.filterValues { it.second in composed }
         val invitingIds = offering.values.map { it.second }.toSet()
 
         var content = 0
@@ -257,13 +277,13 @@ class ElementRegistry {
         }
 
         return Census(
-            acts = offered.size,
+            acts = current.size,
             reachable = offering.count { visible(it.value.second) },
             elements = composed.size,
             inviting = invitingIds.size,
             content = content,
             ambient = ambient,
-            unreachable = offered.filterValues { it.second !in composed }.keys.toList(),
+            unreachable = current.filterValues { it.second !in composed }.keys.toList(),
             mute = composed.filter { id ->
                 id !in invitingIds && Job.Invite in jobsOf(id)
             },
@@ -280,7 +300,7 @@ class ElementRegistry {
      * observer predicts and what is actually true can be measured rather than guessed at.
      */
     fun auditFrame(surface: String): AuditFrame {
-        val byElement = offered.values.associateBy { it.second }
+        val byElement = currentOffers.values.associateBy { it.second }
         val elements = composed().map { id ->
             val placement = requireNotNull(tenant(id)?.placement)
             val act = byElement[id]?.first
