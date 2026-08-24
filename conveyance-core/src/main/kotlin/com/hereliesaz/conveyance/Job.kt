@@ -4,7 +4,7 @@ package com.hereliesaz.conveyance
  * What an element is for.
  *
  * Resourceful minimalism is unenforceable as advice and trivial to enforce as arithmetic, so jobs
- * are enumerable and elements declare them. An element that cannot name three is standing around
+ * are enumerable and elements declare them. An element that cannot name four is standing around
  * watching one guy dig.
  */
 enum class Job {
@@ -46,10 +46,15 @@ enum class Job {
 sealed interface Employment {
 
     /**
-     * Doing real work. Three jobs is the minimum: one job means "merge this with its
-     * neighbour", and two is still a job short, because anything that starts something owes a
-     * way to stop it -- a control with no [Job.Interrupt] and no third job in its place is
-     * asking to be trusted rather than offering a way out.
+     * Doing real work. Four jobs is the minimum. For an inviting element, three of the four
+     * cost nothing to justify -- [Job.Invite] is the declaration itself, [Job.Progress] is true
+     * the moment it exists (Offer renders every act's states, Yielding included, from the same
+     * pixels), and [Job.Interrupt] is owed for the same reason Law 4 already names it. But
+     * nothing here is inferred: the type does not add jobs on an element's behalf, because a
+     * claimed job with no code standing behind it is exactly the failure this law exists to
+     * catch, not a shortcut around declaring it. A developer who has internalised that the first
+     * three are close to automatic still has to write all four down -- what that buys is one
+     * real job of friction, not zero.
      *
      * The count is checked at construction rather than by a later audit, because an unemployed
      * element that reaches an audit has already been designed, reviewed and probably shipped.
@@ -58,7 +63,7 @@ sealed interface Employment {
         constructor(vararg jobs: Job) : this(jobs.toSet())
 
         init {
-            require(jobs.size >= 3) {
+            require(jobs.size >= 4) {
                 "An element with ${jobs.size} job(s) is standing around. " +
                     "Merge it with its neighbour, or delete it: $jobs"
             }

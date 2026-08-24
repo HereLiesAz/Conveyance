@@ -102,11 +102,11 @@ Consistency is load-bearing. A motion signature reused for decoration is a lie i
 
 ### Law 4 — Employment
 
-**Every element does at least three jobs. Elements with one or two jobs get merged; elements with none get deleted.**
+**Every element does at least four jobs. Elements with fewer get merged; elements with none get deleted.**
 
-This is resourceful minimalism made checkable. Jobs are enumerable (§4.2), and an element that cannot name three of them is standing around watching one guy dig. Three, not two, because anything that starts something owes a way to stop it: an element that initiates has `Invite` for free and needs `Interrupt` to answer the question it just raised, which leaves exactly one job of headroom before it is merged with its neighbour — not zero.
+This is resourceful minimalism made checkable. Jobs are enumerable (§4.2), and an element that cannot name four of them is standing around watching one guy dig. Four, not three, because three of the four are nearly free for an element that offers an act: `Invite` is the declaration itself, `Progress` is true the moment it exists (Offer renders every act's states, Yielding included, from the same pixels — there is no path through the type system that skips it), and `Interrupt` is owed for the same reason Law 4 already names it. None of those should cost a developer real thought once that's understood — which is exactly why the count can't stop at three: a three-job minimum would be satisfiable by reflex, without the developer ever deciding anything.
 
-*Consequence for the API:* elements declare their jobs; the Idle Worker audit fails the build on unemployment.
+*Consequence for the API:* `Employment.Working` requires all four written down explicitly — nothing is inferred on the developer's behalf, because a job the type system credits without seeing the code behind it is exactly the failure this law exists to catch. The fourth is the one that actually costs a decision, and it's the only one this law is checking for; the Idle Worker audit fails the build on unemployment.
 
 ### Law 5 — Benefit of the Doubt
 
@@ -310,7 +310,7 @@ Warn       shows risk                 Navigate   moves you
 Interrupt  stops what it started
 ```
 
-Three minimum. Two means "merge this with its neighbor" — even at two, something is still owed: `Interrupt` exists because an element that starts something and offers no way to stop it is not fully employed, only half-employed with a debt outstanding. One means the same, more so. Zero means "delete it." A small number of `Ambient` elements (a background, a rule) may be declared exempt, and the exemption is budgeted per surface so that the exemption cannot quietly become the norm.
+Four minimum, declared explicitly, every time. `Invite`, `Progress` and `Interrupt` travel together in spirit for an element that offers an act — an offered act always yields on its way to settling and always owes a way to stop it, so neither should cost a developer real thought — but the type never infers them: a job the construction credits without the code behind it existing is the exact failure this law exists to catch, not a shortcut past declaring it. What that leaves is one real, non-reflexive job an inviting element still has to decide on, which is what the requirement is actually checking for. Below four means "merge this with its neighbor." Zero means "delete it." An element that honestly can't carry four may be declared `Ambient` instead — deliberately exempt rather than padded to fit — and the exemption is budgeted per surface so it cannot quietly become the norm.
 
 ---
 
@@ -424,7 +424,7 @@ The framework's verification layer: static audits at build time, runtime asserti
 
 | # | Audit | Fails when | Enforces |
 |---|---|---|---|
-| 1 | **Idle Worker** | An element declares fewer than three jobs and is not budgeted `Ambient` | Law 4 |
+| 1 | **Idle Worker** | An element declares fewer than four jobs and is not budgeted `Ambient` | Law 4 |
 | 2 | **Instruction** | A chrome string exceeds four words, contains terminal punctuation, or is imperative-with-object | Law 5, §6.1 |
 | 3 | **Teleport** | A `Place` has no `origin`, or a transition resolves to a cross-fade | Law 2 |
 | 4 | **Orphan Feedback** | A platform Toast, Snackbar, Dialog, Spinner, or ProgressBar is constructed | Law 1 |
@@ -599,7 +599,7 @@ Stated plainly, because a framework that only lists its strengths is doing a str
 LAWS       1 One Element      invitation, progress, result, failure = same pixels
            2 Continuity       nothing appears from nowhere; nothing goes nowhere
            3 Grammar          one signature per verb, everywhere, for nothing else
-           4 Employment       three jobs minimum, or merge; zero jobs, delete
+           4 Employment       four jobs minimum, declared explicitly; zero jobs, delete
            5 Benefit          reverse not warn · demonstrate not instruct · escort not block
 
 NOUNS      Subject  Place  Act  Gate  Consequence  Keystone

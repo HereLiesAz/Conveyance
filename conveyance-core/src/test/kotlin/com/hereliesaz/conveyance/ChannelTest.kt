@@ -3,7 +3,6 @@ package com.hereliesaz.conveyance
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
-import kotlin.test.assertTrue
 
 class ChannelTest {
 
@@ -33,15 +32,16 @@ class ChannelTest {
     }
 
     @Test
-    fun `an element with fewer than three jobs cannot be constructed`() {
+    fun `an element with fewer than four jobs cannot be constructed`() {
         assertFailsWith<IllegalArgumentException> { Employment.Working(Job.Report) }
         assertFailsWith<IllegalArgumentException> { Employment.Working() }
-        // Two used to be enough. It no longer is: an element that starts something still owes a
-        // way to stop it.
-        assertFailsWith<IllegalArgumentException> { Employment.Working(Job.Invite, Job.Report) }
+        // Three, even three real ones including Invite, is still a job short: nothing here is
+        // inferred on the developer's behalf, however close to automatic Progress and Interrupt
+        // are for an inviting element.
+        assertFailsWith<IllegalArgumentException> { Employment.Working(Job.Invite, Job.Progress, Job.Interrupt) }
 
-        val employed = Employment.Working(Job.Invite, Job.Report, Job.Interrupt)
-        assertTrue(employed.jobs.containsAll(setOf(Job.Invite, Job.Report, Job.Interrupt)))
+        val employed = Employment.Working(Job.Invite, Job.Progress, Job.Interrupt, Job.Report)
+        assertEquals(setOf(Job.Invite, Job.Progress, Job.Interrupt, Job.Report), employed.jobs)
     }
 
     @Test

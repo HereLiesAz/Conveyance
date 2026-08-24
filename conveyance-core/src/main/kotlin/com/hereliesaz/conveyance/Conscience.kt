@@ -40,7 +40,7 @@ data class Finding(
  * Nine of the framework's rules cannot be violated at all, because they are enforced by types
  * rather than checked here: a destruction has no inverse-less constructor, a gate has no
  * address-less constructor, a place has no origin-less constructor outside [Place.root], product
- * code cannot name a spring, an element cannot claim fewer than three jobs, chrome text cannot become
+ * code cannot name a spring, an element cannot claim fewer than four jobs, chrome text cannot become
  * a [Label] if it reads as an instruction, a surface cannot hold two primaries, a product cannot
  * declare zero or more than three keystones, and a channel cannot be declared against the wrong
  * meaning because there is no longer anywhere to write the wrong one down. This class covers what
@@ -59,7 +59,7 @@ object Conscience {
     /**
      * Elements that are on screen doing nothing.
      *
-     * [Employment.Working] already refuses fewer than three jobs at construction, so what is left
+     * [Employment.Working] already refuses fewer than four jobs at construction, so what is left
      * to check is the exemption: how many things a surface has declared Ambient.
      */
     private fun idleWorkers(surface: Surface): List<Finding> {
@@ -72,7 +72,7 @@ object Conscience {
                 where = surface.name,
                 because = "${ambient.size} ambient elements against a budget of ${surface.ambientBudget}: " +
                     ambient.joinToString { it.id.value },
-                instead = "Give each one three jobs, merge it with a neighbour, or delete it.",
+                instead = "Give each one four jobs, merge it with a neighbour, or delete it.",
             ),
         )
     }
