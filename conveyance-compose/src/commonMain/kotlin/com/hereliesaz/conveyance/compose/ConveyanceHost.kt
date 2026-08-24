@@ -25,9 +25,16 @@ import com.hereliesaz.conveyance.Practice
 fun ConveyanceHost(
     modifier: Modifier = Modifier,
     reducedMotion: Boolean = false,
+    /**
+     * Supply a registry to observe the surface from outside.
+     *
+     * Applications leave this null. An audit harness passes one in, because grading a screen needs
+     * the truth about it and the truth lives here.
+     */
+    registry: ElementRegistry? = null,
     content: @Composable () -> Unit,
 ) {
-    val elements = remember { ElementRegistry() }
+    val elements = registry ?: remember { ElementRegistry() }
     val practice = remember { Practice() }
     val ghosts = remember { Ghosts() }
     val stage = remember { Stage() }
