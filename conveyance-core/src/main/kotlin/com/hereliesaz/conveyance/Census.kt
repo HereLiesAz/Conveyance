@@ -35,6 +35,17 @@ data class Census(
     val unreachable: List<ActId> = emptyList(),
     /** On screen and inviting, but attached to no act. A promise with nothing behind it. */
     val mute: List<ElementId> = emptyList(),
+    /**
+     * One address, answered for by more than one composable at once.
+     *
+     * A deliberate, load-bearing case while a place transition is in flight -- a detail place
+     * legitimately shares its subject's address with the thumbnail it grew out of, so the binding
+     * has something to resolve underneath it. Outside of that, it is almost always the other thing:
+     * two unrelated elements that happen to have picked the same [ElementId], one of them silently
+     * shadowing the other in every count and in the audit itself. Reported rather than picked apart,
+     * because telling the two cases apart is a judgement this measurement cannot make on its own.
+     */
+    val contested: List<ElementId> = emptyList(),
 ) {
     /**
      * Elements that are neither an invitation nor the subject matter.
@@ -60,9 +71,13 @@ data class Census(
     /** An invitation with no act behind it teaches a rule that is not true. */
     val hasMuteInvitations: Boolean get() = mute.isNotEmpty()
 
+    /** Two elements answering to one address is worth a look, whether or not it turns out to be a bug. */
+    val hasContestedAddresses: Boolean get() = contested.isNotEmpty()
+
     override fun toString(): String =
         "Census(acts=$acts reachable=$reachable elements=$elements " +
-            "content=$content chrome=$chrome chromePerAct=$chromePerAct)"
+            "content=$content chrome=$chrome chromePerAct=$chromePerAct" +
+            if (contested.isEmpty()) ")" else " contested=${contested.size})"
 
     companion object {
         /**

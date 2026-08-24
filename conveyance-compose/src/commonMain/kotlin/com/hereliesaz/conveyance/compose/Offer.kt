@@ -165,6 +165,13 @@ fun Offer(
                     ActState.Settled -> {
                         // Practice is earned by doing the thing, not by reaching for it.
                         practice.record(act.id)
+                        // If this was the thing an escort carried someone to, acting on it is the
+                        // job the emphasis was for. Settling it here rather than leaving it to the
+                        // next escort to overwrite is what keeps `articulating` an answer to "what
+                        // is the person's attention on right now" instead of a stale pointer at
+                        // whatever was last carried to, indefinitely, after the visible pulse has
+                        // long since finished.
+                        if (registry.articulating == element) registry.settleArticulation()
                         when (val consequence = act.consequence) {
                             // Entering is the one verb whose destination is not another element --
                             // it is the whole window -- so it is the places host that renders it,

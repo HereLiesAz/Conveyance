@@ -24,6 +24,12 @@ private sealed interface Slot<out T> {
     data class Gone(val subject: SubjectId) : Slot<Nothing>
 }
 
+/** The subject either half of a [Slot] is about, regardless of which one it is. */
+private fun <T> Slot<T>.subject(key: (T) -> SubjectId): SubjectId = when (this) {
+    is Slot.Present -> key(item)
+    is Slot.Gone -> subject
+}
+
 /**
  * A collection of subjects, and the control that creates them.
  *
@@ -62,7 +68,13 @@ fun <T> Collection(
     // has already left the list. Reading that back out of the element registry was working only by
     // accident -- the address is surrendered the moment the subject goes, which is correct
     // behaviour and leaves the Ghost holding nothing. The collection keeps its own likeness instead.
+    //
+    // Pruned to exactly what [slots] still holds, every time. A recovered or released residue's
+    // slot closes -- [resolveSlots] already stops resolving it -- and a likeness this collection
+    // never sheds would grow for as long as the collection stays mounted, holding a full T (with
+    // whatever it references: attachments, images) for every subject that was ever Present.
     val likeness = remember { mutableMapOf<SubjectId, T>() }
+    likeness.keys.retainAll(slots.mapTo(mutableSetOf()) { it.subject(key) })
 
     // Bias runs from the centre (0) to the corner (near 1). The creation control does not jump
     // between two positions; it travels, because the travel is the part that teaches where it went.
@@ -191,12 +203,7 @@ private fun <T> resolveSlots(
         }
     }
 
-    val resolved = slots.map {
-        when (it) {
-            is Slot.Present -> key(it.item)
-            is Slot.Gone -> it.subject
-        }
-    }
+    val resolved = slots.map { it.subject(key) }
     if (resolved != order.toList()) {
         order.clear()
         order.addAll(resolved)
