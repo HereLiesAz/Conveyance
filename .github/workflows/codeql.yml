@@ -49,8 +49,13 @@ jobs:
 
     # SAST over the source. `snyk code test` does not need a resolved dependency graph, so it does
     # not need Gradle -- the previous `snyk test` did, and failed trying to run it.
+    #
+    # Gated behind a repository variable because Snyk Code is a separately-licensed product: without
+    # it enabled the step returns 403 SNYK-CODE-0005 on every run, forever. A check that can never
+    # pass is not a check; it is a red light that teaches everyone to stop reading CI. Turn it on at
+    # app.snyk.io, then set the repository variable SNYK_CODE_ENABLED to true.
     - name: Run Snyk Code Security Scan
-      if: steps.snyk.outputs.configured == 'true'
+      if: steps.snyk.outputs.configured == 'true' && vars.SNYK_CODE_ENABLED == 'true'
       uses: snyk/actions/node@master
       env:
         SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
