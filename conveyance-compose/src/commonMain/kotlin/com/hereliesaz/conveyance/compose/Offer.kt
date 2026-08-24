@@ -4,6 +4,7 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.VectorConverter
 import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -93,6 +94,16 @@ fun Offer(
     val coroutineScope = rememberCoroutineScope()
 
     var state by remember(act.id) { mutableStateOf<ActState>(ActState.Ready) }
+
+    // Registering the act against its element is what lets the surface be counted: how much is on
+    // screen, against how much can be done there.
+    DisposableEffect(registry, act.id) {
+        registry.offer(act.id, act.elementId)
+        // A gate's address is doing a job -- it is where a person is carried when something is
+        // missing -- and nobody should have to write that down.
+        act.requires.forEach { registry.markGate(it.livesAt) }
+        onDispose { registry.withdraw(act.id) }
+    }
 
     // The Refuse signature: resist at the point of contact, leaning toward the gate, before the
     // escort carries the person over. Without this the refusal is silent and the escort looks like

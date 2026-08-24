@@ -76,6 +76,8 @@ fun <T> Collection(
                             Modifier.element(
                                 id = subjectElement(subject),
                                 token = { item(slot.item) },
+                                // No employment declared: registering a token is already the
+                                // evidence that this element identifies a particular subject.
                             ),
                         ) {
                             item(slot.item)

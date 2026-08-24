@@ -20,7 +20,21 @@ There is one rule the whole framework hangs from:
 
 > **The Two-Sided Rule.** Conveyance applies to the developer as much as the user. If a developer needs a manual to use this framework, the framework is a construction zone. The API is a user interface. It must convey.
 
-This is not a slogan; it is a constraint with teeth, and it shows up throughout as concrete API decisions. The vocabulary is small enough to fit on one page (Appendix A) because a vocabulary you have to look up is a tooltip.
+This is not a slogan; it is a constraint with teeth, and it shows up throughout as concrete API decisions. It has a second half, which took longer to arrive at:
+
+> **The framework does the heavy lifting.** Anything the framework can work out for itself, it must. Asking a developer for something the model already contains is a defect in the framework, not a feature of the API.
+
+Every parameter is a question, every question has to be answered on every call, and an answer typed once is a **label** — it goes stale the moment the thing it describes changes, and then the framework is reasoning about the label instead of the thing. Worse, a required answer with a floor invites everyone to clear the floor and stop thinking, which is how a parameter becomes a formality.
+
+Three places this rule was applied after the fact, each replacing something the API used to ask for:
+
+| Was asked for | Now derived from |
+|---|---|
+| How a control should animate | The consequence's verb and the two elements' positions (§0, Part III) |
+| What an element is for | Backing an act, being a gate's address, carrying a travelling token (§7.1) |
+| How long an undo lasts | The weight of what was destroyed (§5.3) |
+
+When you find yourself adding a parameter, the question to ask first is not "what should its default be" but "why does the framework not already know this". The vocabulary is small enough to fit on one page (Appendix A) because a vocabulary you have to look up is a tooltip.
 
 ### The design premise
 
@@ -429,6 +443,25 @@ Audits 3, 4, 5, 8 and 10 are structural — they are consequences of required fi
 **Surplusage, not surplus.** Twain's word is a legal term of art: matter that can be struck without affecting the validity of what remains. It is not a synonym for "extra" — it names extra *that carries nothing*, and by naming it that precisely it licenses the rest. So the audits that are judgements (1, 6, 7, 9, 11) do not block; they demand a reason. A waiver is accepted when it states what the element carries, and the stating is the whole cost. An absolute rule would have been "eschew surplus" — cruder, and not what he wrote.
 
 **The Conscience obeys the Two-Sided Rule.** It never lectures. A failure names the element, names the law, and offers the compliant construction as a diff — it escorts the developer to the fix, exactly as §5.2 escorts the user to the gate. A build error that explains a philosophy is a tooltip, and this framework does not ship tooltips.
+
+---
+
+## 7.1 The Census — counting a surface against itself
+
+Twain's fourth rule — *the personages shall exhibit a sufficient excuse for being there* — is the only rule on his list that can be taken as a **continuous measurement**, without a person, while an application is simply being used. The framework already holds both halves and for a long time never asked them to compare notes: the registry knows every element on screen, and every offered act knows the element it is offered by.
+
+**The naive metric is wrong, and worth naming.** Elements divided by acts punishes any screen holding content, because content is not an affordance — a gallery of fifty photographs is not fifty times worse than a gallery of one. What does not scale with data, and therefore what is worth counting, is **chrome**: the elements that are the product talking rather than the product's subject matter. Content earns its place by being what the person came for. Chrome has to argue for itself.
+
+So the number is **chrome per act**, and it is reported rather than enforced, because no counter can tell which chrome could be struck without loss — that is precisely what surplusage means and precisely what only a person can judge.
+
+Two of the counts are not matters of taste at all:
+
+- **Unreachable acts** — offered, with nothing on screen to reach them by.
+- **Mute invitations** — an element that invites, attached to no act. A promise with nothing behind it.
+
+Both are defects.
+
+**What the census must not become is a form to fill in.** An earlier draft had every element declare its jobs, which fails the rule above twice over: it is a label that goes stale, and a two-job minimum invites everyone to type exactly two. So jobs are derived — an element backing an act invites; a gate's address is where a missing condition gets resolved, so it invites *and* locates; an element carrying a travelling token identifies something particular. Declaration survives only for what the framework genuinely cannot see, and an element the framework cannot account for counts as chrome, which is the honest answer: unaccounted for is exactly the state of a thing nobody has had to justify.
 
 ---
 
