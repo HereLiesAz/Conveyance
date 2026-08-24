@@ -69,32 +69,59 @@ data class Placement(
 @Stable
 class ElementRegistry {
 
-    private val placements = mutableStateMapOf<ElementId, Placement>()
-
-    @OptIn(ExperimentalFoundationApi::class)
-    private val requesters = mutableMapOf<ElementId, BringIntoViewRequester>()
+    /**
+     * Everyone currently claiming each address, oldest first.
+     *
+     * One address, more than one claimant, is not a mistake to be forbidden — it is what a place
+     * transition *is*. While a detail place is growing out of a thumbnail, the photograph exists
+     * twice: small underneath, large on top. Both are the same subject and must answer to the same
+     * name, or a Send from the detail would fly out of a thumbnail hidden behind it.
+     *
+     * So an address is tenanted rather than owned. The newest claimant answers for it, and when
+     * that claimant leaves the answer reverts to whoever was there before instead of vanishing.
+     * That single rule is what makes Return land correctly: the way out resolves the origin at the
+     * moment of return, and by then the tenancy has already handed the name back to the tray.
+     */
+    private val tenancy = mutableStateMapOf<ElementId, List<Tenant>>()
 
     /**
-     * How to draw each element somewhere else.
+     * One claimant's hold on an address, and everything it knows about itself.
      *
-     * A verb that travels has to render the thing that is travelling, and only the element itself
-     * knows what it looks like. Registering it here is what lets the framework fly a row to an
-     * avatar without the app writing a single line of animation.
+     * Kept together rather than as parallel maps because a claim is a single fact — this element,
+     * here, drawable like this — and splitting it across four maps is how the halves get out of
+     * step when one of them is handed back and the others are not.
      */
-    private val tokens = mutableMapOf<ElementId, @Composable () -> Unit>()
+    private class Tenant(val owner: Any) {
+        var placement: Placement? by mutableStateOf(null)
+        var employment: Employment? by mutableStateOf(null)
 
-    /**
-     * What an element claims to be for, in the rare case it has to say.
-     *
-     * Declaration is the exception here, not the rule. A declared job is a label, and labels
-     * ossify: the element gains or loses behaviour, the label does not move, and the count quietly
-     * starts measuring the declaration instead of the thing. Worse, a two-job minimum invites
-     * everyone to write exactly two and stop thinking, which is how a parameter becomes a formality.
-     *
-     * So [jobsOf] derives what it can from what the framework already knows, and this map only
-     * carries what it cannot see.
-     */
-    private val employments = mutableStateMapOf<ElementId, Employment>()
+        /**
+         * How to draw this element somewhere else.
+         *
+         * A verb that travels has to render the thing that is travelling, and only the element
+         * itself knows what it looks like. Holding it here is what lets the framework fly a row to
+         * an avatar without the app writing a single line of animation.
+         */
+        var token: (@Composable () -> Unit)? = null
+
+        @OptIn(ExperimentalFoundationApi::class)
+        var requester: BringIntoViewRequester? = null
+    }
+
+    /** Whoever currently answers for this address. */
+    private fun tenant(id: ElementId): Tenant? = tenancy[id]?.lastOrNull()
+
+    private fun claim(id: ElementId, owner: Any): Tenant {
+        val held = tenancy[id].orEmpty()
+        held.firstOrNull { it.owner === owner }?.let { return it }
+        val fresh = Tenant(owner)
+        tenancy[id] = held + fresh
+        return fresh
+    }
+
+    /** Addresses that have actually been laid out, as opposed to merely spoken for. */
+    private fun composed(): Set<ElementId> =
+        tenancy.keys.filterTo(mutableSetOf()) { tenant(it)?.placement != null }
 
     /** Elements that are some gate's address. Where a person is carried when something is missing. */
     private val gateAddresses = mutableStateMapOf<ElementId, Boolean>()
@@ -118,25 +145,41 @@ class ElementRegistry {
     var articulating: ElementId? by mutableStateOf(null)
         private set
 
-    operator fun get(id: ElementId): Placement? = placements[id]
+    operator fun get(id: ElementId): Placement? = tenant(id)?.placement
 
     /** Unclipped bounds, present whether or not the element is currently on screen. */
-    fun bounds(id: ElementId): Rect? = placements[id]?.bounds
+    fun bounds(id: ElementId): Rect? = tenant(id)?.placement?.bounds
 
     /** Whether an address currently resolves to a composed element. */
-    fun resolves(id: ElementId): Boolean = placements.containsKey(id)
+    fun resolves(id: ElementId): Boolean = tenant(id)?.placement != null
 
     /** Whether the person can actually see it right now. An escort must check this first. */
-    fun visible(id: ElementId): Boolean = placements[id]?.visible == true
+    fun visible(id: ElementId): Boolean = tenant(id)?.placement?.visible == true
 
-    internal fun place(id: ElementId, placement: Placement) {
-        placements[id] = placement
+    /**
+     * Where an address is according to whoever held it *before* its current holder.
+     *
+     * This is the one query a place transition must ask, and asking the ordinary one would be
+     * circular: while a detail place is growing out of a photograph, the large photograph inside it
+     * answers to the same name, so "where is the photograph" would return the moving place itself
+     * and the geometry would chase its own tail. The thing a place grows out of is by definition the
+     * claim underneath its own, which is exactly what this returns — falling back to the only
+     * claimant when the place has not composed yet, or does not re-use the name at all.
+     */
+    internal fun anchor(id: ElementId): Rect? {
+        val held = tenancy[id].orEmpty()
+        val below = held.getOrNull(held.lastIndex - 1) ?: held.lastOrNull()
+        return below?.placement?.bounds
     }
 
-    internal fun token(id: ElementId): (@Composable () -> Unit)? = tokens[id]
+    internal fun place(id: ElementId, owner: Any, placement: Placement) {
+        claim(id, owner).placement = placement
+    }
 
-    internal fun employ(id: ElementId, employment: Employment) {
-        employments[id] = employment
+    internal fun token(id: ElementId): (@Composable () -> Unit)? = tenant(id)?.token
+
+    internal fun employ(id: ElementId, owner: Any, employment: Employment) {
+        claim(id, owner).employment = employment
     }
 
     internal fun offer(act: Act, at: ElementId) {
@@ -164,8 +207,8 @@ class ElementRegistry {
             add(Job.Invite)
             add(Job.Locate)
         }
-        if (tokens.containsKey(id)) add(Job.Identify)
-        when (val declared = employments[id]) {
+        if (tenant(id)?.token != null) add(Job.Identify)
+        when (val declared = tenant(id)?.employment) {
             is Employment.Working -> addAll(declared.jobs)
             else -> Unit
         }
@@ -174,6 +217,16 @@ class ElementRegistry {
     internal fun withdraw(act: ActId) {
         offered.remove(act)
     }
+
+    /**
+     * The act offered at an address.
+     *
+     * This is the edge of the prerequisite graph, and nobody wrote it down. A gate names the element
+     * where it is resolved; that element is offering an act; therefore that act is what resolves the
+     * gate. Both halves were already required for other reasons, so the whole flowchart of a
+     * product's preconditions is derivable and cannot drift out of step with the acts it describes.
+     */
+    fun offering(id: ElementId): Act? = offered.values.firstOrNull { it.second == id }?.first
 
     /**
      * Count what is on screen against what can be done with it.
@@ -187,7 +240,7 @@ class ElementRegistry {
      * this measurement exists to find those.
      */
     fun census(): Census {
-        val composed = placements.keys.toSet()
+        val composed = composed()
         val offering = offered.filterValues { it.second in composed }
         val invitingIds = offering.values.map { it.second }.toSet()
 
@@ -195,7 +248,7 @@ class ElementRegistry {
         var ambient = 0
         composed.forEach { id ->
             if (id in invitingIds) return@forEach
-            if (employments[id] == Employment.Ambient) {
+            if (tenant(id)?.employment == Employment.Ambient) {
                 ambient++
                 return@forEach
             }
@@ -205,7 +258,7 @@ class ElementRegistry {
 
         return Census(
             acts = offered.size,
-            reachable = offering.count { placements[it.value.second]?.visible == true },
+            reachable = offering.count { visible(it.value.second) },
             elements = composed.size,
             inviting = invitingIds.size,
             content = content,
@@ -227,7 +280,8 @@ class ElementRegistry {
      */
     fun auditFrame(surface: String): AuditFrame {
         val byElement = offered.values.associateBy { it.second }
-        val elements = placements.map { (id, placement) ->
+        val elements = composed().map { id ->
+            val placement = requireNotNull(tenant(id)?.placement)
             val act = byElement[id]?.first
             AuditElement(
                 id = id,
@@ -248,21 +302,30 @@ class ElementRegistry {
         return AuditFrame(surface = surface, census = census(), elements = elements)
     }
 
-    internal fun forget(id: ElementId) {
-        placements.remove(id)
-        requesters.remove(id)
-        tokens.remove(id)
-        employments.remove(id)
-        if (articulating == id) articulating = null
+    /**
+     * Give up one claim on an address.
+     *
+     * The address itself only disappears when the last claimant has gone. A departing tenant that
+     * was merely the most recent hands the name back rather than deleting it, which is what stops a
+     * place transition from erasing the element it is transitioning out of.
+     */
+    internal fun forget(id: ElementId, owner: Any) {
+        val remaining = tenancy[id].orEmpty().filterNot { it.owner === owner }
+        if (remaining.isEmpty()) {
+            tenancy.remove(id)
+            if (articulating == id) articulating = null
+        } else {
+            tenancy[id] = remaining
+        }
     }
 
     @OptIn(ExperimentalFoundationApi::class)
-    internal fun attach(id: ElementId, requester: BringIntoViewRequester) {
-        requesters[id] = requester
+    internal fun attach(id: ElementId, owner: Any, requester: BringIntoViewRequester) {
+        claim(id, owner).requester = requester
     }
 
-    internal fun attachToken(id: ElementId, token: @Composable () -> Unit) {
-        tokens[id] = token
+    internal fun attachToken(id: ElementId, owner: Any, token: @Composable () -> Unit) {
+        claim(id, owner).token = token
     }
 
     /**
@@ -275,7 +338,7 @@ class ElementRegistry {
      */
     @OptIn(ExperimentalFoundationApi::class)
     suspend fun escortTo(id: ElementId) {
-        requesters[id]?.bringIntoView()
+        tenant(id)?.requester?.bringIntoView()
         articulating = id
     }
 
@@ -285,7 +348,7 @@ class ElementRegistry {
     }
 
     /** Every address currently composed. Used by the audits, not by product code. */
-    val placed: Set<ElementId> get() = placements.keys.toSet()
+    val placed: Set<ElementId> get() = composed()
 }
 
 private val NoRegistry = ElementRegistry()
@@ -317,11 +380,15 @@ fun Modifier.element(
 ): Modifier {
     val registry = LocalElements.current
     val requester = remember(id) { BringIntoViewRequester() }
+    // This call site's identity, which is what the registry tenants an address to. Two composables
+    // may legitimately answer to one name at once -- a thumbnail and the place growing out of it --
+    // and telling them apart is what lets the second hand the name back when it leaves.
+    val claim = remember(id) { Any() }
     DisposableEffect(registry, id, token, employment) {
-        registry.attach(id, requester)
-        if (token != null) registry.attachToken(id, token)
-        if (employment != null) registry.employ(id, employment)
-        onDispose { registry.forget(id) }
+        registry.attach(id, claim, requester)
+        if (token != null) registry.attachToken(id, claim, token)
+        if (employment != null) registry.employ(id, claim, employment)
+        onDispose { registry.forget(id, claim) }
     }
 
     // Articulation, rendered by the framework rather than left to the app.
@@ -357,6 +424,7 @@ fun Modifier.element(
         val size = coordinates.size
         registry.place(
             id,
+            claim,
             Placement(
                 bounds = Rect(
                     coordinates.localToRoot(Offset.Zero),

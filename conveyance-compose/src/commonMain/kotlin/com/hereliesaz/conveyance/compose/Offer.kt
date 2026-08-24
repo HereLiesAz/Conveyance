@@ -20,7 +20,9 @@ import com.hereliesaz.conveyance.Act
 import com.hereliesaz.conveyance.ActState
 import com.hereliesaz.conveyance.Consequence
 import com.hereliesaz.conveyance.ElementId
+import com.hereliesaz.conveyance.Route
 import com.hereliesaz.conveyance.Signature
+import com.hereliesaz.conveyance.Step
 import com.hereliesaz.conveyance.Weight
 import kotlinx.coroutines.launch
 
@@ -100,6 +102,7 @@ fun Offer(
     val registry = LocalElements.current
     val practice = LocalPractice.current
     val stage = LocalStage.current
+    val places = LocalPlaces.current
     val reduced = LocalReducedMotion.current
     val coroutineScope = rememberCoroutineScope()
 
@@ -137,13 +140,27 @@ fun Offer(
             coroutineScope.launch {
                 when (val terminal = act.engage { state = it }) {
                     is ActState.Blocked -> {
-                        registry.lean(resist, act, terminal.gate.livesAt)
-                        registry.escortTo(terminal.gate.livesAt)
+                        // Not "where is the first thing that is missing" but "where is the first
+                        // thing they can actually do". When the missing thing is itself blocked,
+                        // those are different addresses, and only the second one is any use.
+                        val destination = when (val step = Route.from(act, registry::offering)) {
+                            is Step.Do -> step.opens.livesAt
+                            is Step.Stranded -> step.gate.livesAt
+                            Step.Ready -> terminal.gate.livesAt
+                        }
+                        registry.lean(resist, act, destination)
+                        registry.escortTo(destination)
                     }
                     ActState.Settled -> {
                         // Practice is earned by doing the thing, not by reaching for it.
                         practice.record(act.id)
-                        registry.carry(stage, act, reduced)
+                        when (val consequence = act.consequence) {
+                            // Entering is the one verb whose destination is not another element --
+                            // it is the whole window -- so it is the places host that renders it,
+                            // not the stage.
+                            is Consequence.Enter -> places?.enter(consequence.place, act.weight)
+                            else -> registry.carry(stage, act, reduced)
+                        }
                     }
                     else -> Unit
                 }
@@ -180,6 +197,9 @@ internal fun ElementRegistry.carry(stage: Stage, act: Act, reduced: Boolean) {
     if (!signature.translates) return
 
     val origin: ElementId = when (val consequence = act.consequence) {
+        // Entering is rendered by the places host; a flight from an element to itself would be a
+        // motion that says nothing.
+        is Consequence.Enter -> return
         is Consequence.Send -> subjectElement(consequence.subject)
         is Consequence.Destroy -> subjectElement(consequence.subject)
         is Consequence.Alter -> subjectElement(consequence.subject)

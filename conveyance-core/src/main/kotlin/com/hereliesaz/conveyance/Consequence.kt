@@ -19,8 +19,19 @@ sealed interface Consequence {
     /** More of what is already here becomes visible. The person does not go anywhere. */
     data class Reveal(override val target: ElementId) : Consequence
 
-    /** The person goes somewhere. The touched element becomes that place. */
-    data class Enter(val place: PlaceId, override val target: ElementId) : Consequence
+    /**
+     * The person goes somewhere. The touched element becomes that place.
+     *
+     * Carries the whole [Place] rather than its identity, because a place already knows the element
+     * it grows out of and asking for that twice invites the two to disagree. It also costs a
+     * syllable at every call site for information the model already holds.
+     */
+    data class Enter(val place: Place) : Consequence {
+        override val target: ElementId
+            get() = requireNotNull(place.origin) {
+                "A root place is not entered; it is where a person begins."
+            }
+    }
 
     /** A new subject exists, in a named collection. It comes out of the control that made it. */
     data class Create(val subject: SubjectId, val into: ElementId) : Consequence {

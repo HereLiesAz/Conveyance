@@ -105,7 +105,7 @@ class ActTest {
         val create = Act.create("invoice.new", invoice, into = list)
         assertEquals(list, create.consequence.target)
 
-        val enter = Act.enter("invoice.open", PlaceId("invoice.detail"), from = list)
+        val enter = Act.enter("invoice.open", Place.from("invoice.detail", origin = list))
         assertEquals(list, enter.consequence.target)
     }
 }
