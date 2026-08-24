@@ -43,6 +43,23 @@ class ActScope internal constructor(
     val yielding: Float? get() = (state as? ActState.Yielding)?.extent
 
     fun engage() = onEngage()
+
+    companion object {
+        /**
+         * An [ActScope] pinned to one state, for previews and for rendering a control's states side
+         * by side.
+         *
+         * This is not a way around Law 1. A control still has to handle all five states — this hands
+         * it one of them so a person can look at it, which is the opposite of letting a developer
+         * ship only the happy path.
+         */
+        fun pinned(
+            act: Act,
+            state: ActState,
+            weight: Weight = act.weight,
+            owesTell: Boolean = false,
+        ) = ActScope(act, state, weight, owesTell, onEngage = {})
+    }
 }
 
 /**
