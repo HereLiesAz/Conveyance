@@ -1,5 +1,7 @@
 package com.hereliesaz.conveyance.compose
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.VectorConverter
 import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
@@ -10,8 +12,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.graphicsLayer
 import com.hereliesaz.conveyance.Act
 import com.hereliesaz.conveyance.ActState
+import com.hereliesaz.conveyance.Consequence
 import com.hereliesaz.conveyance.ElementId
 import com.hereliesaz.conveyance.Signature
 import com.hereliesaz.conveyance.Weight
@@ -82,9 +88,16 @@ fun Offer(
 ) {
     val registry = LocalElements.current
     val practice = LocalPractice.current
+    val stage = LocalStage.current
+    val reduced = LocalReducedMotion.current
     val coroutineScope = rememberCoroutineScope()
 
     var state by remember(act.id) { mutableStateOf<ActState>(ActState.Ready) }
+
+    // The Refuse signature: resist at the point of contact, leaning toward the gate, before the
+    // escort carries the person over. Without this the refusal is silent and the escort looks like
+    // the screen moving on its own.
+    val resist = remember(act.id) { Animatable(Offset.Zero, Offset.VectorConverter) }
 
     // While at rest, track the world: a gate satisfied elsewhere unblocks this control with no
     // notification, no refresh, and nothing for the person to dismiss.
@@ -102,15 +115,83 @@ fun Offer(
         onEngage = {
             coroutineScope.launch {
                 when (val terminal = act.engage { state = it }) {
-                    is ActState.Blocked -> registry.escortTo(terminal.gate.livesAt)
-                    // Practice is earned by doing the thing, not by reaching for it.
-                    else -> practice.record(act.id)
+                    is ActState.Blocked -> {
+                        registry.lean(resist, act, terminal.gate.livesAt)
+                        registry.escortTo(terminal.gate.livesAt)
+                    }
+                    ActState.Settled -> {
+                        // Practice is earned by doing the thing, not by reaching for it.
+                        practice.record(act.id)
+                        registry.carry(stage, act, reduced)
+                    }
+                    else -> Unit
                 }
             }
         },
     )
 
-    Box(modifier.element(act.elementId)) {
+    Box(
+        modifier
+            .graphicsLayer {
+                translationX = resist.value.x
+                translationY = resist.value.y
+            }
+            .element(act.elementId, token = { ActScope.pinned(act, ActState.Ready).content() }),
+    ) {
         scope.content()
     }
+}
+
+/**
+ * Render the act's consequence as motion, from the model alone.
+ *
+ * This is what the required [Consequence.target] field was always for. The act knows what changes
+ * and where; the registry knows where everything is; the grammar knows what that verb looks like.
+ * Nothing else has to be supplied, and in particular the application supplies no animation — which
+ * is the difference between a framework that conveys and a framework that merely permits conveying.
+ *
+ * A journey with no resolvable endpoint is silently skipped. A verb aimed at something that is not
+ * on screen has nothing truthful to say, and inventing a destination would teach a rule that is not
+ * real.
+ */
+internal fun ElementRegistry.carry(stage: Stage, act: Act, reduced: Boolean) {
+    val signature = act.signature.let { if (reduced) it.reduced() else it }
+    if (!signature.translates) return
+
+    val origin: ElementId = when (val consequence = act.consequence) {
+        is Consequence.Send -> subjectElement(consequence.subject)
+        is Consequence.Destroy -> subjectElement(consequence.subject)
+        is Consequence.Alter -> subjectElement(consequence.subject)
+        else -> act.elementId
+    }
+
+    val from: Rect = bounds(origin) ?: bounds(act.elementId) ?: return
+    val to: Rect = bounds(act.consequence.target) ?: return
+    val token = token(origin) ?: token(act.elementId) ?: return
+
+    stage.launch(signature, from, to, act.weight, token)
+}
+
+/**
+ * Lean toward the gate and settle back.
+ *
+ * The direction is real: it is computed from where this act is to where its unmet condition lives,
+ * so a person's hand is told which way they are about to be taken before they are taken there. A
+ * refusal that recoils in a fixed direction would be decoration; this one is information.
+ */
+internal suspend fun ElementRegistry.lean(
+    resist: Animatable<Offset, *>,
+    act: Act,
+    gate: ElementId,
+) {
+    val here = bounds(act.elementId)?.center ?: return
+    val there = bounds(gate)?.center ?: return
+    val delta = there - here
+    val distance = kotlin.math.hypot(delta.x, delta.y)
+    if (distance < 1f) return
+
+    val reach = 26f
+    val toward = Offset(delta.x / distance * reach, delta.y / distance * reach)
+    resist.animateTo(toward, Motion.spec(Weight.Light))
+    resist.animateTo(Offset.Zero, Motion.spec(Weight.Medium))
 }

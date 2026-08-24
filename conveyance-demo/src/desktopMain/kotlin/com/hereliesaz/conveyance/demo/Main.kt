@@ -10,9 +10,9 @@ import androidx.compose.ui.window.rememberWindowState
 fun main() = application {
     Window(
         onCloseRequest = ::exitApplication,
-        title = "Documents",
+        title = "Gallery",
         state = rememberWindowState(size = DpSize(460.dp, 720.dp)),
     ) {
-        Documents()
+        Gallery()
     }
 }
