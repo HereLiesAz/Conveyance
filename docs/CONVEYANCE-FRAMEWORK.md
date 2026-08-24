@@ -65,7 +65,7 @@ This part is not a second set of rules. It is the small number of **mechanisms**
 | Not omit necessary details | The Necessary Detail audit (§7, audit 11) |
 | Avoid slovenliness of form; use good grammar | Channel Economy (Part IV), the grammar (Part III) |
 | Say what you propose to say, not merely come near it | One Element (Law 1), Continuity (Law 2) |
-| A composable can have too many syllables | The syllable count (§7.2) |
+| A composable can have too many syllables | The syllable count (§7.3) |
 
 Two of those rows are new, and they are new because the rules found holes the mechanisms did not have. They are marked where they appear.
 
@@ -464,7 +464,28 @@ Both are defects.
 
 **What the census must not become is a form to fill in.** An earlier draft had every element declare its jobs, which fails the rule above twice over: it is a label that goes stale, and a two-job minimum invites everyone to type exactly two. So jobs are derived — an element backing an act invites; a gate's address is where a missing condition gets resolved, so it invites *and* locates; an element carrying a travelling token identifies something particular. Declaration survives only for what the framework genuinely cannot see, and an element the framework cannot account for counts as chrome, which is the honest answer: unaccounted for is exactly the state of a thing nobody has had to justify.
 
-## 7.2 Syllables
+## 7.2 The judge
+
+The audit needs a viewer that has never seen the product. That is a property of what it is **shown**, not of who made it — so the framework does not care which model answers, and pinning it to one vendor would have been a decision with no design behind it.
+
+**With nothing configured it uses a model running locally, with no key and no account.** An audit you have to buy before you can try is an audit most people never run, and a rule nobody runs is not a rule. A key from any major provider is used when one is present, because providing a key is a statement of intent.
+
+| Configured | Judge |
+|---|---|
+| `CONVEYANCE_JUDGE_URL` | that endpoint, with `CONVEYANCE_JUDGE_MODEL` and an optional key |
+| `ANTHROPIC_API_KEY` | Claude, through its own SDK |
+| `OPENAI_API_KEY`, `GEMINI_API_KEY`, `XAI_API_KEY`, `GROQ_API_KEY`, `MISTRAL_API_KEY`, `DEEPSEEK_API_KEY`, `OPENROUTER_API_KEY` | that provider |
+| nothing | a local vision model, no key |
+
+Supporting "any provider" turned out to be one implementation and a base URL rather than eight integrations: almost everyone speaks the chat-completions shape, including a model running on your own machine. Anthropic is the exception and is reached through its real SDK, because using a compatibility shim to talk to something with a first-class client would be worse code chosen for symmetry.
+
+Two consequences worth stating, because both are places this could quietly stop meaning anything:
+
+**The report records which judge answered.** A verdict from a small local model and a verdict from a frontier one are not the same evidence, and filing them as though they were is how a measurement decays into a number.
+
+**An unreachable judge is not a clean audit.** "Nobody was there to look" and "somebody looked and found nothing wrong" are opposite results. The harness says which one happened and never reports the first as the second.
+
+## 7.3 Syllables
 
 A composable is a word, a screen is a sentence, a flow is a paragraph — and a word can have too many syllables. A monosyllabic composable that does the job is better than a polysyllabic one that does the same job, for the same reason it is in prose: it lands on more people with less effort.
 
