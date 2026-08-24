@@ -47,30 +47,33 @@ jobs:
       id: snyk
       run: echo "configured=${{ secrets.SNYK_TOKEN != '' }}" >> "$GITHUB_OUTPUT"
 
-    # SAST over the source. `snyk code test` does not need a resolved dependency graph, so it does
-    # not need Gradle -- the previous `snyk test` did, and failed trying to run it.
+    # Both Snyk steps run the CLI on the host rather than through snyk/actions/*.
     #
-    # Gated behind a repository variable because Snyk Code is a separately-licensed product: without
-    # it enabled the step returns 403 SNYK-CODE-0005 on every run, forever. A check that can never
-    # pass is not a check; it is a red light that teaches everyone to stop reading CI. Turn it on at
-    # app.snyk.io, then set the repository variable SNYK_CODE_ENABLED to true.
+    # Those actions run in Docker and pass -e "JAVA_HOME" from the runner into the container, so the
+    # container inherits a path to a JDK that exists only on the host. Every Gradle analysis died
+    # with "JAVA_HOME is set to an invalid directory" before reading a line of this repository --
+    # and switching to the gradle-jdk21 image does not help, because the inherited variable
+    # overrides the JDK that image ships. On the host, JAVA_HOME is correct and the Android SDK is
+    # already installed, which is what Gradle needs to configure this build at all.
+
+    # SAST over the source. Gated behind a repository variable because Snyk Code is separately
+    # licensed: without it the scan returns 403 SNYK-CODE-0005 on every run, forever, and a check
+    # that can never pass is not a check -- it is a red light that teaches everyone to stop reading
+    # CI. Enable Snyk Code at app.snyk.io, then set SNYK_CODE_ENABLED to true.
     - name: Run Snyk Code Security Scan
       if: steps.snyk.outputs.configured == 'true' && vars.SNYK_CODE_ENABLED == 'true'
-      uses: snyk/actions/node@master
       env:
         SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-      with:
-        command: code test
-        args: --severity-threshold=high
+      run: |
+        npm install -g snyk
+        snyk code test --severity-threshold=high
 
-    # SCA over the dependency graph. This one does run Gradle, so it needs a JDK *inside* the
-    # container: snyk/actions/gradle inherits JAVA_HOME from the host, where the path does not
-    # exist in the image, and every run died with "JAVA_HOME is set to an invalid directory".
-    # The jdk21 image ships its own.
+    # SCA over the dependency graph. --all-sub-projects because this is a multi-module build and the
+    # root project declares almost nothing.
     - name: Run Snyk Dependency Scan
       if: steps.snyk.outputs.configured == 'true'
-      uses: snyk/actions/gradle-jdk21@master
       env:
         SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-      with:
-        command: monitor
+      run: |
+        npm install -g snyk
+        snyk monitor --all-sub-projects
