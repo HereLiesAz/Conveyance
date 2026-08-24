@@ -7,11 +7,15 @@ import androidx.compose.ui.unit.Density
 import java.io.File
 import javax.imageio.ImageIO
 import javax.imageio.IIOImage
-import javax.imageio.ImageWriteParam
 import javax.imageio.metadata.IIOMetadataNode
 import javax.imageio.stream.FileImageOutputStream
 import java.awt.image.BufferedImage
 import kotlin.test.Test
+import com.hereliesaz.conveyance.ElementId
+import com.hereliesaz.conveyance.SubjectId
+import com.hereliesaz.conveyance.compose.ElementRegistry
+import com.hereliesaz.conveyance.compose.subjectElement
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 /**
@@ -29,8 +33,6 @@ class RenderMotion {
     private val height = 1300
     private val density = 2f
 
-    private fun dp(value: Float) = value * density
-
     /**
      * Drive the app and capture every frame.
      *
@@ -41,16 +43,21 @@ class RenderMotion {
         name: String,
         frames: Int = 40,
         initial: Int = 4,
-        script: (Int, ImageComposeScene) -> Unit,
+        script: Camera.(Int) -> Unit,
     ) {
+        // The films tap named elements rather than coordinates, so they are driven by the same
+        // registry the framework navigates by. A hard-coded pixel is a second, silent description
+        // of the layout, and the two descriptions drift the first time a margin changes.
+        val registry = ElementRegistry()
         val scene = ImageComposeScene(width = width, height = height, density = Density(density)) {
-            Gallery(initial = initial)
+            Gallery(initial = initial, registry = registry)
         }
+        val camera = Camera(scene, registry)
         val captured = mutableListOf<BufferedImage>()
         try {
             var nanos = 0L
             repeat(frames) { frame ->
-                script(frame, scene)
+                camera.script(frame)
                 nanos += 33_000_000L
                 val skia = scene.render(nanos)
                 captured += ImageIO.read(skia.encodeToData()!!.bytes.inputStream())
@@ -62,27 +69,57 @@ class RenderMotion {
         assertTrue(File(out, "$name.gif").length() > 0, "$name produced no film")
     }
 
-    private fun ImageComposeScene.tap(x: Float, y: Float) {
-        sendPointerEvent(PointerEventType.Press, Offset(x, y))
-        sendPointerEvent(PointerEventType.Release, Offset(x, y))
+    /** A hand over the running application, which can only touch things that are actually there. */
+    private class Camera(val scene: ImageComposeScene, val registry: ElementRegistry) {
+
+        fun tap(x: Float, y: Float) {
+            scene.sendPointerEvent(PointerEventType.Press, Offset(x, y))
+            scene.sendPointerEvent(PointerEventType.Release, Offset(x, y))
+        }
+
+        /** Touch a named element where it currently is, and say so if it is not on screen. */
+        fun touch(id: ElementId) {
+            val where = assertNotNull(registry.bounds(id), "Nothing to touch at $id.")
+            tap(where.center.x, where.center.y)
+        }
+
+        fun touch(subject: SubjectId) = touch(subjectElement(subject))
     }
 
     /** The Migration: an empty tray is its own invitation, and the shutter moves in once used. */
     @Test
-    fun `the migration`() = film("01-migration", frames = 55, initial = 0) { frame, scene ->
+    fun `the migration`() = film("01-migration", frames = 55, initial = 0) { frame ->
         // An empty tray is the only state in which the Migration exists. The shutter sits in the
         // middle of the space it is inviting you to fill; taking one photograph sends it home.
-        if (frame == 8) scene.tap(width / 2f, dp(400f))
-        if (frame == 26) scene.tap(width - dp(70f), height - dp(70f))
+        if (frame == 8) touch(ElementId("act:photo.new"))
+        if (frame == 26) touch(ElementId("act:photo.new"))
     }
 
     /**
-     * The Escort: touching a photograph with nobody chosen carries you to the people, and the person
-     * you land on settles under your attention. No message, no greyed-out control, no explanation.
+     * Enter and Return: the thing you touched becomes the place you are in, and gives it back.
+     *
+     * This is the law the manifesto opens with, rendered. The photograph does not disappear and get
+     * replaced by a screen; it grows into one, and on the way out it shrinks into the slot it holds
+     * in the tray — the slot it holds *now*, which is why nobody ever loses their place.
      */
     @Test
-    fun `the escort`() = film("02-escort", frames = 45) { frame, scene ->
-        if (frame == 6) scene.tap(width / 2f, dp(240f))
+    fun `entering and returning`() = film("02-enter", frames = 70) { frame ->
+        if (frame == 6) touch(SubjectId("photo.2"))
+        // The surrounding ground is the way back out.
+        if (frame == 38) tap(40f, height - 40f)
+    }
+
+    /**
+     * The Escort: reaching to send before choosing anyone does not refuse you in place.
+     *
+     * The photograph leans toward the people — that is the Refuse signature, resistance at the point
+     * of contact — and then the person you were missing settles under your attention. No message,
+     * no greyed-out control, no explanation.
+     */
+    @Test
+    fun `the escort`() = film("03-escort", frames = 60) { frame ->
+        if (frame == 5) touch(SubjectId("photo.2"))
+        if (frame == 30) touch(SubjectId("photo.2"))
     }
 
     /**
@@ -90,9 +127,10 @@ class RenderMotion {
      * it went to warms. This is the entire argument for a visible destination.
      */
     @Test
-    fun `sending`() = film("03-send", frames = 55) { frame, scene ->
-        if (frame == 4) scene.tap(dp(55f), dp(58f))
-        if (frame == 12) scene.tap(width / 2f, dp(240f))
+    fun `sending`() = film("04-send", frames = 75) { frame ->
+        if (frame == 5) touch(SubjectId("photo.2"))
+        if (frame == 30) touch(ElementId("person:ines"))
+        if (frame == 42) touch(SubjectId("photo.2"))
     }
 
     private fun writeGif(target: File, frames: List<BufferedImage>, delayMs: Int) {
