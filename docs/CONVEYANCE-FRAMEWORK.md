@@ -102,9 +102,9 @@ Consistency is load-bearing. A motion signature reused for decoration is a lie i
 
 ### Law 4 — Employment
 
-**Every element does at least two jobs. Elements with one job get merged; elements with none get deleted.**
+**Every element does at least three jobs. Elements with one or two jobs get merged; elements with none get deleted.**
 
-This is resourceful minimalism made checkable. Jobs are enumerable (§4.2), and an element that cannot name two of them is standing around watching one guy dig.
+This is resourceful minimalism made checkable. Jobs are enumerable (§4.2), and an element that cannot name three of them is standing around watching one guy dig. Three, not two, because anything that starts something owes a way to stop it: an element that initiates has `Invite` for free and needs `Interrupt` to answer the question it just raised, which leaves exactly one job of headroom before it is merged with its neighbour — not zero.
 
 *Consequence for the API:* elements declare their jobs; the Idle Worker audit fails the build on unemployment.
 
@@ -307,9 +307,10 @@ Locate     tells you where you are    Identify   distinguishes one subject from 
 Group      binds things together      Separate   marks a boundary
 Progress   shows work happening       Confirm    shows work completed
 Warn       shows risk                 Navigate   moves you
+Interrupt  stops what it started
 ```
 
-Two minimum. One means "merge this with its neighbor." Zero means "delete it." A small number of `Ambient` elements (a background, a rule) may be declared exempt, and the exemption is budgeted per surface so that the exemption cannot quietly become the norm.
+Three minimum. Two means "merge this with its neighbor" — even at two, something is still owed: `Interrupt` exists because an element that starts something and offers no way to stop it is not fully employed, only half-employed with a debt outstanding. One means the same, more so. Zero means "delete it." A small number of `Ambient` elements (a background, a rule) may be declared exempt, and the exemption is budgeted per surface so that the exemption cannot quietly become the norm.
 
 ---
 
@@ -423,7 +424,7 @@ The framework's verification layer: static audits at build time, runtime asserti
 
 | # | Audit | Fails when | Enforces |
 |---|---|---|---|
-| 1 | **Idle Worker** | An element declares fewer than two jobs and is not budgeted `Ambient` | Law 4 |
+| 1 | **Idle Worker** | An element declares fewer than three jobs and is not budgeted `Ambient` | Law 4 |
 | 2 | **Instruction** | A chrome string exceeds four words, contains terminal punctuation, or is imperative-with-object | Law 5, §6.1 |
 | 3 | **Teleport** | A `Place` has no `origin`, or a transition resolves to a cross-fade | Law 2 |
 | 4 | **Orphan Feedback** | A platform Toast, Snackbar, Dialog, Spinner, or ProgressBar is constructed | Law 1 |
@@ -598,7 +599,7 @@ Stated plainly, because a framework that only lists its strengths is doing a str
 LAWS       1 One Element      invitation, progress, result, failure = same pixels
            2 Continuity       nothing appears from nowhere; nothing goes nowhere
            3 Grammar          one signature per verb, everywhere, for nothing else
-           4 Employment       two jobs minimum, or merge; zero jobs, delete
+           4 Employment       three jobs minimum, or merge; zero jobs, delete
            5 Benefit          reverse not warn · demonstrate not instruct · escort not block
 
 NOUNS      Subject  Place  Act  Gate  Consequence  Keystone

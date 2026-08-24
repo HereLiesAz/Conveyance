@@ -37,4 +37,10 @@ tasks.withType<Test>().configureEach {
     // Rendering happens off-screen; there is no display in CI and none is needed.
     systemProperty("java.awt.headless", "true")
     testLogging { events("passed", "failed", "skipped") }
+    // RenderMotion holds every captured frame of a film in memory before writing it out --
+    // several dozen full-resolution ARGB frames per test, several films per run. The default
+    // heap is sized for ordinary unit tests and starts failing with OutOfMemoryError once enough
+    // of them run in the same worker, which is a resource limit, not a defect in what the films
+    // are testing.
+    maxHeapSize = "2g"
 }

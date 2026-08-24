@@ -10,6 +10,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
@@ -21,6 +22,8 @@ import androidx.compose.ui.unit.Constraints
 import com.hereliesaz.conveyance.Place
 import com.hereliesaz.conveyance.PlaceId
 import com.hereliesaz.conveyance.Weight
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
@@ -38,7 +41,7 @@ import kotlinx.coroutines.sync.withLock
  * from the registry at the moment of return rather than captured on the way out.
  */
 @Stable
-class PlacesState internal constructor(root: Place) {
+class PlacesState internal constructor(root: Place, private val scope: CoroutineScope) {
 
     internal val stack = mutableStateListOf(root)
 
@@ -92,6 +95,23 @@ class PlacesState internal constructor(root: Place) {
     }
 
     /**
+     * Begin entering on this state's own scope, rather than the caller's.
+     *
+     * The caller is the control that was just touched -- and the growth this starts is what, on
+     * its very next recomposition, replaces that exact control with the place growing out of it.
+     * A coroutine scoped to a composable that is about to leave composition as a direct
+     * consequence of running is a coroutine scoped to be cancelled mid-flight: [enter] would push
+     * the place, snap [extent] to zero, and then lose the coroutine driving it back to one before
+     * a single further frame ran, leaving the arrival permanently the size of the thumbnail it
+     * grew from. [Places] keeps this scope alive for exactly as long as the stack it drives does,
+     * which is exactly the lifetime the animation needs and the touched control does not have.
+     * [enter] itself stays a plain suspend function for anything that wants to await it directly.
+     */
+    internal fun enterAsync(place: Place, weight: Weight) {
+        scope.launch { enter(place, weight) }
+    }
+
+    /**
      * Go back, and report whether there was anywhere to go.
      *
      * Returning false rather than throwing lets a host decide what a back gesture means at the
@@ -124,7 +144,8 @@ fun Places(
     content: @Composable (Place) -> Unit,
 ) {
     val registry = LocalElements.current
-    val places = remember(root.id) { PlacesState(root) }
+    val scope = rememberCoroutineScope()
+    val places = remember(root.id) { PlacesState(root, scope) }
     var window by remember { mutableStateOf(Rect.Zero) }
 
     CompositionLocalProvider(LocalPlaces provides places) {

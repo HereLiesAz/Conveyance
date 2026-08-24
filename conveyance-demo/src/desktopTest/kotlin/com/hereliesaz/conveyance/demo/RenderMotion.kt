@@ -133,6 +133,34 @@ class RenderMotion {
         if (frame == 42) touch(SubjectId("photo.2"))
     }
 
+    /**
+     * Destroy and the Ghost: giving something up leaves its shape behind, pressed flat, exactly
+     * where it was.
+     *
+     * No confirmation dialog interrupts the discard, and none is needed — the residue left in the
+     * tray is the safety mechanism, not a question asked before the fact. Pulling the flattened
+     * slot back is what recovery looks like: not a snackbar in a different postcode, but the same
+     * gap, filled back in.
+     */
+    @Test
+    fun `discarding and recovering`() = film("05-discard", frames = 100) { frame ->
+        if (frame == 5) touch(SubjectId("photo.2"))
+        if (frame == 25) touch(ElementId("discard:photo.2"))
+        if (frame == 45) tap(40f, height - 40f)
+        if (frame == 65) touch(ElementId("ghost:photo.2"))
+    }
+
+    /**
+     * Reveal: a count that was already true becomes visible, in the exact spot it was true in.
+     *
+     * Nothing travels and no place changes — the whole distinction between Reveal and every other
+     * verb here is that this is the one where the person does not go anywhere.
+     */
+    @Test
+    fun `revealing the tally`() = film("06-reveal", frames = 45) { frame ->
+        if (frame == 10) touch(ElementId("tally"))
+    }
+
     private fun writeGif(target: File, frames: List<BufferedImage>, delayMs: Int) {
         require(frames.isNotEmpty()) { "nothing to write" }
         val writer = ImageIO.getImageWritersByFormatName("gif").next()

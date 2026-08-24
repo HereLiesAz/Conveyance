@@ -33,12 +33,15 @@ class ChannelTest {
     }
 
     @Test
-    fun `an element with fewer than two jobs cannot be constructed`() {
+    fun `an element with fewer than three jobs cannot be constructed`() {
         assertFailsWith<IllegalArgumentException> { Employment.Working(Job.Report) }
         assertFailsWith<IllegalArgumentException> { Employment.Working() }
+        // Two used to be enough. It no longer is: an element that starts something still owes a
+        // way to stop it.
+        assertFailsWith<IllegalArgumentException> { Employment.Working(Job.Invite, Job.Report) }
 
-        val employed = Employment.Working(Job.Invite, Job.Report)
-        assertTrue(employed.jobs.containsAll(setOf(Job.Invite, Job.Report)))
+        val employed = Employment.Working(Job.Invite, Job.Report, Job.Interrupt)
+        assertTrue(employed.jobs.containsAll(setOf(Job.Invite, Job.Report, Job.Interrupt)))
     }
 
     @Test
