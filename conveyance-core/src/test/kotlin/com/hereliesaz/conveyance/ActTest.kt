@@ -4,6 +4,7 @@ import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
@@ -107,5 +108,18 @@ class ActTest {
 
         val enter = Act.enter("invoice.open", Place.from("invoice.detail", origin = list))
         assertEquals(list, enter.consequence.target)
+    }
+
+    /**
+     * A root place has no antecedent to grow out of, so entering one is not a smaller version of
+     * Enter -- it is not Enter at all. This used to fail only when something later read
+     * [Consequence.target] (an audit, a render), which meant the bad act could be constructed,
+     * passed around and even offered on screen before anything noticed. Refusing at construction
+     * is what makes the framework's own claim -- that this cannot be represented -- actually true.
+     */
+    @Test
+    fun `entering a root place is refused where the act is made, not wherever it is later read`() {
+        assertFailsWith<IllegalArgumentException> { Act.enter("go.home", Place.root("home")) }
+        assertFailsWith<IllegalArgumentException> { Consequence.Enter(Place.root("home")) }
     }
 }

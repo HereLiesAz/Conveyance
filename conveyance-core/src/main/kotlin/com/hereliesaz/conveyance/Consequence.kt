@@ -27,10 +27,11 @@ sealed interface Consequence {
      * syllable at every call site for information the model already holds.
      */
     data class Enter(val place: Place) : Consequence {
-        override val target: ElementId
-            get() = requireNotNull(place.origin) {
-                "A root place is not entered; it is where a person begins."
-            }
+        init {
+            require(!place.isRoot) { "A root place is not entered; it is where a person begins." }
+        }
+
+        override val target: ElementId get() = requireNotNull(place.origin)
     }
 
     /** A new subject exists, in a named collection. It comes out of the control that made it. */
