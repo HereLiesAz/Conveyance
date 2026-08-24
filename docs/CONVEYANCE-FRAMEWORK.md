@@ -50,7 +50,7 @@ That inversion is the whole framework. The rest is bookkeeping.
 
 ## The rules are Twain's
 
-The manifesto now carries [Twain's eighteen rules recounted as design mandates](../README.md#twains-rules-which-were-design-mandates-all-along), and those are the framework's rules. They are better than the ones this document originally opened with: older, sharper, memorable, and written by someone with no stake in any of this.
+The manifesto now carries [Twain's eighteen rules recounted as design mandates](../README.md#twains-rules-which-were-design-mandates-all-along), and those are the framework's rules. They are better than the ones this document originally opened with: older, sharper, memorable — and not borrowed from an unrelated field. Print was the only interface of that sort in 1895, so Twain was writing about the medium he had, at the stage it was at. The rules are native to this problem, not imported into it.
 
 This part is not a second set of rules. It is the small number of **mechanisms** by which a Compose application can be made to obey them without anyone remembering to. The relationship is one-way — the rules judge, the mechanisms enforce:
 
@@ -65,6 +65,7 @@ This part is not a second set of rules. It is the small number of **mechanisms**
 | Not omit necessary details | The Necessary Detail audit (§7, audit 11) |
 | Avoid slovenliness of form; use good grammar | Channel Economy (Part IV), the grammar (Part III) |
 | Say what you propose to say, not merely come near it | One Element (Law 1), Continuity (Law 2) |
+| A composable can have too many syllables | The syllable count (§7.2) |
 
 Two of those rows are new, and they are new because the rules found holes the mechanisms did not have. They are marked where they appear.
 
@@ -462,6 +463,18 @@ Two of the counts are not matters of taste at all:
 Both are defects.
 
 **What the census must not become is a form to fill in.** An earlier draft had every element declare its jobs, which fails the rule above twice over: it is a label that goes stale, and a two-job minimum invites everyone to type exactly two. So jobs are derived — an element backing an act invites; a gate's address is where a missing condition gets resolved, so it invites *and* locates; an element carrying a travelling token identifies something particular. Declaration survives only for what the framework genuinely cannot see, and an element the framework cannot account for counts as chrome, which is the honest answer: unaccounted for is exactly the state of a thing nobody has had to justify.
+
+## 7.2 Syllables
+
+A composable is a word, a screen is a sentence, a flow is a paragraph — and a word can have too many syllables. A monosyllabic composable that does the job is better than a polysyllabic one that does the same job, for the same reason it is in prose: it lands on more people with less effort.
+
+**What counts as a syllable is what a caller pronounces, not what the signature lists.** A parameter with a default is not something anyone says. `Act.send("invoice.send", invoice, recipientAvatar) { … }` is three syllables however long its declaration reads, and counting declarations instead would punish precisely the design that keeps call sites short.
+
+The rule is enforced by detekt's `LongParameterList` with `ignoreDefaultParameters`, at five for functions and six for constructors.
+
+**This project got it backwards first, which is worth recording.** The original configuration exempted `@Composable` from parameter limits entirely, with a comment reasoning that composables "legitimately take more parameters than plain functions." That is the identical excuse that produced the twenty-seven-parameter DSL functions this project's own review of AzNavRail complains about — written into a linter by the same hand that wrote the complaint. Composables are the thing the rule most needs to police, not the thing it should excuse.
+
+With the exemption removed and syllables counted correctly, one thing in this framework still fails: `Act`'s private constructor takes seven parameters with no defaults. It is reported and not fixed, because the reason can be stated — it is private, nobody pronounces it, and the six verb factories are the vocabulary. That is what a waiver is supposed to look like under §7: a stated reason, and the stating is the cost.
 
 ---
 
