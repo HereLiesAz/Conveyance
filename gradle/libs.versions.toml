@@ -13,6 +13,8 @@ compileSdk = "37"
 compileSdkMinor = "1"
 minSdk = "24"
 coroutines = "1.11.0"
+# detekt: required by the KMP Security Pipeline workflow, which runs ./gradlew detekt.
+detekt = "1.23.8"
 jvmToolchain = "21"
 
 [libraries]
@@ -28,3 +30,4 @@ compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "
 android-kmp-library = { id = "com.android.kotlin.multiplatform.library", version.ref = "agp" }
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
+detekt = { id = "io.gitlab.arturbosch.detekt", version.ref = "detekt" }

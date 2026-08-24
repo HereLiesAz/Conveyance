@@ -24,7 +24,8 @@ class CollectionTest {
 
     private val list = ElementId("documents")
     private fun doc(n: Int) = SubjectId("doc.$n")
-    private fun ghostId(s: SubjectId) = ElementId("ghost:${s.value}")
+    // The framework owns the residue's address now; the test asks it, rather than inventing one.
+    private fun ghostId(s: SubjectId) = ghostElement(s)
 
     /**
      * The Migration. An empty collection shows its creation control full size in the middle of the
@@ -97,9 +98,6 @@ class CollectionTest {
                     creator = create,
                     key = { it },
                     modifier = Modifier.size(400.dp),
-                    ghost = { residue ->
-                        Box(Modifier.width(200.dp).height(40.dp).element(ghostId(residue.subject)))
-                    },
                     creatorContent = { Box(Modifier.size(48.dp)) },
                     item = { subject ->
                         Box(Modifier.width(200.dp).height(40.dp).element(ElementId(subject.value)))
@@ -161,7 +159,6 @@ class CollectionTest {
                     creator = create,
                     key = { it },
                     modifier = Modifier.size(400.dp),
-                    ghost = { Box(Modifier.size(40.dp).element(ghostId(it.subject))) },
                     creatorContent = { Box(Modifier.size(48.dp)) },
                     item = { Box(Modifier.size(40.dp).element(ElementId(it.value))) },
                 )

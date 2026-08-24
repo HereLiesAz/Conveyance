@@ -1,0 +1,54 @@
+# Detekt configuration for Conveyance.
+#
+# Built on detekt's defaults. The overrides below are where this codebase deliberately differs,
+# and each one has a reason rather than a preference.
+
+build:
+  maxIssues: 0
+  excludeCorrectable: false
+
+complexity:
+  LongParameterList:
+    active: true
+    # Composables legitimately take more parameters than plain functions, and the framework's own
+    # answer to parameter sprawl is the six verb factories rather than an arbitrary cap.
+    functionThreshold: 8
+    constructorThreshold: 8
+    ignoreAnnotated: ['Composable']
+  LongMethod:
+    active: true
+    threshold: 80
+    ignoreAnnotated: ['Composable']
+  TooManyFunctions:
+    active: true
+    thresholdInFiles: 30
+    thresholdInClasses: 30
+    thresholdInObjects: 30
+
+style:
+  MagicNumber:
+    active: true
+    # Layout and motion constants are the substance of a UI framework, not magic.
+    ignoreAnnotated: ['Composable']
+    ignorePropertyDeclaration: true
+    ignoreCompanionObjectPropertyDeclaration: true
+  MaxLineLength:
+    active: true
+    maxLineLength: 120
+  ForbiddenComment:
+    active: true
+
+naming:
+  FunctionNaming:
+    active: true
+    # Composables are PascalCase by convention.
+    ignoreAnnotated: ['Composable']
+  TopLevelPropertyNaming:
+    active: true
+    constantPattern: '[A-Za-z][_A-Za-z0-9]*'
+
+comments:
+  UndocumentedPublicClass:
+    active: false
+  UndocumentedPublicFunction:
+    active: false

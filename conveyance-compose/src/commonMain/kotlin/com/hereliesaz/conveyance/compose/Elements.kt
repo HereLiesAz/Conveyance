@@ -5,6 +5,7 @@ import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -18,7 +19,11 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.animation.core.Animatable
+import androidx.compose.ui.graphics.graphicsLayer
 import com.hereliesaz.conveyance.ElementId
+import com.hereliesaz.conveyance.SubjectId
+import com.hereliesaz.conveyance.Weight
 
 /**
  * Where a named element is, and whether the person can currently see it.
@@ -62,6 +67,15 @@ class ElementRegistry {
     private val requesters = mutableMapOf<ElementId, BringIntoViewRequester>()
 
     /**
+     * How to draw each element somewhere else.
+     *
+     * A verb that travels has to render the thing that is travelling, and only the element itself
+     * knows what it looks like. Registering it here is what lets the framework fly a row to an
+     * avatar without the app writing a single line of animation.
+     */
+    private val tokens = mutableMapOf<ElementId, @Composable () -> Unit>()
+
+    /**
      * The element an escort has just delivered someone to, which that element renders as
      * articulation until it is dismissed.
      *
@@ -87,15 +101,22 @@ class ElementRegistry {
         placements[id] = placement
     }
 
+    internal fun token(id: ElementId): (@Composable () -> Unit)? = tokens[id]
+
     internal fun forget(id: ElementId) {
         placements.remove(id)
         requesters.remove(id)
+        tokens.remove(id)
         if (articulating == id) articulating = null
     }
 
     @OptIn(ExperimentalFoundationApi::class)
     internal fun attach(id: ElementId, requester: BringIntoViewRequester) {
         requesters[id] = requester
+    }
+
+    internal fun attachToken(id: ElementId, token: @Composable () -> Unit) {
+        tokens[id] = token
     }
 
     /**
@@ -136,14 +157,45 @@ val LocalElements = staticCompositionLocalOf { NoRegistry }
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun Modifier.element(id: ElementId): Modifier {
+fun Modifier.element(
+    id: ElementId,
+    /** How to draw this element elsewhere, when a verb carries it across the window. */
+    token: (@Composable () -> Unit)? = null,
+): Modifier {
     val registry = LocalElements.current
     val requester = remember(id) { BringIntoViewRequester() }
-    DisposableEffect(registry, id) {
+    DisposableEffect(registry, id, token) {
         registry.attach(id, requester)
+        if (token != null) registry.attachToken(id, token)
         onDispose { registry.forget(id) }
     }
-    return bringIntoViewRequester(requester).onGloballyPositioned { coordinates ->
+
+    // Articulation, rendered by the framework rather than left to the app.
+    //
+    // An escort that only sets a flag has not escorted anyone -- it has told the application to
+    // draw something, which is the application conveying, not the framework. So the arrival is
+    // physical and it is geometry only: the element settles under the person's attention the way a
+    // thing does when it is put down in front of you. No colour is involved, because every channel
+    // already carries an assigned meaning and "look here" is not one of them.
+    val arriving = registry.articulating == id
+    val settle = remember(id) { Animatable(0f) }
+    LaunchedEffect(arriving) {
+        if (arriving) {
+            settle.animateTo(1f, Motion.spec(Weight.Light))
+            settle.animateTo(0f, Motion.spec(Weight.Medium))
+        }
+    }
+
+    return bringIntoViewRequester(requester)
+        .graphicsLayer {
+            // Perceptible on purpose. An emphasis nobody can see is an emphasis that did not
+            // happen, and the first version of this was a four-percent scale -- technically a
+            // settle, practically nothing.
+            val lift = settle.value
+            scaleX = 1f + lift * 0.12f
+            scaleY = 1f + lift * 0.12f
+        }
+        .onGloballyPositioned { coordinates ->
         // Both corners are mapped through the ancestor transforms, never just the origin. Mapping
         // only the origin and pairing it with the raw layout size yields an incoherent rect the
         // moment anything is scaled -- a transformed position wearing an untransformed size -- and
@@ -161,3 +213,11 @@ fun Modifier.element(id: ElementId): Modifier {
         )
     }
 }
+
+/**
+ * Every subject has an address, derived rather than declared.
+ *
+ * This is what lets a Send find the card it is sending and a Destroy find the row it is destroying,
+ * without the app wiring anything up. A collection registers its items here automatically.
+ */
+fun subjectElement(subject: SubjectId): ElementId = ElementId("subject:${subject.value}")

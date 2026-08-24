@@ -3,3 +3,5 @@ build/
 *.log
 .kotlin/
 local.properties
+conveyance-demo/build/scenes/
+conveyance-demo/build/motion/

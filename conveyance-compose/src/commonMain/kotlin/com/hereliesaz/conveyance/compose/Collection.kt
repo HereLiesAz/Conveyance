@@ -1,17 +1,20 @@
 package com.hereliesaz.conveyance.compose
 
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshots.SnapshotStateList
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.graphicsLayer
 import com.hereliesaz.conveyance.Act
+import com.hereliesaz.conveyance.ElementId
 import com.hereliesaz.conveyance.SubjectId
 import com.hereliesaz.conveyance.Weight
 
@@ -24,19 +27,21 @@ private sealed interface Slot<out T> {
 /**
  * A collection of subjects, and the control that creates them.
  *
- * Two of the framework's named behaviours live here because both are really facts about collections
- * rather than about controls.
+ * The collection does four things the application no longer has to, and each one is a behaviour the
+ * framework was previously only describing:
  *
- * **The Migration.** An empty collection does not display a message about being empty. It displays
- * its creation control, full size, in the centre of the space the collection will occupy. When the
- * first subject arrives, that control travels to the corner where it will live from now on and
- * shrinks into it. In one motion, with no words, a person learns what the space is for, how to fill
- * it, and where the button will be for the rest of their life with the product. One element, four
- * jobs, zero instructions.
+ * 1. **It gives every subject an address**, so a Send can find the card it is sending and a Destroy
+ *    can find the row it is destroying, with nothing wired up by hand.
+ * 2. **It registers each subject's appearance**, so a verb that carries something across the window
+ *    can draw the actual thing rather than an abstract marker.
+ * 3. **It registers its own address**, taken from the creator's consequence, so a Create has
+ *    somewhere to fly to.
+ * 4. **It draws the Ghost itself.** There is no slot for the application to fill, because a residue
+ *    the application draws is a residue the framework did not provide.
  *
- * **The Ghost.** A destroyed subject's slot is held open for the recovery window, so the residue sits
- * exactly where the subject was rather than in a bar at the bottom of the screen. That is what the
- * collection contributes: position. Without it, "undo in its own place" is a slogan.
+ * The Migration and the Ghost both live here because both are facts about collections rather than
+ * about controls: one is where new things come from, the other is that a destroyed thing's place is
+ * kept for a while.
  */
 @Composable
 fun <T> Collection(
@@ -44,7 +49,6 @@ fun <T> Collection(
     creator: Act,
     key: (T) -> SubjectId,
     modifier: Modifier = Modifier,
-    ghost: @Composable (com.hereliesaz.conveyance.compose.Residue) -> Unit = {},
     creatorContent: @Composable ActScope.() -> Unit,
     item: @Composable (T) -> Unit,
 ) {
@@ -60,12 +64,27 @@ fun <T> Collection(
         label = "migration",
     )
 
-    Box(modifier) {
+    // The collection answers to the address the creator's consequence names, so Create has a
+    // destination without anyone declaring one twice.
+    Box(modifier.element(creator.consequence.target)) {
         Column {
             slots.forEach { slot ->
                 when (slot) {
-                    is Slot.Present -> item(slot.item)
-                    is Slot.Gone -> ghosts[slot.subject]?.let { ghost(it) }
+                    is Slot.Present -> {
+                        val subject = key(slot.item)
+                        Box(
+                            Modifier.element(
+                                id = subjectElement(subject),
+                                token = { item(slot.item) },
+                            ),
+                        ) {
+                            item(slot.item)
+                        }
+                    }
+
+                    is Slot.Gone -> ghosts[slot.subject]?.let { residue ->
+                        GhostSlot(residue) { ghosts.recover(residue.subject) }
+                    }
                 }
             }
         }
@@ -81,6 +100,38 @@ fun <T> Collection(
         ) {
             Offer(creator, content = creatorContent)
         }
+    }
+}
+
+/**
+ * The residue, drawn by the framework, in the slot its subject held.
+ *
+ * It is the subject itself, compressed — not an icon, not a bar, not a word. That is the whole
+ * argument for the Ghost over an undo snackbar: the person is looking at the gap the thing left, so
+ * the thing is what should be sitting in it, flattened and waiting. Pulling it back restores it.
+ *
+ * Geometry only. Nothing here spends a colour, because every channel already carries an assigned
+ * meaning and "recently deleted" is not one of them.
+ */
+@Composable
+private fun GhostSlot(residue: Residue, onRecover: () -> Unit) {
+    val open by animateFloatAsState(
+        targetValue = 0.34f,
+        animationSpec = Motion.spec(residue.weight),
+        label = "ghost",
+    )
+    Box(
+        modifier = Modifier
+            .element(ghostElement(residue.subject))
+            .clickable { onRecover() }
+            .graphicsLayer {
+                scaleY = open
+                // Held down rather than lifted: it is not gone, it is pressed flat.
+                transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0.5f, 0f)
+            }
+            .clipToBounds(),
+    ) {
+        LocalElements.current.token(subjectElement(residue.subject))?.invoke()
     }
 }
 
@@ -137,3 +188,11 @@ private fun <T> resolveSlots(
     }
     return slots
 }
+
+/**
+ * A residue's address.
+ *
+ * Derived like a subject's, so a recovery can be aimed at the gap the subject left rather than at
+ * wherever a notification happened to appear.
+ */
+fun ghostElement(subject: SubjectId): ElementId = ElementId("ghost:${subject.value}")
