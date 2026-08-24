@@ -16,6 +16,7 @@ import androidx.compose.ui.test.runComposeUiTest
 import androidx.compose.ui.unit.dp
 import com.hereliesaz.conveyance.ElementId
 import com.hereliesaz.conveyance.Place
+import com.hereliesaz.conveyance.PlaceId
 import com.hereliesaz.conveyance.Practice
 import com.hereliesaz.conveyance.SubjectId
 import com.hereliesaz.conveyance.Weight
@@ -171,6 +172,30 @@ class PlacesTest {
             "The way out should lead to where the card is now, not where it used to be.",
         )
         assertEquals(1, reach.state().depth, "Returning should put the person back where they were.")
+    }
+
+    /**
+     * The status vocabulary a gate would read.
+     *
+     * A product wiring `Gate("in detail") { places.isActive(detailId) }` needs this to be true the
+     * instant the stack changes -- before any animation has settled, because a gate is a
+     * precondition, not a report on where the motion currently is.
+     */
+    @Test
+    fun `active names every place on the stack, the instant it changes`() = runComposeUiTest {
+        val reach = Reach()
+        host(reach) { Alignment.BottomEnd }
+        waitForIdle()
+
+        assertEquals(setOf(PlaceId("home")), reach.state().active)
+        assertTrue(reach.state().isActive(PlaceId("home")))
+        assertFalse(reach.state().isActive(detail.id))
+
+        runOnUiThread { reach.run { reach.state().enter(detail, Weight.Heavy) } }
+        waitForIdle()
+
+        assertEquals(setOf(PlaceId("home"), detail.id), reach.state().active)
+        assertTrue(reach.state().isActive(detail.id), "Entered before the animation settles.")
     }
 
     /** There is nowhere behind the beginning, and the host says so rather than emptying the stack. */

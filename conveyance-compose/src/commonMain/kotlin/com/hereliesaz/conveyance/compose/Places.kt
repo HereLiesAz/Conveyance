@@ -19,6 +19,7 @@ import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.unit.Constraints
 import com.hereliesaz.conveyance.Place
+import com.hereliesaz.conveyance.PlaceId
 import com.hereliesaz.conveyance.Weight
 
 /**
@@ -49,6 +50,22 @@ class PlacesState internal constructor(root: Place) {
     val current: Place get() = receding ?: stack.last()
 
     val depth: Int get() = stack.size
+
+    /**
+     * The status vocabulary this stack publishes, for anything that needs to read where a person
+     * is without composing this host itself.
+     *
+     * A [Gate] is just `() -> Boolean`, so a product can already write
+     * `Gate("in detail", livesAt = ...) { places.isActive(detailId) }` without any new type — the
+     * whole cost of this being a real capability rather than a wish was making the read reactive,
+     * which it already is: [stack] is snapshot state, so a gate whose condition reads [isActive]
+     * during composition reactivates the moment the stack changes, the same way any other gate
+     * reactivates when the state it reads changes.
+     */
+    val active: Set<PlaceId> get() = stack.mapTo(mutableSetOf()) { it.id }
+
+    /** Whether [id] is currently on the stack -- entered, even if not the place on top. */
+    fun isActive(id: PlaceId): Boolean = stack.any { it.id == id }
 
     /** The place underneath, which stays put while the one above it moves. */
     internal val beneath: Place?
