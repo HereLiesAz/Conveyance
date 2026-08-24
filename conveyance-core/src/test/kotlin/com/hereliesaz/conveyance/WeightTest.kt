@@ -16,7 +16,7 @@ class WeightTest {
         assertEquals(Weight.Light, w(Consequence.Alter(s, "name", e)))
         assertEquals(Weight.Medium, w(Consequence.Create(s, e)))
         assertEquals(Weight.Medium, w(Consequence.Send(s, e)))
-        assertEquals(Weight.Heavy, w(Consequence.Enter(PlaceId("p"), e)))
+        assertEquals(Weight.Heavy, w(Consequence.Enter(Place.from("p", origin = e))))
         assertEquals(Weight.Heavy, w(Consequence.Destroy(s, e)))
     }
 

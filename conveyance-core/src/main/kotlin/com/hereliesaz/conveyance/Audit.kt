@@ -43,11 +43,13 @@ data class AuditElement(
     val jobs: Set<Job> = emptySet(),
 ) {
     /**
-     * Whether this element is carrying stakes a person could not see coming.
+     * Whether this carries a cost a person cannot take back.
      *
-     * Heavy and irreversible is the combination that must never be a surprise, and it is the
-     * clearest thing an auditor can be asked to look for: does the rendered surface say, in any way
-     * at all, that touching this costs something?
+     * Irreversibility alone, not weight. Weight is how an act *feels* — how much inertia it has
+     * under the finger — and a heavy act that can be undone is not a trap. Entering a place is the
+     * clearest case: it is deliberately weighty, because leaving what you were doing is
+     * consequential, and it is completely recoverable. Treating those as the same thing had the
+     * auditor demanding a warning before every tap.
      */
-    val staked: Boolean get() = act != null && (weight == Weight.Heavy || !reversible)
+    val staked: Boolean get() = act != null && !reversible
 }

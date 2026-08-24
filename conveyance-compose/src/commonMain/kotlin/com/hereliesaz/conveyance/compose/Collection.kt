@@ -56,6 +56,14 @@ fun <T> Collection(
     val order = remember { mutableStateListOf<SubjectId>() }
     val slots = resolveSlots(items, key, ghosts, order)
 
+    // What each subject looked like while it was still here.
+    //
+    // A residue is the subject pressed flat, so the collection has to be able to draw a thing that
+    // has already left the list. Reading that back out of the element registry was working only by
+    // accident -- the address is surrendered the moment the subject goes, which is correct
+    // behaviour and leaves the Ghost holding nothing. The collection keeps its own likeness instead.
+    val likeness = remember { mutableMapOf<SubjectId, T>() }
+
     // Bias runs from the centre (0) to the corner (near 1). The creation control does not jump
     // between two positions; it travels, because the travel is the part that teaches where it went.
     val settled by animateFloatAsState(
@@ -72,6 +80,7 @@ fun <T> Collection(
                 when (slot) {
                     is Slot.Present -> {
                         val subject = key(slot.item)
+                        likeness[subject] = slot.item
                         Box(
                             Modifier.element(
                                 id = subjectElement(subject),
@@ -85,7 +94,11 @@ fun <T> Collection(
                     }
 
                     is Slot.Gone -> ghosts[slot.subject]?.let { residue ->
-                        GhostSlot(residue) { ghosts.recover(residue.subject) }
+                        GhostSlot(
+                            residue = residue,
+                            onRecover = { ghosts.recover(residue.subject) },
+                            content = { likeness[slot.subject]?.let { item(it) } },
+                        )
                     }
                 }
             }
@@ -116,7 +129,7 @@ fun <T> Collection(
  * meaning and "recently deleted" is not one of them.
  */
 @Composable
-private fun GhostSlot(residue: Residue, onRecover: () -> Unit) {
+private fun GhostSlot(residue: Residue, onRecover: () -> Unit, content: @Composable () -> Unit) {
     val open by animateFloatAsState(
         targetValue = 0.34f,
         animationSpec = Motion.spec(residue.weight),
@@ -133,7 +146,7 @@ private fun GhostSlot(residue: Residue, onRecover: () -> Unit) {
             }
             .clipToBounds(),
     ) {
-        LocalElements.current.token(subjectElement(residue.subject))?.invoke()
+        content()
     }
 }
 

@@ -29,7 +29,7 @@ class GrammarTest {
         val s = SubjectId("s")
         val cases = listOf(
             Consequence.Reveal(e) to Verb.Reveal,
-            Consequence.Enter(PlaceId("p"), e) to Verb.Enter,
+            Consequence.Enter(Place.from("p", origin = e)) to Verb.Enter,
             Consequence.Create(s, e) to Verb.Create,
             Consequence.Destroy(s, e) to Verb.Destroy,
             Consequence.Alter(s, "name", e) to Verb.Alter,

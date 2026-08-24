@@ -65,7 +65,7 @@ class PracticeTest {
     fun `practice is tracked per act, not globally`() {
         val practice = Practice()
         val add = Act.create("track.add", track, into = list)
-        val play = Act.enter("track.play", PlaceId("player"), from = list)
+        val play = Act.enter("track.play", Place.from("player", origin = list))
 
         repeat(25) { practice.record(add.id) }
         assertEquals(Ceremony.Fluent, practice.ceremonyFor(add.id))

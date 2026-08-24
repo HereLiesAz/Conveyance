@@ -31,7 +31,15 @@ class Act private constructor(
     /** The motion this act will produce. Derived. */
     val signature: Signature get() = Grammar.of(consequence)
 
-    val reversible: Boolean get() = inverse != null
+    /**
+     * Whether this can be taken back.
+     *
+     * Entering is always reversible and needs no declared inverse, because the framework renders
+     * Return itself — the way out of a place is not something an application has to remember to
+     * provide. Modelling it otherwise made navigation report as an irreversible act carrying stakes,
+     * which would have had the auditor demanding a warning before every tap.
+     */
+    val reversible: Boolean get() = inverse != null || consequence is Consequence.Enter
 
     /**
      * The inertia this act's motion carries, and therefore how costly it feels in the hand.
@@ -87,21 +95,20 @@ class Act private constructor(
         )
 
         /**
-         * The person goes somewhere, and [from] is the element that becomes it.
+         * The person goes somewhere, and the place already knows the element that becomes it.
          *
-         * There is no overload without an origin. A place with no antecedent is a teleport, and a
-         * person who has been teleported needs a breadcrumb trail — in words — to rebuild the map
-         * they just lost.
+         * There is no overload for a place with no antecedent. A teleport leaves a person needing a
+         * breadcrumb trail — in words — to rebuild the map they just lost, and [Place.root] is the
+         * only exception, which is not entered because it is where they begin.
          */
         fun enter(
             id: String,
-            place: PlaceId,
-            from: ElementId,
+            place: Place,
             requires: List<Gate> = emptyList(),
             keystone: Boolean = false,
             perform: suspend () -> Outcome = { Outcome.Done },
         ) = Act(
-            ActId(id), Consequence.Enter(place, from), Scope.Item, requires,
+            ActId(id), Consequence.Enter(place), Scope.Item, requires,
             inverse = null, keystone = keystone, perform = perform,
         )
 
