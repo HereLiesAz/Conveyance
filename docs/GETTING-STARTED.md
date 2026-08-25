@@ -127,7 +127,9 @@ An honest accounting, not a sales pitch:
 
 **Solid:** the type system (`conveyance-core`), the Compose binding for Android and desktop
 (`conveyance-compose`), the keyless-capable AI judge (`conveyance-auditor`), one real demo app
-exercising most of the grammar, 100+ deterministic tests.
+exercising most of the grammar, 100+ deterministic tests. `Job.Interrupt` has a live binding now
+too — `ActScope.interrupt()` cancels an act's own in-flight work and it settles as
+`ActState.Refused(Refusal.Interrupted)`, the same vocabulary any other failure reports through.
 
 **Not yet built:**
 - **Publishing.** No Maven Central coordinates yet — `publishToMavenLocal` or `includeBuild` only.
@@ -144,8 +146,3 @@ exercising most of the grammar, 100+ deterministic tests.
   Toast/Snackbar/Dialog construction, no literal animation duration in product code — enforced by a
   Kotlin compiler plugin. That plugin doesn't exist; today nothing stops a call straight past the
   binding into a platform API.
-- **`Job.Interrupt` has no live binding yet.** Law 4 now requires four jobs, and an element that
-  starts something is expected to own stopping it — but `Offer` has no way to cancel an act already
-  in flight. The vocabulary exists in `conveyance-core`; nothing in `conveyance-compose` implements
-  it, so `Job.Interrupt` is only reachable from the static `Surface` declarations today, the same gap
-  as the audit path above.

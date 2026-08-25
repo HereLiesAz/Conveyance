@@ -20,6 +20,7 @@ import com.hereliesaz.conveyance.ActState
 import com.hereliesaz.conveyance.ElementId
 import com.hereliesaz.conveyance.Gate
 import com.hereliesaz.conveyance.Practice
+import com.hereliesaz.conveyance.Refusal
 import com.hereliesaz.conveyance.SubjectId
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -27,6 +28,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
+import kotlinx.coroutines.awaitCancellation
 
 @OptIn(ExperimentalTestApi::class)
 class OfferTest {
@@ -229,5 +231,68 @@ class OfferTest {
                 "is still mounted; its registration must survive the row's departure.",
         )
         assertEquals(1, registry.census().acts, "One act, still offered once, however many claimed it.")
+    }
+
+    /**
+     * [com.hereliesaz.conveyance.Job.Interrupt]'s live binding, end to end: an act genuinely
+     * in flight, stopped from outside, reporting through the exact vocabulary
+     * [com.hereliesaz.conveyance.Act.engage] already had for it -- [Refusal.Interrupted], "it
+     * stopped part-way, through no decision of anyone's" -- rather than hanging forever or dying
+     * silently.
+     */
+    @Test
+    fun `interrupting a yielding act settles it as refused and interrupted`() = runComposeUiTest {
+        val registry = ElementRegistry()
+        val practice = Practice()
+        // Suspends forever until cancelled -- the only way this ever returns is interruption,
+        // which is exactly what isolates the path this test exists to prove.
+        val send = Act.send("invoice.send", invoice, avatar) { awaitCancellation() }
+        var scope: ActScope? = null
+
+        setContent {
+            CompositionLocalProvider(LocalElements provides registry, LocalPractice provides practice) {
+                Offer(send) { scope = this; Box(Modifier.size(40.dp)) }
+            }
+        }
+        waitForIdle()
+
+        runOnUiThread { requireNotNull(scope).engage() }
+        waitForIdle()
+        assertIs<ActState.Yielding>(requireNotNull(scope).state, "Should be genuinely in flight.")
+
+        runOnUiThread { requireNotNull(scope).interrupt() }
+        waitForIdle()
+
+        val terminal = assertIs<ActState.Refused>(
+            requireNotNull(scope).state,
+            "Interrupting in-flight work should settle it as refused, not leave it hanging.",
+        )
+        assertEquals(Refusal.Interrupted, terminal.refusal)
+        assertTrue(terminal.retryable, "An interruption is nobody's decision, so it's retryable.")
+    }
+
+    /** Interrupting something that was never started, or has already finished, does nothing. */
+    @Test
+    fun `interrupting an act with nothing in flight is a no-op`() = runComposeUiTest {
+        val registry = ElementRegistry()
+        val practice = Practice()
+        val send = Act.send("invoice.send", invoice, avatar)
+        var scope: ActScope? = null
+
+        setContent {
+            CompositionLocalProvider(LocalElements provides registry, LocalPractice provides practice) {
+                Offer(send) { scope = this; Box(Modifier.size(40.dp)) }
+            }
+        }
+        waitForIdle()
+
+        runOnUiThread { requireNotNull(scope).interrupt() }
+        waitForIdle()
+
+        assertEquals(
+            ActState.Ready,
+            requireNotNull(scope).state,
+            "Nothing was running, so interrupting it must not conjure a Refused state from nowhere.",
+        )
     }
 }

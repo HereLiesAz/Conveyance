@@ -25,6 +25,7 @@ import com.hereliesaz.conveyance.Route
 import com.hereliesaz.conveyance.Signature
 import com.hereliesaz.conveyance.Step
 import com.hereliesaz.conveyance.Weight
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
@@ -47,6 +48,7 @@ class ActScope internal constructor(
     /** True exactly once, before first use: this control owes its half-rep. */
     val owesTell: Boolean,
     private val onEngage: () -> Unit,
+    private val onInterrupt: () -> Unit = {},
 ) {
     val signature: Signature get() = act.signature
 
@@ -54,6 +56,20 @@ class ActScope internal constructor(
     val yielding: Float? get() = (state as? ActState.Yielding)?.extent
 
     fun engage() = onEngage()
+
+    /**
+     * Stop this act's own in-flight work -- the job [com.hereliesaz.conveyance.Job.Interrupt]
+     * names, and the one Law 4 already requires of any element that can start something.
+     *
+     * A no-op when there is nothing running: cancelling a coroutine that has already finished, or
+     * was never started, does nothing. Where it does apply, this cancels the coroutine actually
+     * carrying out [Act.engage]'s suspending body. [Act.engage]'s own catch-all already turns that
+     * cancellation into [com.hereliesaz.conveyance.ActState.Refused] carrying
+     * [com.hereliesaz.conveyance.Refusal.Interrupted] -- "it stopped part-way, through no decision
+     * of anyone's" -- so interrupting was always going to report through the same vocabulary any
+     * other failure does. This is what finally makes that path reachable from a control.
+     */
+    fun interrupt() = onInterrupt()
 
     companion object {
         /**
@@ -112,6 +128,12 @@ fun Offer(
 
     var state by remember(act.id) { mutableStateOf<ActState>(ActState.Ready) }
 
+    // The coroutine actually running Act.engage's suspending body right now, if any -- what
+    // ActScope.interrupt() cancels. Held per-act like `state` itself, and left to complete
+    // normally (never cleared to null on its own) since a fresh engage() always overwrites it
+    // with a new Job before this one could be read again.
+    var activeJob by remember(act.id) { mutableStateOf<Job?>(null) }
+
     // This call site's identity, which is what the registry tenants an ActId to -- the same
     // pattern Modifier.element uses for ElementId. Two Offers may legitimately answer for the
     // same act at once (a list row and the detail place growing out of it, mid-transition), and
@@ -150,7 +172,7 @@ fun Offer(
         weight = practice.weightFor(act),
         owesTell = practice.owesTell(act.id),
         onEngage = {
-            coroutineScope.launch {
+            activeJob = coroutineScope.launch {
                 when (val terminal = act.engage { state = it }) {
                     is ActState.Blocked -> {
                         // Not "where is the first thing that is missing" but "where is the first
@@ -195,6 +217,9 @@ fun Offer(
                     else -> Unit
                 }
             }
+        },
+        onInterrupt = {
+            activeJob?.cancel()
         },
     )
 
