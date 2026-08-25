@@ -89,6 +89,82 @@ class ConscienceTest {
         assertTrue(Conscience.audit(one).none { it.audit == Audit.Teleport })
     }
 
+    private fun auditElement(
+        id: ElementId,
+        jobs: Set<Job> = setOf(Job.Invite, Job.Report, Job.Progress, Job.Interrupt),
+        ambient: Boolean = false,
+    ) = AuditElement(id = id, left = 0f, top = 0f, width = 0f, height = 0f, visible = true, jobs = jobs, ambient = ambient)
+
+    /**
+     * The one finding a hand-declared [Surface] can never produce: [Employment.Working]'s own
+     * constructor already refuses fewer than four jobs, so this state is unconstructible there.
+     * A live [AuditFrame] carries no such guarantee -- it reports what actually rendered.
+     */
+    @Test
+    fun `a live element doing fewer than four jobs with no ambient exemption is an idle worker`() {
+        val frame = AuditFrame(
+            surface = "invoice",
+            census = Census(0, 0, 0, 0, 0, 0, emptyList(), emptyList(), emptyList()),
+            elements = listOf(auditElement(send, jobs = setOf(Job.Invite, Job.Report))),
+        )
+        val findings = Conscience.audit(frame)
+        assertEquals(1, findings.count { it.audit == Audit.IdleWorker })
+    }
+
+    @Test
+    fun `a live element explicitly declared ambient is not an idle worker on its own`() {
+        val frame = AuditFrame(
+            surface = "invoice",
+            census = Census(0, 0, 0, 0, 0, 0, emptyList(), emptyList(), emptyList()),
+            elements = listOf(auditElement(send, jobs = setOf(Job.Invite), ambient = true)),
+        )
+        assertTrue(Conscience.audit(frame, ambientBudget = 2).none { it.audit == Audit.IdleWorker })
+    }
+
+    @Test
+    fun `too many live ambient elements is still budgeted`() {
+        val frame = AuditFrame(
+            surface = "invoice",
+            census = Census(0, 0, 0, 0, 0, 0, emptyList(), emptyList(), emptyList()),
+            elements = (1..3).map { auditElement(ElementId("a$it"), jobs = emptySet(), ambient = true) },
+        )
+        val over = Conscience.audit(frame, ambientBudget = 2).filter { it.audit == Audit.IdleWorker }
+        assertEquals(1, over.size)
+    }
+
+    @Test
+    fun `a live gate address that never composed is a dead end`() {
+        val frame = AuditFrame(
+            surface = "invoice",
+            census = Census(0, 0, 0, 0, 0, 0, emptyList(), emptyList(), emptyList()),
+            elements = listOf(auditElement(send)),
+            gateAddresses = setOf(ElementId("nowhere")),
+        )
+        assertEquals(1, Conscience.audit(frame).count { it.audit == Audit.DeadEnd })
+    }
+
+    @Test
+    fun `a clean live frame is silent`() {
+        val frame = AuditFrame(
+            surface = "invoice",
+            census = Census(0, 0, 0, 0, 0, 0, emptyList(), emptyList(), emptyList()),
+            elements = listOf(auditElement(send), auditElement(field)),
+            gateAddresses = setOf(field),
+        )
+        assertTrue(Conscience.audit(frame).isEmpty())
+    }
+
+    /** Teleport has no live counterpart: one running snapshot can never show two beginnings. */
+    @Test
+    fun `a live audit never reports a teleport`() {
+        val frame = AuditFrame(
+            surface = "invoice",
+            census = Census(0, 0, 0, 0, 0, 0, emptyList(), emptyList(), emptyList()),
+            elements = emptyList(),
+        )
+        assertTrue(Conscience.audit(frame).none { it.audit == Audit.Teleport })
+    }
+
     @Test
     fun `warnings report and errors block`() {
         val warningOnly = listOf(

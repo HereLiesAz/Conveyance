@@ -20,6 +20,14 @@ data class AuditFrame(
     val surface: String,
     val census: Census,
     val elements: List<AuditElement>,
+    /**
+     * Every address currently a gate's own.
+     *
+     * Carried out here, rather than left inside the registry that produced this frame, so a live
+     * whole-surface audit ([Conscience.audit]) can find a dead end -- a gate whose address never
+     * actually composed -- without needing anything but the frame itself.
+     */
+    val gateAddresses: Set<ElementId> = emptySet(),
 )
 
 /** One element as the framework knows it: where it is, and what it will actually do. */
@@ -50,6 +58,19 @@ data class AuditElement(
      * this is `false` the same way [act] itself is absent -- there is nothing to be a keystone.
      */
     val keystone: Boolean = false,
+    /**
+     * Whether this element was explicitly declared [Employment.Ambient] -- the deliberate,
+     * budgeted exemption from Law 4, as opposed to simply not having reached four jobs.
+     *
+     * Kept separate from [jobs] because the two answer different questions a live whole-surface
+     * audit needs told apart: [jobs] is what this element is actually observed doing; [ambient]
+     * is whether someone already decided, on purpose, that doing less than four things here is
+     * fine. An element with neither -- fewer than four jobs and no [ambient] declaration -- is
+     * exactly what [com.hereliesaz.conveyance.Audit.IdleWorker] exists to catch, and only
+     * catchable live: the static `Employment.Working` constructor already refuses to let that
+     * state exist in a hand-declared `Surface` at all.
+     */
+    val ambient: Boolean = false,
 ) {
     /**
      * Whether this carries a cost a person cannot take back.
