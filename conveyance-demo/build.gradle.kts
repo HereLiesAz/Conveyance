@@ -41,6 +41,10 @@ kotlin {
             ).forEach { coordinate ->
                 implementation(coordinate) { exclude(group = "com.github.HereLiesAz.Conveyance") }
             }
+            // Convey is a second, standalone design system built on this repo's own Manifesto --
+            // unlike the five composable-set libraries above, it has no dependency on this repo's
+            // conveyance-core/-compose, so it needs no exclude.
+            implementation("com.github.HereLiesAz.conveyance-convey:convey:main-SNAPSHOT")
         }
         val desktopMain by getting {
             dependencies {
