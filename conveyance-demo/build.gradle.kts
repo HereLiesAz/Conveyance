@@ -26,6 +26,21 @@ kotlin {
             implementation(compose.foundation)
             implementation(compose.material)
             implementation(compose.ui)
+            // The five composable-set libraries, for the style showcase alongside the photograph
+            // gallery. Each transitively depends on this same repo's own conveyance-core/-compose
+            // artifacts via JitPack; excluded here since `project(":conveyance-compose")` above
+            // (which itself depends on `project(":conveyance-core")`) already supplies those exact
+            // classes from this build -- without the exclude, both the JitPack jar and the local
+            // project would define the identical classes on the same classpath.
+            listOf(
+                "com.github.HereLiesAz:conveyance-h2g2:main-SNAPSHOT",
+                "com.github.HereLiesAz:conveyance-expressive:main-SNAPSHOT",
+                "com.github.HereLiesAz:conveyance-liquid:main-SNAPSHOT",
+                "com.github.HereLiesAz:conveyance-bacterium:main-SNAPSHOT",
+                "com.github.HereLiesAz:conveyance-space:main-SNAPSHOT",
+            ).forEach { coordinate ->
+                implementation(coordinate) { exclude(group = "com.github.HereLiesAz.Conveyance") }
+            }
         }
         val desktopMain by getting {
             dependencies {

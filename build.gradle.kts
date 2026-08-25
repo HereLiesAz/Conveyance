@@ -27,6 +27,17 @@ allprojects {
 subprojects {
     apply(plugin = "io.gitlab.arturbosch.detekt")
 
+    // The demo modules depend on the five composable-set libraries' `main-SNAPSHOT` -- a genuinely
+    // moving target on JitPack, rebuilt on every push to those repos' own `main`. Gradle's default
+    // cache policy for "-SNAPSHOT"-suffixed ("changing") modules is to trust a resolved version for
+    // 24 hours before re-checking, which is exactly wrong here: a CI run minutes after one of those
+    // repos pushed a fix would keep resolving the stale version its own cache (or a restored
+    // GitHub Actions cache) already had, never seeing the fix land. Forcing a 0-second cache window
+    // is the correct policy for a dependency that is deliberately never actually stable.
+    if (name == "conveyance-demo" || name == "conveyance-demo-android") {
+        configurations.all { resolutionStrategy.cacheChangingModulesFor(0, "seconds") }
+    }
+
     // The demo is an application built to prove the framework, not a piece of the framework's
     // API surface -- there is nothing there a consumer needs a reference for. Its Android launcher
     // is even less of one: an Activity and a manifest, nothing else.

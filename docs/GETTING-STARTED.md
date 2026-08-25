@@ -136,7 +136,19 @@ against a hand-declared `Surface` fixture — including one finding a hand-decla
 never even produce, since `Employment.Working`'s own constructor refuses to let an under-resourced,
 non-`Ambient` element exist in the first place. `Teleport` stays exclusively static: it names a
 surface's whole set of *possible* entry places, not something one running snapshot could ever show
-more than one of at once.
+more than one of at once. `Form` (`conveyance-core`) is the new composite primitive: a group of
+`FormField`s conveyed as one element rather than N unrelated ones, reporting `percentComplete` and
+gating a submit act's `Gate` on `isComplete` — the honest reading of "a plain field almost never
+appears alone" (a real GLEE-audit finding, not a guess). `conveyance-compose`'s `rememberFormState`
+wraps a `rememberSaveable` value directly, so "form recovery" is exactly what already recovers a
+saveable value across a configuration change or process death, not a second bespoke mechanism.
+
+**Not built by this framework, deliberately:** platform autofill. `FormField.kind` names a closed
+vocabulary (`Name`, `Email`, `Phone`, ...) precisely so a host *can* map it onto its own platform's
+autofill API, but wiring a specific platform's autofill semantics is a host's job, not something a
+cross-platform primitive can honestly claim to do uniformly across Android, desktop, and whatever
+comes after — the framework earned that caution the hard way once already this cycle, tripping over
+a Compose API that looked cross-platform and silently wasn't.
 
 **Not yet built:**
 - **Publishing.** No Maven Central coordinates yet — `publishToMavenLocal` or `includeBuild` only.
