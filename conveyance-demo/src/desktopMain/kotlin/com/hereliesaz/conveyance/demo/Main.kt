@@ -13,6 +13,6 @@ fun main() = application {
         title = "Gallery",
         state = rememberWindowState(size = DpSize(460.dp, 720.dp)),
     ) {
-        Gallery()
+        DemoApp()
     }
 }

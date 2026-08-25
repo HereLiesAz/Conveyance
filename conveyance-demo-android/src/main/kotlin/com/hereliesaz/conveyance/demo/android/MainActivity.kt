@@ -4,13 +4,13 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import com.hereliesaz.conveyance.demo.Gallery
+import com.hereliesaz.conveyance.demo.DemoApp
 
 /**
  * The launcher, and nothing else.
  *
  * Everything the desktop demo already draws lives in conveyance-demo's shared `commonMain` --
- * [Gallery] never knew it was desktop-only, it just never had anywhere else to run. This class
+ * [DemoApp] never knew it was desktop-only, it just never had anywhere else to run. This class
  * exists only because a phone needs an Activity to host a composable; it makes no decision the
  * shared code hasn't already made.
  */
@@ -19,7 +19,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            Gallery()
+            DemoApp()
         }
     }
 }
