@@ -70,6 +70,34 @@ class CensusTest {
         assertEquals(1, registry.census().inviting)
     }
 
+    /**
+     * [Act.keystone] is set at construction and, on its own, read by nothing else in the
+     * framework -- [com.hereliesaz.conveyance.Product.keystones] only checks its own list's
+     * length. This is the one wire that makes a live cross-check possible at all: a real running
+     * act's own [Act.keystone] flag, carried all the way out to the [AuditElement] a
+     * [Product]-level audit would actually compare against.
+     */
+    @Test
+    fun `a keystone act carries that flag out to its audit element`() = runComposeUiTest {
+        val registry = ElementRegistry()
+        val send = Act.send("photo.send", subject, to = tray, keystone = true)
+        val plain = Act.send("photo.discard", subject, to = tray)
+
+        setContent {
+            host(registry) {
+                Column {
+                    Offer(send, element = ElementId("keystone.control")) { Box(Modifier.size(40.dp)) }
+                    Offer(plain, element = ElementId("plain.control")) { Box(Modifier.size(40.dp)) }
+                }
+            }
+        }
+        waitForIdle()
+
+        val elements = registry.auditFrame("gallery").elements.associateBy { it.id }
+        assertTrue(elements.getValue(ElementId("keystone.control")).keystone)
+        assertTrue(!elements.getValue(ElementId("plain.control")).keystone)
+    }
+
     /** A gate's address is doing a job, and that is derivable from the act that names it. */
     @Test
     fun `a gate's address is known to be one, undeclared`() = runComposeUiTest {
