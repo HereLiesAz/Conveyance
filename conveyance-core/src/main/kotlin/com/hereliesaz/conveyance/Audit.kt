@@ -41,6 +41,15 @@ data class AuditElement(
     /** Whether the act is currently gated. */
     val blocked: Boolean = false,
     val jobs: Set<Job> = emptySet(),
+    /**
+     * Whether the act this element offers is marked [Act.keystone].
+     *
+     * Carried through so a live [AuditFrame] can eventually be judged against
+     * `Product.keystones`' own 1-to-3 budget for real, against what an app actually marks as a
+     * keystone rather than only against the count of a hand-written list. Absent an offered act,
+     * this is `false` the same way [act] itself is absent -- there is nothing to be a keystone.
+     */
+    val keystone: Boolean = false,
 ) {
     /**
      * Whether this carries a cost a person cannot take back.

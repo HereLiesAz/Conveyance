@@ -318,6 +318,7 @@ class ElementRegistry {
                 reversible = act?.reversible == true,
                 blocked = act?.state() is ActState.Blocked,
                 jobs = jobsOf(id),
+                keystone = act?.keystone == true,
             )
         }
         return AuditFrame(surface = surface, census = census(), elements = elements)
