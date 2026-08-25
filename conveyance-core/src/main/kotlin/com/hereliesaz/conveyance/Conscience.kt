@@ -57,6 +57,19 @@ object Conscience {
     }
 
     /**
+     * The live counterpart: the two checks a hand-declared [Surface] gets, run against a real
+     * running app's own [AuditFrame] instead of a fixture nobody wired up.
+     *
+     * [teleports] has no live counterpart here -- it is a property of a surface's whole set of
+     * possible entry places, not something any one running snapshot could ever show more than one
+     * of at a time. That check stays exclusively static.
+     */
+    fun audit(frame: AuditFrame, ambientBudget: Int = 2): List<Finding> = buildList {
+        addAll(idleWorkers(frame, ambientBudget))
+        addAll(deadEnds(frame))
+    }
+
+    /**
      * Elements that are on screen doing nothing.
      *
      * [Employment.Working] already refuses fewer than four jobs at construction, so what is left
@@ -86,6 +99,63 @@ object Conscience {
                 severity = Severity.Warning,
                 where = "${surface.name}/${gate.id}",
                 because = "its address ${gate.livesAt.value} is not on this surface",
+                instead = "Point livesAt at an element the escort can actually reach, or move the " +
+                    "gate to the surface that owns its condition.",
+            )
+        }
+    }
+
+    /**
+     * Elements on screen doing nothing, caught live rather than only at construction.
+     *
+     * A hand-declared [Surface] can never contain the second finding this reports --
+     * [Employment.Working]'s own constructor already refuses fewer than four jobs, so an
+     * under-resourced element simply cannot be built. A live [AuditFrame] carries no such
+     * guarantee: it reports what actually rendered, and an element with fewer than four jobs and
+     * no declared [AuditElement.ambient] exemption is exactly the violation [Audit.IdleWorker]
+     * exists to name -- reachable here for the first time, against a real screen, rather than
+     * only against a fixture someone remembered to write by hand.
+     */
+    private fun idleWorkers(frame: AuditFrame, ambientBudget: Int): List<Finding> = buildList {
+        val ambient = frame.elements.filter { it.ambient }
+        if (ambient.size > ambientBudget) {
+            add(
+                Finding(
+                    audit = Audit.IdleWorker,
+                    severity = Severity.Warning,
+                    where = frame.surface,
+                    because = "${ambient.size} ambient elements against a budget of $ambientBudget: " +
+                        ambient.joinToString { it.id.value },
+                    instead = "Give each one four jobs, merge it with a neighbour, or delete it.",
+                ),
+            )
+        }
+        val underResourced = frame.elements.filter { !it.ambient && it.jobs.size < 4 }
+        if (underResourced.isNotEmpty()) {
+            add(
+                Finding(
+                    audit = Audit.IdleWorker,
+                    severity = Severity.Warning,
+                    where = frame.surface,
+                    because = "${underResourced.size} elements doing fewer than four jobs and not " +
+                        "declared ambient: " +
+                        underResourced.joinToString { "${it.id.value} (${it.jobs.size})" },
+                    instead = "Give each one four jobs, declare it Employment.Ambient on purpose, " +
+                        "or delete it.",
+                ),
+            )
+        }
+    }
+
+    /** A gate whose address never actually composed leaves the person with no way out -- live. */
+    private fun deadEnds(frame: AuditFrame): List<Finding> {
+        val present = frame.elements.map { it.id }.toSet()
+        return frame.gateAddresses.filter { it !in present }.map { address ->
+            Finding(
+                audit = Audit.DeadEnd,
+                severity = Severity.Warning,
+                where = "${frame.surface}/${address.value}",
+                because = "its address never actually composed on this surface",
                 instead = "Point livesAt at an element the escort can actually reach, or move the " +
                     "gate to the surface that owns its condition.",
             )

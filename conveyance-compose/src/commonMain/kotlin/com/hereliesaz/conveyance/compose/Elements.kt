@@ -124,7 +124,16 @@ class ElementRegistry {
         tenancy.keys.filterTo(mutableSetOf()) { tenant(it)?.placement != null }
 
     /** Elements that are some gate's address. Where a person is carried when something is missing. */
-    private val gateAddresses = mutableStateMapOf<ElementId, Boolean>()
+    private val gateFlags = mutableStateMapOf<ElementId, Boolean>()
+
+    /**
+     * Every address currently a gate's own -- live.
+     *
+     * The same fact [markGate] already records for the escort's own use, made public so a live
+     * [com.hereliesaz.conveyance.AuditFrame] can carry it out to a whole-surface audit that runs
+     * against a real running app rather than only a hand-declared `Surface` fixture.
+     */
+    val gateAddresses: Set<ElementId> get() = gateFlags.keys
 
     /** One claimant's hold on an [ActId] -- the same shape [Tenant] gives an [ElementId], and for
      *  the same reason: the offering composable's own identity, so a departing claimant can hand
@@ -205,7 +214,7 @@ class ElementRegistry {
     }
 
     internal fun markGate(id: ElementId) {
-        gateAddresses[id] = true
+        gateFlags[id] = true
     }
 
     /**
@@ -221,7 +230,7 @@ class ElementRegistry {
      */
     fun jobsOf(id: ElementId): Set<Job> = buildSet {
         if (currentOffers.values.any { it.second == id }) add(Job.Invite)
-        if (gateAddresses.containsKey(id)) {
+        if (gateFlags.containsKey(id)) {
             add(Job.Invite)
             add(Job.Locate)
         }
@@ -319,9 +328,10 @@ class ElementRegistry {
                 blocked = act?.state() is ActState.Blocked,
                 jobs = jobsOf(id),
                 keystone = act?.keystone == true,
+                ambient = tenant(id)?.employment == Employment.Ambient,
             )
         }
-        return AuditFrame(surface = surface, census = census(), elements = elements)
+        return AuditFrame(surface = surface, census = census(), elements = elements, gateAddresses = gateAddresses)
     }
 
     /**

@@ -127,25 +127,23 @@ An honest accounting, not a sales pitch:
 
 **Solid:** the type system (`conveyance-core`), the Compose binding for Android and desktop
 (`conveyance-compose`), the keyless-capable AI judge (`conveyance-auditor`), one real demo app
-exercising most of the grammar, 100+ deterministic tests.
+exercising most of the grammar, 100+ deterministic tests. `Job.Interrupt` has a live binding now
+too — `ActScope.interrupt()` cancels an act's own in-flight work and it settles as
+`ActState.Refused(Refusal.Interrupted)`, the same vocabulary any other failure reports through.
+`Conscience` also runs against a real running app now: `Conscience.audit(AuditFrame)` carries the
+idle-worker and dead-end checks live, off `ElementRegistry.auditFrame()` directly, rather than only
+against a hand-declared `Surface` fixture — including one finding a hand-declared `Surface` could
+never even produce, since `Employment.Working`'s own constructor refuses to let an under-resourced,
+non-`Ambient` element exist in the first place. `Teleport` stays exclusively static: it names a
+surface's whole set of *possible* entry places, not something one running snapshot could ever show
+more than one of at once.
 
 **Not yet built:**
 - **Publishing.** No Maven Central coordinates yet — `publishToMavenLocal` or `includeBuild` only.
 - **iOS / web targets.** `conveyance-compose` currently builds for Android and desktop JVM only.
-- **The static `Surface`/`Conscience` audit path is disconnected from real apps.** `Surface`,
-  `DeclaredElement`, and `Product` exist and are fully tested, but nothing in `conveyance-compose` or
-  the demo actually constructs one from a live screen — today they're only exercised by their own
-  unit tests. Bridging a live `AuditFrame` into a `Surface` automatically, so `Conscience`'s
-  whole-surface audits (idle workers, teleports, dead ends) run against a real running app without
-  hand-declaring one, is open work.
 - **"First Move"** — the manifesto's zero-data onboarding behavior (§5.6, a `Rehearsal` state) is
   specified but has no code yet.
 - **The platform-boundary compiler plugin.** The spec calls for two more audits — no platform
   Toast/Snackbar/Dialog construction, no literal animation duration in product code — enforced by a
   Kotlin compiler plugin. That plugin doesn't exist; today nothing stops a call straight past the
   binding into a platform API.
-- **`Job.Interrupt` has no live binding yet.** Law 4 now requires four jobs, and an element that
-  starts something is expected to own stopping it — but `Offer` has no way to cancel an act already
-  in flight. The vocabulary exists in `conveyance-core`; nothing in `conveyance-compose` implements
-  it, so `Job.Interrupt` is only reachable from the static `Surface` declarations today, the same gap
-  as the audit path above.
