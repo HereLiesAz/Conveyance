@@ -26,7 +26,7 @@ enum class FieldKind {
  */
 data class FormField(
     val id: ElementId,
-    val label: String,
+    val label: Label,
     val kind: FieldKind = FieldKind.Text,
     val required: Boolean = true,
 )
@@ -52,7 +52,14 @@ data class FormField(
  * set, which is a binding's concern (see `conveyance-compose`'s `FormState`), not this class's.
  */
 class Form(val id: ElementId, val fields: List<FormField>) {
-    init { require(fields.isNotEmpty()) { "A form with no fields has nothing to fill and nothing to report." } }
+    init {
+        require(fields.isNotEmpty()) { "A form with no fields has nothing to fill and nothing to report." }
+        val duplicates = fields.groupBy { it.id }.filterValues { it.size > 1 }.keys
+        require(duplicates.isEmpty()) {
+            "Two fields sharing one address ($duplicates) would let marking either one satisfy both -- " +
+                "give each field its own ElementId."
+        }
+    }
 
     /** What actually gates [isComplete] and [percentComplete] -- an optional field left empty is not incompleteness. */
     val requiredFields: List<FormField> get() = fields.filter { it.required }

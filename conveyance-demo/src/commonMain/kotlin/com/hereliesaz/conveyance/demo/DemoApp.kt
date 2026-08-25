@@ -13,8 +13,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -29,6 +34,11 @@ import androidx.compose.ui.unit.sp
 @Composable
 fun DemoApp() {
     var showcase by remember { mutableStateOf(false) }
+    // Switching tabs unmounts whichever demo isn't showing -- without this, Gallery's own created
+    // photographs, recipients, and scroll position (and Styles' own scroll position) would reset
+    // every time a person switched away and back, which is real state loss a person would notice
+    // and blame on the demo rather than on this app shell's own choice of navigation mechanism.
+    val tabState = rememberSaveableStateHolder()
     Column(modifier = Modifier.fillMaxSize().background(Look.ground)) {
         Row(
             modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
@@ -38,7 +48,11 @@ fun DemoApp() {
             Tab(text = "Styles", selected = showcase) { showcase = true }
         }
         Box(Modifier.weight(1f)) {
-            if (showcase) StyleShowcase() else Gallery()
+            if (showcase) {
+                tabState.SaveableStateProvider("styles") { StyleShowcase() }
+            } else {
+                tabState.SaveableStateProvider("photos") { Gallery() }
+            }
         }
     }
 }
@@ -49,6 +63,8 @@ private fun Tab(text: String, selected: Boolean, onClick: () -> Unit) {
         text = text,
         color = if (selected) Look.ink else Look.quiet,
         fontSize = 13.sp,
-        modifier = Modifier.clickable(onClick = onClick),
+        modifier = Modifier
+            .semantics { role = Role.Tab; this.selected = selected }
+            .clickable(onClick = onClick),
     )
 }

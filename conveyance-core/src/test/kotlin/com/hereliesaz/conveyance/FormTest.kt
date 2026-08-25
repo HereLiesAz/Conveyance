@@ -8,14 +8,20 @@ import kotlin.test.assertFailsWith
 
 class FormTest {
 
-    private val name = FormField(ElementId("form.name"), "Name")
-    private val email = FormField(ElementId("form.email"), "Email", kind = FieldKind.Email)
-    private val newsletter = FormField(ElementId("form.newsletter"), "Newsletter", required = false)
+    private val name = FormField(ElementId("form.name"), Label("Name"))
+    private val email = FormField(ElementId("form.email"), Label("Email"), kind = FieldKind.Email)
+    private val newsletter = FormField(ElementId("form.newsletter"), Label("Newsletter"), required = false)
     private val signup = Form(ElementId("form.signup"), listOf(name, email, newsletter))
 
     @Test
     fun `a form with no fields refuses to exist`() {
         assertFailsWith<IllegalArgumentException> { Form(ElementId("empty"), emptyList()) }
+    }
+
+    @Test
+    fun `two fields sharing one address refuse to form a Form`() {
+        val duplicate = FormField(ElementId("form.name"), Label("Alias"))
+        assertFailsWith<IllegalArgumentException> { Form(ElementId("form.dup"), listOf(name, duplicate)) }
     }
 
     @Test
