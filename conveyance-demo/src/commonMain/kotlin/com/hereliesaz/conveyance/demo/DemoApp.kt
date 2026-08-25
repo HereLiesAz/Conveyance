@@ -31,27 +31,31 @@ import androidx.compose.ui.unit.sp
  * accountable for modeling. That is why the tab strip below is a plain click, not an [Act]: it
  * picks which single-surface demonstration runs, it does not act within one.
  */
+private enum class DemoTab { Photos, Styles, Convey }
+
 @Composable
 fun DemoApp() {
-    var showcase by remember { mutableStateOf(false) }
+    var tab by remember { mutableStateOf(DemoTab.Photos) }
     // Switching tabs unmounts whichever demo isn't showing -- without this, Gallery's own created
-    // photographs, recipients, and scroll position (and Styles' own scroll position) would reset
-    // every time a person switched away and back, which is real state loss a person would notice
-    // and blame on the demo rather than on this app shell's own choice of navigation mechanism.
+    // photographs, recipients, and scroll position (and Styles'/Convey's own scroll position)
+    // would reset every time a person switched away and back, which is real state loss a person
+    // would notice and blame on the demo rather than on this app shell's own choice of navigation
+    // mechanism.
     val tabState = rememberSaveableStateHolder()
     Column(modifier = Modifier.fillMaxSize().background(Look.ground)) {
         Row(
             modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
             horizontalArrangement = Arrangement.spacedBy(18.dp),
         ) {
-            Tab(text = "Photos", selected = !showcase) { showcase = false }
-            Tab(text = "Styles", selected = showcase) { showcase = true }
+            Tab(text = "Photos", selected = tab == DemoTab.Photos) { tab = DemoTab.Photos }
+            Tab(text = "Styles", selected = tab == DemoTab.Styles) { tab = DemoTab.Styles }
+            Tab(text = "Convey", selected = tab == DemoTab.Convey) { tab = DemoTab.Convey }
         }
         Box(Modifier.weight(1f)) {
-            if (showcase) {
-                tabState.SaveableStateProvider("styles") { StyleShowcase() }
-            } else {
-                tabState.SaveableStateProvider("photos") { Gallery() }
+            when (tab) {
+                DemoTab.Photos -> tabState.SaveableStateProvider("photos") { Gallery() }
+                DemoTab.Styles -> tabState.SaveableStateProvider("styles") { StyleShowcase() }
+                DemoTab.Convey -> tabState.SaveableStateProvider("convey") { ConveyShowcase() }
             }
         }
     }
