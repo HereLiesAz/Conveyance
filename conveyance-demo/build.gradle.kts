@@ -26,39 +26,53 @@ kotlin {
             implementation(compose.foundation)
             implementation(compose.material)
             implementation(compose.ui)
-            // The five composable-set libraries, for the style showcase alongside the photograph
-            // gallery. Each transitively depends on this same repo's own conveyance-core/-compose
-            // artifacts via JitPack; excluded here since `project(":conveyance-compose")` above
-            // (which itself depends on `project(":conveyance-core")`) already supplies those exact
-            // classes from this build -- without the exclude, both the JitPack jar and the local
-            // project would define the identical classes on the same classpath.
-            //
-            // These use the dotted-group coordinate (`com.github.HereLiesAz.conveyance-h2g2:
-            // conveyance-h2g2:...`), not JitPack's shortcut `com.github.HereLiesAz:conveyance-h2g2:
-            // ...` form. The shortcut's own POM lists BOTH the -android and -desktop platform
-            // artifacts as plain dependencies (a legacy convenience wrapper), so Gradle resolved
-            // both onto conveyance-demo-android's single classpath regardless of target -- real
-            // duplicate classes, not a hypothetical one. The dotted-group coordinate is the actual
-            // Kotlin Multiplatform root publication, which correctly narrows to one platform variant
-            // via real Gradle Module Metadata (this is exactly how `convey` below was already
-            // declared, and why it never showed this problem).
-            listOf(
-                "com.github.HereLiesAz.conveyance-h2g2:conveyance-h2g2:main-SNAPSHOT",
-                "com.github.HereLiesAz.conveyance-expressive:conveyance-expressive:main-SNAPSHOT",
-                "com.github.HereLiesAz.conveyance-liquid:conveyance-liquid:main-SNAPSHOT",
-                "com.github.HereLiesAz.conveyance-bacterium:conveyance-bacterium:main-SNAPSHOT",
-                "com.github.HereLiesAz.conveyance-space:conveyance-space:main-SNAPSHOT",
-            ).forEach { coordinate ->
-                implementation(coordinate) { exclude(group = "com.github.HereLiesAz.Conveyance") }
+        }
+        // The five composable-set libraries, for the style showcase alongside the photograph
+        // gallery. Each is published via AGP's split-module KMP layout: a root artifact plus
+        // separate "-android"/"-desktop" coordinates joined by Gradle Module Metadata
+        // "available-at" redirects. Gradle resolves BOTH of a dependency's "available-at" targets
+        // as real graph nodes any time this project configures more than one Kotlin target
+        // (confirmed with `./gradlew :conveyance-demo:dependencyInsight --configuration
+        // desktopCompileClasspath --dependency conveyance-h2g2`: the "-desktop" split module
+        // resolves correctly with a fully attribute-matched variant, but the sibling "-android"
+        // split module is *also* required directly by desktopCompileClasspath and fails, since it
+        // correctly has no jvm-platform variant to offer) -- regardless of which source set
+        // declares the dependency. Excluding each split coordinate that a given target will never
+        // need stops Gradle from attempting to resolve it at all. See HereLiesAz/Conveyance#36.
+        val fiveComposableSets = listOf(
+            "conveyance-h2g2",
+            "conveyance-expressive",
+            "conveyance-liquid",
+            "conveyance-bacterium",
+            "conveyance-space",
+        )
+        fun org.jetbrains.kotlin.gradle.plugin.KotlinDependencyHandler.addFiveComposableSets(unneededSplitSuffix: String) {
+            fiveComposableSets.forEach { name ->
+                implementation("com.github.HereLiesAz:$name:main-SNAPSHOT") {
+                    // Transitively depends on this same repo's own conveyance-core/-compose
+                    // artifacts via JitPack; excluded since `project(":conveyance-compose")` in
+                    // commonMain (which itself depends on `project(":conveyance-core")`) already
+                    // supplies those exact classes from this build -- without the exclude, both
+                    // the JitPack jar and the local project would define the identical classes on
+                    // the same classpath.
+                    exclude(group = "com.github.HereLiesAz.Conveyance")
+                    exclude(group = "com.github.HereLiesAz.$name", module = "$name-$unneededSplitSuffix")
+                }
             }
             // Convey is a second, standalone design system built on this repo's own Manifesto --
             // unlike the five composable-set libraries above, it has no dependency on this repo's
             // conveyance-core/-compose, so it needs no exclude.
-            implementation("com.github.HereLiesAz.conveyance-convey:convey:main-SNAPSHOT")
+            implementation("com.github.HereLiesAz.conveyance-convey:convey:main-SNAPSHOT") {
+                exclude(group = "com.github.HereLiesAz.conveyance-convey", module = "convey-$unneededSplitSuffix")
+            }
+        }
+        val androidMain by getting {
+            dependencies { addFiveComposableSets(unneededSplitSuffix = "desktop") }
         }
         val desktopMain by getting {
             dependencies {
                 implementation(compose.desktop.currentOs)
+                addFiveComposableSets(unneededSplitSuffix = "android")
             }
         }
         val desktopTest by getting {
