@@ -1,4 +1,4 @@
-# Getting started
+## Getting started
 
 A working screen in about ten minutes: one `Act`, one blocked precondition, one Escort, rendered
 with no animation code of your own. If you want the philosophy first, read
@@ -117,7 +117,14 @@ disabled state. Tap **Mara**, then **Send** again: it settles, no animation you 
 - **[conveyance-auditor](../conveyance-auditor/README.md)** — show your screen to a naive viewer and
   grade what they predicted, no API key required.
 - **[conveyance-demo](../conveyance-demo)** — a full working app (`./gradlew :conveyance-demo:run`)
-  exercising Create, Enter, Return, Send, Alter, and Refuse together.
+  with three tabs. **Photos** exercises Create, Enter, Return, Send, Alter, and Refuse together
+  against this repo's own `conveyance-core`/`conveyance-compose`. **Styles** showcases the five
+  separate composable-set libraries (`conveyance-h2g2`, `conveyance-expressive`,
+  `conveyance-liquid`, `conveyance-bacterium`, `conveyance-space`) alongside the photo gallery.
+  **Convey** showcases `conveyance-convey` — a second, standalone Compose Multiplatform design
+  system with no dependency on `conveyance-core`/`conveyance-compose` — including its weight
+  hierarchy and morph controls, kinetic text, subject-verb-object scene animation driven by
+  WordNet/VerbNet lexicons, topographical layout, and an attention grid.
 - **[The framework spec](CONVEYANCE-FRAMEWORK.md)** — every law, every audit, every named behavior,
   precisely.
 
