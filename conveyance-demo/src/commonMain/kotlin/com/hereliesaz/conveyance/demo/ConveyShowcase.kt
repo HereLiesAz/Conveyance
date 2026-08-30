@@ -21,9 +21,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import compose.conveyance.ConveyGrammar
+import compose.conveyance.ConveyLife
 import compose.conveyance.ConveySystem
 import compose.conveyance.ConveyWeight
 import compose.conveyance.LocalConveyWeightRegistry
@@ -33,12 +35,17 @@ import compose.conveyance.conveyPress
 import compose.conveyance.conveyRipple
 import compose.conveyance.conveySwipe
 import compose.conveyance.conveyWeight
+import compose.conveyance.ConveyKineticSentence
+import compose.conveyance.ConveyKineticText
+import compose.conveyance.foundation.ConveyAttentionGrid
 import compose.conveyance.foundation.ConveyConstruct
 import compose.conveyance.foundation.ConveyConstructRegistry
 import compose.conveyance.foundation.ConveyFab
 import compose.conveyance.foundation.ConveyFabAction
+import compose.conveyance.foundation.ConveyMorphControl
 import compose.conveyance.foundation.ConveyOutcome
 import compose.conveyance.foundation.ConveySubmitButton
+import compose.conveyance.foundation.ConveyTopographicalLayout
 import compose.conveyance.foundation.LocalConveyConstructRegistry
 import compose.conveyance.tokens.ConveyColor
 import compose.conveyance.tokens.ConveyShape
@@ -78,6 +85,10 @@ fun ConveyShowcase(modifier: Modifier = Modifier) {
                 MorphSection()
                 FabSection()
                 InteractionSection()
+                KineticTextSection()
+                TopographicalSection()
+                AttentionGridSection()
+                MorphControlSection()
             }
         }
     }
@@ -213,6 +224,107 @@ private fun InteractionSection() {
                 Text("swiped away", color = Look.quiet, fontSize = 11.sp)
             }
         }
+    }
+}
+
+@Composable
+private fun KineticTextSection() {
+    var struck by remember { mutableStateOf(0) }
+    section("kinetic text") {
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            ConveyKineticText(
+                text = "CONVEY",
+                idle = ConveyLife.Wobble(period = 4500L),
+                triggerKey = struck,
+                onClick = { struck++ },
+                style = TextStyle(color = ConveyColor.OnSurface, fontSize = 22.sp),
+            )
+            // Each word's idle motion is chosen by its own verb -- classified live against real
+            // WordNet/VerbNet data, not styled by hand. "fell" resolves to a still, settled
+            // profile (no per-glyph idle fits a spatial-path verb); the sentence as a whole
+            // gets a real one-shot slide-in for exactly that reason (see ConveyKineticSentence).
+            ConveyKineticSentence(
+                text = "The leaves fell to the ground",
+                style = TextStyle(color = Look.quiet, fontSize = 13.sp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun TopographicalSection() {
+    section("topographical layout") {
+        Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
+            // Each sentence's own verb picks its own static shape -- ConveyVerbLexicon
+            // resolves the category, ConveyTopographicalLayout renders it. A sentence with no
+            // matching verb (not shown here) would render as ordinary flowing text instead.
+            ConveyTopographicalLayout(
+                text = "The leaves fell to the ground",
+                style = TextStyle(color = ConveyColor.OnSurface, fontSize = 13.sp),
+            )
+            ConveyTopographicalLayout(
+                text = "The balloon rose into the sky",
+                style = TextStyle(color = ConveyColor.OnSurface, fontSize = 13.sp),
+            )
+            ConveyTopographicalLayout(
+                text = "The wolves surrounded the camp",
+                style = TextStyle(color = ConveyColor.OnSurface, fontSize = 13.sp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun AttentionGridSection() {
+    val tiles = remember { listOf("Alpha", "Beta", "Gamma", "Delta", "Epsilon", "Zeta") }
+    section("attention grid") {
+        ConveyAttentionGrid(
+            items = tiles,
+            columns = 3,
+            modifier = Modifier.size(width = 280.dp, height = 200.dp),
+            content = { tile, isAttended, expand ->
+                Box(
+                    modifier = Modifier
+                        .size(84.dp)
+                        .conveyWeight(if (isAttended) ConveyWeight.Primary else ConveyWeight.Secondary)
+                        .clip(ConveyShape.Medium)
+                        .background(if (isAttended) ConveyColor.PrimaryContainer else ConveyColor.SurfaceContainer)
+                        .conveyPress(onClick = expand),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(tile, color = ConveyColor.OnSurface, fontSize = 12.sp)
+                }
+            },
+            expandedContent = { tile, collapse ->
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .conveyPress(onClick = collapse),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(tile, color = ConveyColor.OnSurface, fontSize = 32.sp)
+                }
+            },
+        )
+    }
+}
+
+@Composable
+private fun MorphControlSection() {
+    var expanded by remember { mutableStateOf(false) }
+    var volume by remember { mutableStateOf(50f) }
+    section("morph control") {
+        ConveyMorphControl(
+            expanded = expanded,
+            onToggle = { expanded = true },
+            onCollapse = { expanded = false },
+            value = volume,
+            onValueChange = { volume = it },
+            color = ConveyColor.Primary,
+            contentColor = ConveyColor.OnPrimary,
+            collapsedLabel = { Text("Set volume", color = ConveyColor.OnPrimary, fontSize = 12.sp) },
+            valueBadge = { v -> Text("${v.toInt()}%", color = ConveyColor.OnPrimary, fontSize = 12.sp) },
+        )
     }
 }
 
