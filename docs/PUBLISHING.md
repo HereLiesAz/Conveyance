@@ -65,6 +65,53 @@ verification, which is exactly why every one of those libraries -- appropriately
 first, pre-release. Central is worth adding once there's a real, licensed, tagged release; it isn't
 a replacement for `main-SNAPSHOT` development coordinates.
 
+## A gotcha for consumers with more than one Kotlin target
+
+`conveyance-core` and `conveyance-compose` -- and each of the five separate composable-set repos
+(`conveyance-h2g2`, `conveyance-expressive`, `conveyance-liquid`, `conveyance-bacterium`,
+`conveyance-space`) that depend on them -- publish via AGP's split-module KMP layout: JitPack
+resolves a root artifact (e.g. `conveyance-compose`) plus separate `-android`/`-desktop`
+coordinates, joined by Gradle Module Metadata `available-at` redirects rather than classifiers.
+
+That layout has a real Gradle resolution bug for any consumer whose own build configures more than
+one Kotlin target: Gradle resolves **both** of a dependency's `available-at` targets as real graph
+nodes, regardless of which target is actually being compiled -- not just the one the current
+source set needs. Concretely, on a `desktopCompileClasspath`, the `-desktop` split module resolves
+correctly with a fully attribute-matched variant, but the sibling `-android` split module is *also*
+required directly by that same classpath and fails outright, since it correctly has no
+jvm-platform variant to offer. This isn't hypothetical: it's exactly what broke
+`conveyance-demo`'s own build once it depended on the five composable-set libraries from a project
+that itself targets both `androidLibrary` and `jvm("desktop")` (see
+[HereLiesAz/Conveyance#38](https://github.com/HereLiesAz/Conveyance/pull/38)), confirmed with
+`./gradlew :conveyance-demo:dependencyInsight --configuration desktopCompileClasspath --dependency
+conveyance-h2g2`.
+
+The fix is to exclude, per source set, whichever split coordinate that target will never need:
+
+```kotlin
+val desktopMain by getting {
+    dependencies {
+        implementation("com.github.HereLiesAz:conveyance-h2g2:main-SNAPSHOT") {
+            exclude(group = "com.github.HereLiesAz.conveyance-h2g2", module = "conveyance-h2g2-android")
+        }
+    }
+}
+val androidMain by getting {
+    dependencies {
+        implementation("com.github.HereLiesAz:conveyance-h2g2:main-SNAPSHOT") {
+            exclude(group = "com.github.HereLiesAz.conveyance-h2g2", module = "conveyance-h2g2-desktop")
+        }
+    }
+}
+```
+
+`conveyance-demo/build.gradle.kts`'s own `addFiveComposableSets` helper is the working, generalized
+version of this pattern for all five composable-set libraries at once, worth reading as a template.
+Anyone consuming more than one of Conveyance's own split-published libraries (this repo's or the
+composable-set repos') from a project with more than one Kotlin target will hit the same failure
+and needs the same per-target exclude -- this is a property of the split-module layout itself, not
+something a Maven Central migration (above) would remove.
+
 ## Bottom line
 
 Feasible, and the build is already most of the way there. What's actually blocking it is two
