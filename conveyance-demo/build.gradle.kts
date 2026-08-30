@@ -61,10 +61,12 @@ kotlin {
             }
             // Convey is a second, standalone design system built on this repo's own Manifesto --
             // unlike the five composable-set libraries above, it has no dependency on this repo's
-            // conveyance-core/-compose, so it needs no exclude.
-            implementation("com.github.HereLiesAz.conveyance-convey:convey:main-SNAPSHOT") {
-                exclude(group = "com.github.HereLiesAz.conveyance-convey", module = "convey-$unneededSplitSuffix")
-            }
+            // conveyance-core/-compose, so it needs no exclude for that. It also isn't published
+            // via the split-module layout the five composable-set libraries use (confirmed: its
+            // dotted-group coordinate resolves through real Gradle Module Metadata straight to one
+            // platform variant, with no separate "-android"/"-desktop" artifact ever appearing in
+            // the graph), so it needs no unneededSplitSuffix exclude either.
+            implementation("com.github.HereLiesAz.conveyance-convey:convey:main-SNAPSHOT")
         }
         val androidMain by getting {
             dependencies { addFiveComposableSets(unneededSplitSuffix = "desktop") }

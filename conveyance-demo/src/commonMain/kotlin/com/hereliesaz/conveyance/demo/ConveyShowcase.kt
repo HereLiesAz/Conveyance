@@ -268,11 +268,14 @@ private fun SvoSceneSection() {
                 sentence = "The cheetah hunts the gazelle",
                 style = TextStyle(color = ConveyColor.OnSurface, fontSize = 20.sp),
             )
-            // A mass noun ("mud", real WordNet noun.substance data) keeps visibly wobbling after
+            // A mass noun ("clay", real WordNet noun.substance data) keeps visibly wobbling after
             // contact instead of settling instantly -- the underdamped spring [ConveySvoScene]
-            // gives count nouns doesn't fire.
+            // gives count nouns doesn't fire. "Pokes" -- unlike an earlier draft's "squishes",
+            // which Simplified Lesk resolves to WordNet's unrelated "walk through mud" sense here,
+            // producing no contact at all -- reliably classifies Contact/contactAtEnd, so this
+            // sentence actually reaches the collision branch it's meant to demonstrate.
             ConveySvoScene(
-                sentence = "The boy squishes the mud",
+                sentence = "The boy pokes the clay",
                 style = TextStyle(color = ConveyColor.OnSurface, fontSize = 20.sp),
             )
         }
