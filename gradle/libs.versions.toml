@@ -18,7 +18,7 @@ detekt = "1.23.8"
 # The generated API reference, built from the KDoc already written throughout the codebase.
 dokka = "2.2.0"
 # The auditor calls Claude to run the two rules no structural check can settle.
-anthropic = "2.57.0"
+anthropic = "2.58.0"
 jackson = "2.22.2"
 jvmToolchain = "21"
 # The Android entry point (conveyance-demo-android) is a plain, non-KMP application module --
