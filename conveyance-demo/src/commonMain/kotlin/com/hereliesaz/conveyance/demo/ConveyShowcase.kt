@@ -37,6 +37,7 @@ import compose.conveyance.conveySwipe
 import compose.conveyance.conveyWeight
 import compose.conveyance.ConveyKineticSentence
 import compose.conveyance.ConveyKineticText
+import compose.conveyance.ConveySvoScene
 import compose.conveyance.foundation.ConveyAttentionGrid
 import compose.conveyance.foundation.ConveyConstruct
 import compose.conveyance.foundation.ConveyConstructRegistry
@@ -86,6 +87,7 @@ fun ConveyShowcase(modifier: Modifier = Modifier) {
                 FabSection()
                 InteractionSection()
                 KineticTextSection()
+                SvoSceneSection()
                 TopographicalSection()
                 AttentionGridSection()
                 MorphControlSection()
@@ -246,6 +248,32 @@ private fun KineticTextSection() {
             ConveyKineticSentence(
                 text = "The leaves fell to the ground",
                 style = TextStyle(color = Look.quiet, fontSize = 13.sp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun SvoSceneSection() {
+    section("SVO scene") {
+        Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
+            // ConveyNounLexicon (WordNet-backed animacy/countability) + ConveyVerbLexicon's own
+            // event-timeline extension drive a pure-Kotlin force simulation: "cheetah" is animate
+            // (real hypernym-chain-to-animal.n.01 data) so it gets the gait-wobble approximation
+            // while it closes on "gazelle"; "hunt" resolves to a contact-terminating timeline, so
+            // the object gets a squash-and-stretch impulse on collision. No word-as-image morphing
+            // (that needs a live diffusion model this demo doesn't have) -- only position, scale,
+            // and rotation are driven by the simulation; see ConveySvoScene's own doc comment.
+            ConveySvoScene(
+                sentence = "The cheetah hunts the gazelle",
+                style = TextStyle(color = ConveyColor.OnSurface, fontSize = 20.sp),
+            )
+            // A mass noun ("mud", real WordNet noun.substance data) keeps visibly wobbling after
+            // contact instead of settling instantly -- the underdamped spring [ConveySvoScene]
+            // gives count nouns doesn't fire.
+            ConveySvoScene(
+                sentence = "The boy squishes the mud",
+                style = TextStyle(color = ConveyColor.OnSurface, fontSize = 20.sp),
             )
         }
     }
