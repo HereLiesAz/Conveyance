@@ -32,12 +32,22 @@ kotlin {
             // (which itself depends on `project(":conveyance-core")`) already supplies those exact
             // classes from this build -- without the exclude, both the JitPack jar and the local
             // project would define the identical classes on the same classpath.
+            //
+            // These use the dotted-group coordinate (`com.github.HereLiesAz.conveyance-h2g2:
+            // conveyance-h2g2:...`), not JitPack's shortcut `com.github.HereLiesAz:conveyance-h2g2:
+            // ...` form. The shortcut's own POM lists BOTH the -android and -desktop platform
+            // artifacts as plain dependencies (a legacy convenience wrapper), so Gradle resolved
+            // both onto conveyance-demo-android's single classpath regardless of target -- real
+            // duplicate classes, not a hypothetical one. The dotted-group coordinate is the actual
+            // Kotlin Multiplatform root publication, which correctly narrows to one platform variant
+            // via real Gradle Module Metadata (this is exactly how `convey` below was already
+            // declared, and why it never showed this problem).
             listOf(
-                "com.github.HereLiesAz:conveyance-h2g2:main-SNAPSHOT",
-                "com.github.HereLiesAz:conveyance-expressive:main-SNAPSHOT",
-                "com.github.HereLiesAz:conveyance-liquid:main-SNAPSHOT",
-                "com.github.HereLiesAz:conveyance-bacterium:main-SNAPSHOT",
-                "com.github.HereLiesAz:conveyance-space:main-SNAPSHOT",
+                "com.github.HereLiesAz.conveyance-h2g2:conveyance-h2g2:main-SNAPSHOT",
+                "com.github.HereLiesAz.conveyance-expressive:conveyance-expressive:main-SNAPSHOT",
+                "com.github.HereLiesAz.conveyance-liquid:conveyance-liquid:main-SNAPSHOT",
+                "com.github.HereLiesAz.conveyance-bacterium:conveyance-bacterium:main-SNAPSHOT",
+                "com.github.HereLiesAz.conveyance-space:conveyance-space:main-SNAPSHOT",
             ).forEach { coordinate ->
                 implementation(coordinate) { exclude(group = "com.github.HereLiesAz.Conveyance") }
             }
