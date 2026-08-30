@@ -4,7 +4,7 @@ agp = "9.3.1"
 gradle = "9.7.1"
 kotlin = "2.4.10"
 # Compose Multiplatform: latest stable plugin.
-compose = "1.11.1"
+compose = "1.12.0"
 # material3 is taken at alpha deliberately: the Expressive shape-morph machinery
 # (MaterialShapes, Morph) lives there and nowhere else. Used as geometry, never as
 # a channel vocabulary -- Conveyance assigns its own meanings and cannot import M3's.
