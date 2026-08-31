@@ -66,7 +66,7 @@ kotlin {
             // dotted-group coordinate resolves through real Gradle Module Metadata straight to one
             // platform variant, with no separate "-android"/"-desktop" artifact ever appearing in
             // the graph), so it needs no unneededSplitSuffix exclude either.
-            implementation("com.github.HereLiesAz.conveyance-convey:convey:main-SNAPSHOT")
+            implementation("com.github.HereLiesAz.convey:convey:main-SNAPSHOT")
         }
         val androidMain by getting {
             dependencies { addFiveComposableSets(unneededSplitSuffix = "desktop") }
