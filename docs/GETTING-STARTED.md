@@ -3,7 +3,10 @@
 A working screen in about ten minutes: one `Act`, one blocked precondition, one Escort, rendered
 with no animation code of your own. If you want the philosophy first, read
 [the manifesto](../README.md) or [the full spec](CONVEYANCE-FRAMEWORK.md) — this page assumes you
-already want to see it work.
+already want to see it work. For the generated, per-class/per-function reference (every public
+signature and KDoc comment across `conveyance-core`/`conveyance-compose`/`conveyance-auditor`,
+kept current automatically on every push to `main`), see the
+[wiki's API reference](../../../wiki/api-reference/conveyance-core/index).
 
 ## `convey` — a second, independent implementation
 

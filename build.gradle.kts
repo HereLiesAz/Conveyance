@@ -1,6 +1,8 @@
 import io.gitlab.arturbosch.detekt.extensions.DetektExtension
 import org.gradle.api.publish.PublishingExtension
 import org.gradle.api.publish.maven.MavenPublication
+import org.jetbrains.dokka.gradle.formats.DokkaFormatPlugin
+import org.jetbrains.dokka.gradle.internal.InternalDokkaGradlePluginApi
 
 // Every plugin is resolved once here, so a subproject's `alias(...)` only applies it.
 // Declaring a version in two places is how a build starts needing a manual.
@@ -14,6 +16,11 @@ plugins {
     alias(libs.plugins.detekt)
     alias(libs.plugins.dokka)
 }
+
+// Root-level Markdown aggregation, alongside the HTML aggregation `alias(libs.plugins.dokka)`
+// above already gives the root project -- GitHub wikis render Markdown (via Gollum), not a
+// static HTML site with its own CSS/JS assets. See .github/workflows/publish-docs.yml.
+apply<DokkaMarkdownPlugin>()
 
 // Coordinates every publishable module shares. A version bump or a group rename happens once,
 // here, rather than drifting across four build files that each remembered it differently.
@@ -43,6 +50,12 @@ subprojects {
     // is even less of one: an Activity and a manifest, nothing else.
     if (name != "conveyance-demo" && name != "conveyance-demo-android") {
         apply(plugin = "org.jetbrains.dokka")
+        // GitHub wikis render Markdown (via Gollum), not a static HTML site with its own CSS/JS
+        // assets -- Dokka's default output. This adds GitHub-Flavored-Markdown as an additional
+        // output format (`dokkaGenerateMarkdown`, aggregating across subprojects the same way
+        // `dokkaGenerateHtml` already does) so the API reference can be pushed straight into the
+        // wiki repo -- see .github/workflows/publish-docs.yml.
+        apply<DokkaMarkdownPlugin>()
     }
 
     extensions.configure<DetektExtension> {
@@ -82,6 +95,18 @@ subprojects {
                     }
                 }
             }
+        }
+    }
+}
+
+@OptIn(InternalDokkaGradlePluginApi::class)
+abstract class DokkaMarkdownPlugin : DokkaFormatPlugin(formatName = "markdown") {
+    override fun DokkaFormatPlugin.DokkaFormatPluginContext.configure() {
+        project.dependencies {
+            dokkaPlugin(dokka("gfm-plugin"))
+            formatDependencies.dokkaPublicationPluginClasspathApiOnly.dependencies.addLater(
+                dokka("gfm-template-processing-plugin")
+            )
         }
     }
 }
