@@ -5,6 +5,24 @@ with no animation code of your own. If you want the philosophy first, read
 [the manifesto](../README.md) or [the full spec](CONVEYANCE-FRAMEWORK.md) — this page assumes you
 already want to see it work.
 
+## `convey` — a second, independent implementation
+
+`convey/` in this repo is a git submodule pointing at [`HereLiesAz/convey`](https://github.com/HereLiesAz/convey)
+— its own repository, with its own history, issues, and CI. It is not a copy of `conveyance-core`/
+`conveyance-compose`'s code, and it does not share their API (`ConveyGrammar`/`ConveyWeight`/
+`ConveyOffer`/... rather than `Act`/`Gate`/`ActScope`/...). It is a separately-developed Compose
+Multiplatform implementation of the same manifesto, linked here so this repo can act as the single
+place to find every SDK offered on top of the Conveyance Manifesto, without merging its code or
+history into this one. Cloning this repo does not fetch it automatically:
+
+```bash
+git submodule update --init convey
+```
+
+See [`convey`'s own `AGENTS.md`](../convey/AGENTS.md) for its module shape, build instructions, and
+current composable inventory — it is not covered by the rest of this document, which describes
+`conveyance-core`/`conveyance-compose` only.
+
 ## What's actually available today
 
 This project isn't on Maven Central yet — see [the SDK inventory below](#what-this-sdk-offers-today)
