@@ -26,6 +26,21 @@ See [`convey`'s own `AGENTS.md`](../convey/AGENTS.md) for its module shape, buil
 current composable inventory — it is not covered by the rest of this document, which describes
 `conveyance-core`/`conveyance-compose` only.
 
+## `convey-web` — the web counterpart
+
+`convey-web/` is the same idea, for the web: a git submodule pointing at
+[`HereLiesAz/convey-web`](https://github.com/HereLiesAz/convey-web) — its own repository, own
+history, own CI. TypeScript + native Web Components rather than Kotlin + Compose, sharing
+`convey`'s vocabulary (`ConveyGrammar`/`ConveyWeight`/...) rather than `conveyance-core`'s
+(`Act`/`Gate`/...), so a screen described one way in Compose reads the same way in a browser.
+
+```bash
+git submodule update --init convey-web
+```
+
+See [`convey-web`'s own `AGENTS.md`](../convey-web/AGENTS.md) for its module shape and build
+instructions.
+
 ## What's actually available today
 
 This project isn't on Maven Central yet — see [the SDK inventory below](#what-this-sdk-offers-today)
