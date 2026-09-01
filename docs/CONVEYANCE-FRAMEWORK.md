@@ -104,7 +104,7 @@ Consistency is load-bearing. A motion signature reused for decoration is a lie i
 
 **Every element does at least four jobs. Elements with fewer get merged; elements with none get deleted.**
 
-This is resourceful minimalism made checkable. Jobs are enumerable (§4.2), and an element that cannot name four of them is standing around watching one guy dig. Four, not three, because three of the four are nearly free for an element that offers an act: `Invite` is the declaration itself, `Progress` is true the moment it exists (Offer renders every act's states, Yielding included, from the same pixels — there is no path through the type system that skips it), and `Interrupt` is owed for the same reason Law 4 already names it. None of those should cost a developer real thought once that's understood — which is exactly why the count can't stop at three: a three-job minimum would be satisfiable by reflex, without the developer ever deciding anything.
+This is resourceful minimalism made checkable. Jobs are enumerable (§4.3), and an element that cannot name four of them is standing around watching one guy dig. Four, not three, because three of the four are nearly free for an element that offers an act: `Invite` is the declaration itself, `Progress` is true the moment it exists (Offer renders every act's states, Yielding included, from the same pixels — there is no path through the type system that skips it), and `Interrupt` is owed for the same reason Law 4 already names it. None of those should cost a developer real thought once that's understood — which is exactly why the count can't stop at three: a three-job minimum would be satisfiable by reflex, without the developer ever deciding anything.
 
 *Consequence for the API:* `Employment.Working` requires all four written down explicitly — nothing is inferred on the developer's behalf, because a job the type system credits without seeing the code behind it is exactly the failure this law exists to catch. The fourth is the one that actually costs a decision, and it's the only one this law is checking for; the Idle Worker audit fails the build on unemployment.
 
@@ -290,6 +290,7 @@ The result: nothing on screen varies without saying something, so everything tha
 | Motion | The grammar (Part III) | Delight, polish |
 | Haptics | Consequence magnitude — the tactile echo of weight | Confirmation of taps |
 | Sound | Keystones only | Everything else |
+| Decoration (underline / weight-or-hue shift) | **This text is an Act.** Reserved exclusively for text a person can act on | Emphasis, brand voice, style |
 
 Two of these are worth dwelling on because they are unusual and they pay off enormously:
 
@@ -297,7 +298,13 @@ Two of these are worth dwelling on because they are unusual and they pay off eno
 
 **Opacity is never a resting state.** Half-opacity is the universal signal for "disabled," which is the construct this framework does not have. A thing is present and live, or it is not there. There is no purgatory of ghosted controls that a person has to test by tapping.
 
-### 4.2 The Job enum
+### 4.2 Text as an Act
+
+Text is not exempt from Law 3 just because it reads instead of clicks. Whenever a span of text **is** an Act — a link, a tappable term, an inline action — rather than merely describing one, that span carries the Decoration channel: it is persistently, visibly distinguished from the static text around it, the same way `Elevation` marks reversibility whether or not a person ever needed to know it was there. Plain text never borrows Decoration for emphasis; the moment it did, the signal would stop meaning "you can act on this" and Law 5's ban on illegible corpses would apply to every sentence on the page.
+
+This is one signal doing one job in two registers, not two separate mechanisms: Decoration is the *persistent* half — always present, costing nothing to notice — and the Tell (§5.1) is the *taught* half, since Tell already applies to "an element that has never been operated," text Acts included. An unpracticed link performs its half-rep once, the same abbreviated motion any other unpracticed Act would; the underline (or weight/hue shift) that was already there the whole time is what a practiced person actually relies on afterward. Neither half is optional cover for the other — a Tell that fires once and leaves no lasting mark would make every link invisible again the second time the page loads.
+
+### 4.3 The Job enum
 
 Employment (Law 4) needs jobs to be countable. Every element declares from:
 
@@ -668,7 +675,11 @@ Within a block, this needs no title or hierarchy line to anchor to — it applie
 - **Height.** If a later block has fewer lines than an earlier one it relates to (two lines against three, say), its lines resize so its total height balances against — approaches, rather than exactly matches — the earlier block's total height, the same way a shorter line's size/weight/condensation is pushed to hold its ink-score share within a block.
 - **Three or more blocks.** The balancing is not a single pair repeated once; it is spread across every block on the page. The working model is that each block relates to the **accumulated shape** of every block before it — not to the immediately preceding block alone — so a third block's width and height targets already carry the balance struck between the first two. This keeps the mechanism self-similar (one rule, applied incrementally) rather than requiring a separate simultaneous-solve step across all blocks at once; a design system that finds the accumulated-shape model insufficient for a specific composition can still override any block explicitly (§11.5, rule 1, promoted to block level).
 
-### 11.8 What this does not do
+### 11.8 Interactive text inside a `DESIGN` block
+
+A line (or a run within a line) that is itself an Act does not get a composition exemption. It solves for size/weight/condensation/tracking exactly like any other line, and separately carries the Decoration channel (§4.2) required of any interactive text, static and persistent, with the Tell (§5.1) teaching it once on first encounter. The solver never treats Decoration as a lever — it is not something size/weight/condensation/tracking are traded against, the same way `Elevation`'s reversibility signal is never sacrificed to hit a layout target elsewhere in the framework.
+
+### 11.9 What this does not do
 
 `DESIGN` does not lay out images, does not manage spacing between unrelated blocks, and does not choose a typeface — it operates entirely within the axes a variable font (or a family of discrete weights/widths, degraded gracefully) already exposes. It is a composition solver for text that has already been placed in blocks and given semantic levels, not a page-layout engine.
 
@@ -706,6 +717,7 @@ CHANNELS   position=origin  size=momentary importance  shape=state  hue=rank
            chroma=heat  elevation=REVERSIBILITY  opacity=transition only
            type=reading order  density=relatedness  motion=grammar
            haptics=magnitude  sound=Keystone only
+           decoration=THIS TEXT IS AN ACT (persistent; the Tell teaches it once, on top)
 
 BEHAVIORS  Tell       an unpracticed element does a half-rep of itself, once
            Escort     a blocked act carries you to its gate
