@@ -104,7 +104,7 @@ Consistency is load-bearing. A motion signature reused for decoration is a lie i
 
 **Every element does at least four jobs. Elements with fewer get merged; elements with none get deleted.**
 
-This is resourceful minimalism made checkable. Jobs are enumerable (§4.2), and an element that cannot name four of them is standing around watching one guy dig. Four, not three, because three of the four are nearly free for an element that offers an act: `Invite` is the declaration itself, `Progress` is true the moment it exists (Offer renders every act's states, Yielding included, from the same pixels — there is no path through the type system that skips it), and `Interrupt` is owed for the same reason Law 4 already names it. None of those should cost a developer real thought once that's understood — which is exactly why the count can't stop at three: a three-job minimum would be satisfiable by reflex, without the developer ever deciding anything.
+This is resourceful minimalism made checkable. Jobs are enumerable (§4.3), and an element that cannot name four of them is standing around watching one guy dig. Four, not three, because three of the four are nearly free for an element that offers an act: `Invite` is the declaration itself, `Progress` is true the moment it exists (Offer renders every act's states, Yielding included, from the same pixels — there is no path through the type system that skips it), and `Interrupt` is owed for the same reason Law 4 already names it. None of those should cost a developer real thought once that's understood — which is exactly why the count can't stop at three: a three-job minimum would be satisfiable by reflex, without the developer ever deciding anything.
 
 *Consequence for the API:* `Employment.Working` requires all four written down explicitly — nothing is inferred on the developer's behalf, because a job the type system credits without seeing the code behind it is exactly the failure this law exists to catch. The fourth is the one that actually costs a decision, and it's the only one this law is checking for; the Idle Worker audit fails the build on unemployment.
 
@@ -290,6 +290,7 @@ The result: nothing on screen varies without saying something, so everything tha
 | Motion | The grammar (Part III) | Delight, polish |
 | Haptics | Consequence magnitude — the tactile echo of weight | Confirmation of taps |
 | Sound | Keystones only | Everything else |
+| Decoration (underline / weight-or-hue shift) | **This text is an Act.** Reserved exclusively for text a person can act on | Emphasis, brand voice, style |
 
 Two of these are worth dwelling on because they are unusual and they pay off enormously:
 
@@ -297,7 +298,15 @@ Two of these are worth dwelling on because they are unusual and they pay off eno
 
 **Opacity is never a resting state.** Half-opacity is the universal signal for "disabled," which is the construct this framework does not have. A thing is present and live, or it is not there. There is no purgatory of ghosted controls that a person has to test by tapping.
 
-### 4.2 The Job enum
+### 4.2 Text as an Act
+
+Text is not exempt from Law 3 just because it reads instead of clicks. Whenever a span of text **is** an Act — a link, a tappable term, an inline action — rather than merely describing one, that span carries the Decoration channel: it is persistently, visibly distinguished from the static text around it, the same way `Elevation` marks reversibility whether or not a person ever needed to know it was there. Plain text never borrows Decoration for emphasis; the moment it did, the signal would stop meaning "you can act on this" and Law 5's ban on illegible corpses would apply to every sentence on the page.
+
+This is one signal doing one job in two registers, not two separate mechanisms: Decoration is the *persistent* half — always present, costing nothing to notice — and the Tell (§5.1) is the *taught* half, since Tell already applies to "an element that has never been operated," text Acts included. Neither half is optional cover for the other — a Tell that fires once and leaves no lasting mark would make every link invisible again the second time the page loads. Where a text Act's Tell needs a motion at all, it draws from the kinetic-typography vocabulary already in the framework (`ConveyVerb`'s classification of the Act's own words, the same engine `ConveyKineticText`/`ConveyKineticSentence` use) rather than a separate, invented gesture — one motion grammar for text, not two. A Tell that recurs (rather than firing once per §5.1's ordinary budget) is available where a surface calls for it, but recurrence is a choice made per surface, never a default — continuous motion is exactly the kind of decoration Law 3 already warns a reused signature becomes a lie in the language.
+
+**Text animation is offered, never assumed.** The kinetic-typography engine is not reserved for short kinetic phrases or interactive Acts — any text, `Body`-level `DESIGN` paragraphs included, may be animated through it. This is deliberately a menu, not a rule: resourceful minimalism (Law 4's whole premise) means motion earns its place on a given surface the same way any element does, and static `Body` text that has nothing to teach or signal is not a gap to be filled. The framework's job is to make every one of those options actually Conveyance-adherent when a developer reaches for one, not to reach for one on their behalf.
+
+### 4.3 The Job enum
 
 Employment (Law 4) needs jobs to be countable. Every element declares from:
 
@@ -591,6 +600,93 @@ Stated plainly, because a framework that only lists its strengths is doing a str
 
 ---
 
+# Part XI — The Design Block
+
+*Status: specification only. Not yet implemented in `convey` or `convey-web`. Written to be built against, not aspirational prose — treat any drift between this section and the eventual `ConveyDesign`/`convey-design` implementation as a bug in one of the two.*
+
+Everything so far governs *behavior*: what an element does when touched, when it appears, when it fails. This Part governs *composition* — what a block of text looks like before anyone touches anything. It exists because static typography is not exempt from Law 1's discipline just because nothing is animating: a page that a person reads once and never operates still teaches, by its shape, whether the product is considered or careless.
+
+### 11.1 The premise
+
+`DESIGN` is a container, the way `Title`, `Header 1`, `Header 2`, `Header 3`, and `Body` are semantic levels — each carrying a nominal size, weight, and alignment the way an HTML heading carries a default style. The difference is that nothing inside a `DESIGN` block keeps its nominal value unmodified. A solver adjusts kerning, leading, size, condensation, and weight across every line inside the block until the block's own outline — its silhouette, traced along the edges its lines actually occupy — reads as an intentionally composed geometric shape, not an accident of whatever the content happened to measure.
+
+**Balance over symmetry.** The target is not a mirrored, centered block. Some of the best compositions are meant to swoop — an elongated-comma silhouette, heavy at one end and trailing to a point at the other, is a legitimate, deliberately asymmetric target shape, not a failure to center. What the solver enforces is *balance*: an asymmetric arrangement that still reads as counterweighted, the way a Swiss-style layout holds together off-center because a consistent underlying system carries it. Symmetry is one possible balanced outcome, never the goal itself.
+
+The swoop is **emergent, not literal.** `DESIGN` never bends a baseline or sets text on a path. Every line stays straight and horizontal. The silhouette is a byproduct of stacking lines of differing width, alignment, and column placement — the same way a staircase reads as a diagonal without any single stair being anything but flat and level.
+
+### 11.2 Semantic levels and the modular scale
+
+`Title`, `Header 1`, `Header 2`, `Header 3`, `Body` (and any level a platform wants to add between or beyond these) are not five independently tuned presets. Each level's nominal size is `base × ratio^n`, where `ratio` is a single named modular-scale constant (in the tradition of Bringhurst's modular scale — a perfect fourth, a perfect fifth, the golden ratio, whatever the design system picks) and `n` is the level's distance from `Body` in the hierarchy. One constant produces the whole scale, the same way one interval produces a musical scale — there are no five hand-picked numbers to keep in sync.
+
+Weight and condensation follow the same hierarchy but are not required to follow the same ratio; a design system may choose to express hierarchy mostly through size, mostly through weight, or a blend, so long as the ordering is monotonic — a `Header 1` never reads lighter or smaller than a `Header 2` after the solver runs.
+
+### 11.3 Ink score
+
+The solver needs a computable proxy for "how much visual weight a line carries" in order to compare lines and levels against each other. This is not a rendering-accurate ink-coverage measurement — it is a ratio tool, good enough to compare two lines against each other, not to predict printed toner:
+
+```
+inkScore(block) = Σ_chars advanceWidth(char, wdth) × fontSize² × strokeWeightFactor(wght)
+strokeWeightFactor(wght) = wght / 400
+```
+
+`fontSize` is squared because visual mass scales roughly with area, not with linear height. `strokeWeightFactor` is normalized against 400 (a typeface's Regular weight) so a Regular-weight line has a factor of exactly 1.
+
+### 11.4 Two solve modes, one variable-priority order
+
+Every line inside a `DESIGN` block resolves under one of two modes, chosen per line by whether it participates in a column relationship (§11.5) with another line:
+
+- **Hierarchy-balance mode** — a freestanding line (no column relationship) solves toward an *ink-score share* of its semantic level: the ratio between its `inkScore` and the block's total `inkScore` should approximate the ratio implied by the modular scale (§11.2). This is the mode that makes a `Title` visually dominate a `Body` line even when the `Body` line has far more characters.
+- **Column-fill mode** — a line with a column relationship solves toward a *rendered-width target* instead: filling its assigned column, not matching an ink-score share.
+
+Both modes share one variable-priority order, and it does not change between them:
+
+```
+1. size            — the primary lever
+2. weight          — second
+3. condensation    — third
+4. tracking/kerning — last resort, fine-tune only
+```
+
+The solver exhausts each lever's reasonable range before touching the next. Tracking is never the first thing that moves — a block that visibly "just kerned tighter" to hit a target has failed the same way a paragraph that visibly justifies with huge gaps has failed. Size, weight, and condensation are expected to do the real work; tracking absorbs whatever's left over.
+
+### 11.5 Column inheritance
+
+A line's own **natural width** (its unforced, nominal rendered width) plus its alignment implicitly carves the block's full measure into columns. A left-aligned tagline whose natural width is `W`, inside a block of full width `F`, creates column 1 = `[0, W]` and column 2 = `[W, F]` — nothing renders in column 2 yet, but the grid now exists, and a later line can target it.
+
+**Column-targeting decision tree**, evaluated in order:
+
+1. **Explicit override always wins.** A developer-specified alignment or column target on a line is never second-guessed.
+2. **If the defining line is justified (full-width),** the inheriting line also targets full width — there is no leftover column to inherit, because there was no leftover.
+3. **If the defining line is left- or right-aligned** (one fitted column, one empty remainder), the inheriting line targets the *empty* column by default, resized in size/weight/condensation to fill it.
+4. **If the defining line is centered** (two symmetric side margins, no single empty column), the inheriting line either splits multi-part content across both side slots, or — for single-string content — centers itself the same way the defining line does.
+5. **If the target column is too narrow to hold the inheriting content reasonably even at minimum size,** apply the mirror-fallback rule (§11.6) instead of forcing an unreadable fit.
+
+### 11.6 The mirror-fallback rule
+
+This is one rule, applied self-similarly at both the line level (within a `DESIGN` block) and the block level (across a page — §11.7):
+
+> When a later element is meant to inherit the leftover space an earlier element carved out, but that leftover space cannot reasonably hold the later element's content even at minimum size/weight/condensation, the later element abandons the leftover-column target. Instead, it mirrors the earlier element's **entire shape**, reflected to the opposite edge of the shared measure.
+
+Within a block, this needs no title or hierarchy line to anchor to — it applies directly between any two lines. A two-line block where line 2's content doesn't fit line 1's leftover column doesn't force an unreadable fit; line 2 mirrors line 1's whole shape from the opposite side of the block's full width. A three-line block behaves the same way between whichever pair of lines the too-narrow case actually arises.
+
+### 11.7 Cross-block propagation
+
+`DESIGN` blocks on the same page or screen are not solved in isolation — the same relationship that holds between lines inside one block holds between blocks on one page, one level up:
+
+- **Width.** A block that does not span the full screen width sets a measure the same way a line's natural width does. The next block treats the *entire screen width* — not its own local content — as what it needs to balance against, and the column-inheritance tree in §11.5 applies one level up: block 1's alignment carves screen-width columns; block 2 inherits, fills, or (§11.6) mirrors.
+- **Height.** If a later block has fewer lines than an earlier one it relates to (two lines against three, say), its lines resize so its total height balances against — approaches, rather than exactly matches — the earlier block's total height, the same way a shorter line's size/weight/condensation is pushed to hold its ink-score share within a block.
+- **Three or more blocks.** The balancing is not a single pair repeated once; it is spread across every block on the page. The working model is that each block relates to the **accumulated shape** of every block before it — not to the immediately preceding block alone — so a third block's width and height targets already carry the balance struck between the first two. This keeps the mechanism self-similar (one rule, applied incrementally) rather than requiring a separate simultaneous-solve step across all blocks at once; a design system that finds the accumulated-shape model insufficient for a specific composition can still override any block explicitly (§11.5, rule 1, promoted to block level).
+
+### 11.8 Interactive text inside a `DESIGN` block
+
+A line (or a run within a line) that is itself an Act does not get a composition exemption. It solves for size/weight/condensation/tracking exactly like any other line, and separately carries the Decoration channel (§4.2) required of any interactive text, static and persistent, with the Tell (§5.1) teaching it once on first encounter. The solver never treats Decoration as a lever — it is not something size/weight/condensation/tracking are traded against, the same way `Elevation`'s reversibility signal is never sacrificed to hit a layout target elsewhere in the framework.
+
+### 11.9 What this does not do
+
+`DESIGN` does not lay out images, does not manage spacing between unrelated blocks, and does not choose a typeface — it operates entirely within the axes a variable font (or a family of discrete weights/widths, degraded gracefully) already exposes. It is a composition solver for text that has already been placed in blocks and given semantic levels, not a page-layout engine.
+
+---
+
 # Appendix A — The Whole Framework, One Page
 
 *If this page is not enough to use the framework, the framework has failed its own Two-Sided Rule.*
@@ -623,6 +719,7 @@ CHANNELS   position=origin  size=momentary importance  shape=state  hue=rank
            chroma=heat  elevation=REVERSIBILITY  opacity=transition only
            type=reading order  density=relatedness  motion=grammar
            haptics=magnitude  sound=Keystone only
+           decoration=THIS TEXT IS AN ACT (persistent; the Tell teaches it once, on top)
 
 BEHAVIORS  Tell       an unpracticed element does a half-rep of itself, once
            Escort     a blocked act carries you to its gate
@@ -630,6 +727,10 @@ BEHAVIORS  Tell       an unpracticed element does a half-rep of itself, once
            Migration  the empty state is the creation control, which then moves home
            Yield      progress is a deformation of what you touched
            First Move the zero state is arranged to teach the loop
+
+DESIGN     Title/H1/H2/H3/Body on one modular-scale ratio · ink-score hierarchy-balance
+           or column-fill, size→weight→condensation→tracking · balance over symmetry ·
+           too-narrow leftover column → mirror the earlier element's whole shape
 
 ABSENT     Toast · Dialog · Spinner · Tooltip · enabled: Boolean · duration
            navigate(route) · EmptyState(text) · success & error callbacks-to-nowhere
