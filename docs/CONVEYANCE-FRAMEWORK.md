@@ -687,6 +687,42 @@ A line (or a run within a line) that is itself an Act does not get a composition
 
 ---
 
+# Part XII — The Body Block
+
+*Status: specification only. Not yet implemented in `convey` or `convey-web`. Written to be built against, not aspirational prose — treat any drift between this section and the eventual `ConveyBody`/`convey-body` implementation as a bug in one of the two.*
+
+Part XI governs headings — the small number of dominant, occasional lines a page uses to establish hierarchy. Most of what a person actually reads is not that: it is prose, run at length, in the roles conventional typesetting has always given it — a paragraph, a block quote, a caption. This Part is `DESIGN`'s sibling for that text, not its replacement: `CONVEY BODY` never touches what a paragraph *is* — its semantic role, its place in the accessibility tree, its place in the document — it only adds a layer of motion and weight on top of a role that was already there.
+
+### 12.1 The premise
+
+`CONVEY BODY` is a container, the way `DESIGN` is, but for the tier below heading hierarchy: `Paragraph`, `Quote`, and whatever other body-level role a platform needs (a caption, a list item's prose, and so on). Where `DESIGN` solves a static composition once, `CONVEY BODY` is continuously alive: the text inside it is classified, its weight is not fixed, and every line performs a mandatory entrance as it is scrolled into view. None of this is offered per line the way `DESIGN`'s `motion` field is (§4.2's "offered, never assumed" governs *interactive* text specifically) — inside a `CONVEY BODY` block, it applies to everything, uniformly, because prose read at length that sometimes moves and sometimes doesn't reads as broken in a way an occasional heading does not. The uniformity is the point: a person should never wonder why this paragraph got the treatment and the next one didn't.
+
+### 12.2 One classification, two outputs
+
+`CONVEY BODY` runs the same verb/noun classification already built for kinetic typography (`ConveyVerbLexicon`/`ConveyNounLexicon`, the WordNet+VerbNet engine `ConveyKineticSentence`/`ConveySvoScene` already drive from) once per block of text, and that single pass produces both of the next two sections' inputs. This is a direct instance of §4.2's rule that a text Act's motion "draws from the kinetic-typography vocabulary already in the framework rather than a separate, invented gesture" — extended here from Acts to body prose generally: one classification engine, reused, not a second one built to match.
+
+### 12.3 Emotive motion
+
+Each word or sentence's classification maps to an idle-motion profile the same way a verb class already reduces to one via the kinetic engine's own `toConveyLife()`-style conversion — the exact mechanism `ConveyKineticSentence` uses to give a sentence's words per-word idle motion from their verb classification today. `CONVEY BODY` is not inventing a new mapping; it is applying the existing one at paragraph scale instead of single-sentence scale.
+
+### 12.4 Fluid weight
+
+Where `DESIGN` fixes a nominal weight per semantic level (`Title` heavier than `Body`, monotonically), `CONVEY BODY` has no such fixed point — a `Paragraph`'s weight is a function of what the paragraph actually says, word by word, computed from the same classification pass as §12.3. A passage animate with intense, forceful verbs should read visibly heavier than one built from mild, stative ones, the same intuition `inkScore` (§11.3) already formalizes for comparing lines — here spent as a lever the solver actively varies, not just a ratio it measures.
+
+### 12.5 Mandatory scroll-linked entrance
+
+Every line inside a `CONVEY BODY` block performs an entrance transform as it is scrolled into view, keyed to its role's assigned **direction**: a `Paragraph` enters horizontally, a `Quote` enters vertically — each role gets one direction, applied consistently, the same discipline Law 3's motion grammar already requires of every other verb signature in the framework. The transform is driven by real, continuous scroll position, not fired once and forgotten: as the block's own scroll offset moves a line through the viewport, its translation resolves toward identity, the way `ConveyEnter`'s destination resolves toward its origin's bounds, except continuously re-evaluated against scroll rather than settled once at composition time.
+
+This is the Position channel (§4.1 — "relationship and origin, where a thing came from and belongs"), not a new channel: a `CONVEY BODY` line's position genuinely does carry where it came from, just resolved against a scroll timeline instead of a static layout pass.
+
+`CONVEY BODY` owns its own scroll container — it does not read an externally supplied scroll state — because the entrance transform needs authoritative, unshared knowledge of exactly where every line sits relative to the viewport at every frame. A platform without a native scroll-linked-animation primitive (Compose has none today) has to build one to implement this Part; that is real, new infrastructure, not a wrapper over something that already exists.
+
+### 12.6 What this does not do
+
+`CONVEY BODY` does not choose a paragraph's semantic role, does not manage inter-block spacing, and does not replace `DESIGN` for anything that belongs at heading scale — a page composes both, `DESIGN` for its headings and `CONVEY BODY` for everything read at length beneath them, the same way a real document has always used both a heading hierarchy and body copy without one subsuming the other.
+
+---
+
 # Appendix A — The Whole Framework, One Page
 
 *If this page is not enough to use the framework, the framework has failed its own Two-Sided Rule.*
@@ -731,6 +767,11 @@ BEHAVIORS  Tell       an unpracticed element does a half-rep of itself, once
 DESIGN     Title/H1/H2/H3/Body on one modular-scale ratio · ink-score hierarchy-balance
            or column-fill, size→weight→condensation→tracking · balance over symmetry ·
            too-narrow leftover column → mirror the earlier element's whole shape
+
+CONVEY BODY  Paragraph/Quote, mandatory (not offered) · one verb/noun classification pass
+           drives both emotive motion (toConveyLife) and fluid weight · scroll-linked
+           entrance, direction by role: Paragraph horizontal, Quote vertical · owns its
+           own scroll container
 
 ABSENT     Toast · Dialog · Spinner · Tooltip · enabled: Boolean · duration
            navigate(route) · EmptyState(text) · success & error callbacks-to-nowhere
