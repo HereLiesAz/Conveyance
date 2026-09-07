@@ -3,7 +3,6 @@ package com.hereliesaz.conveyance
 /** Which kind of design observation a finding is about. */
 enum class Audit {
     IdleWorker,
-    Teleport,
     DeadEnd,
 }
 
@@ -14,7 +13,7 @@ enum class Audit {
 enum class Severity { Error, Warning }
 
 /**
- * The compact teaching material that accompanies a lint finding.
+ * The compact teaching material that accompanies every lint finding.
  *
  * Conveyance should convey to its designer too. A lint message therefore never stops at "wrong";
  * it states the generative rule, gives concrete examples where useful, and names the semantic
@@ -27,28 +26,31 @@ data class RuleGuide(
     val optOut: String,
 )
 
-/** One observation produced by the Conscience. */
+/**
+ * One observation produced by the Conscience.
+ *
+ * [guide] is mandatory. There is deliberately no terse finding constructor: if a new lint rule
+ * cannot explain its pressure and its honest opt-out, that rule is not ready to police anybody.
+ */
 data class Finding(
     val audit: Audit,
     val severity: Severity,
     val where: String,
     val because: String,
     val instead: String,
-    val guide: RuleGuide? = null,
+    val guide: RuleGuide,
 ) {
     override fun toString(): String = buildString {
         append("[$severity] $audit at $where\n")
         append("  Found: $because\n")
         append("  Try: $instead")
-        guide?.let { guide ->
-            append("\n  Rule: ${guide.rule}")
-            append("\n  Why: ${guide.why}")
-            if (guide.examples.isNotEmpty()) {
-                append("\n  Examples:")
-                guide.examples.take(2).forEach { append("\n    - $it") }
-            }
-            append("\n  Opt-out: ${guide.optOut}")
+        append("\n  Rule: ${guide.rule}")
+        append("\n  Why: ${guide.why}")
+        if (guide.examples.isNotEmpty()) {
+            append("\n  Examples:")
+            guide.examples.take(2).forEach { append("\n    - $it") }
         }
+        append("\n  Opt-out: ${guide.optOut}")
     }
 }
 
@@ -61,7 +63,7 @@ data class Finding(
  */
 object Conscience {
 
-    private val employmentGuide = RuleGuide(
+    val employmentGuide = RuleGuide(
         rule = "A working element does at least four distinct jobs.",
         why = "The constraint forces one-purpose chrome to be reimagined as richer, more useful interface objects.",
         examples = listOf(
@@ -71,7 +73,7 @@ object Conscience {
         optOut = "Declare Employment.Ambient when the element is intentionally non-operational: ground, texture, breathing room, ornament, or atmosphere.",
     )
 
-    private val gateGuide = RuleGuide(
+    val gateGuide = RuleGuide(
         rule = "A resolvable blocker names where the person can resolve it.",
         why = "A blocked act should escort toward something useful instead of becoming an inert disabled control or a dead end.",
         examples = listOf(
