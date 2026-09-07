@@ -4,7 +4,7 @@ package com.hereliesaz.conveyance
 enum class Audit {
     IdleWorker,
     DeadEnd,
-    HeroicSaturation,
+    HeroOfTheHill,
 }
 
 enum class Severity { Error, Warning }
@@ -58,7 +58,7 @@ object Conscience {
 
     fun audit(frame: AuditFrame): List<Finding> = buildList {
         addAll(idleWorkers(frame))
-        addAll(competingHeroes(frame))
+        addAll(heroOfTheHill(frame))
         addAll(deadEnds(frame))
     }
 
@@ -103,12 +103,13 @@ object Conscience {
     }
 
     /**
-     * Heroic is the title level of the Act outline and there can be at most one per screen.
+     * One screen, one hero at most.
      *
-     * The runtime does not mutate either Act when two are declared. Their presentation is resolved
-     * one rung lower, along with every other visible Act on the screen. This finding explains why.
+     * Heroic is the title level of the Act outline. If more than one visible Act claims that level,
+     * nobody keeps the crown: every visible Act resolves one rung lower until the screen names a
+     * single Heroic Act again.
      */
-    private fun competingHeroes(frame: AuditFrame): List<Finding> {
+    private fun heroOfTheHill(frame: AuditFrame): List<Finding> {
         val heroes = frame.elements.filter {
             it.visible && it.act != null && it.emphasis == ActEmphasis.Heroic
         }
@@ -116,7 +117,7 @@ object Conscience {
 
         return listOf(
             Finding(
-                audit = Audit.HeroicSaturation,
+                audit = Audit.HeroOfTheHill,
                 severity = Severity.Warning,
                 where = frame.surface,
                 because = "${heroes.size} visible Acts claim Heroic; a screen can present only one hero moment",
