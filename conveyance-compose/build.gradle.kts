@@ -17,9 +17,15 @@ kotlin {
         minSdk = libs.versions.minSdk.get().toInt()
     }
     jvm("desktop")
-    js { browser() }
+    js {
+        browser()
+        binaries.executable()
+    }
     @OptIn(ExperimentalWasmDsl::class)
-    wasmJs { browser() }
+    wasmJs {
+        browser()
+        binaries.executable()
+    }
 
     sourceSets {
         commonMain.dependencies {
