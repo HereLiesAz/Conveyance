@@ -144,7 +144,7 @@ class ConscienceTest {
     }
 
     @Test
-    fun `two visible heroic acts are reported as competing titles`() {
+    fun `two visible heroic acts trigger HeroOfTheHill`() {
         val publish = auditElement(
             id = ElementId("publish"),
             act = ActId("publish"),
@@ -169,8 +169,9 @@ class ConscienceTest {
             elements = listOf(publish, share, primary),
         )
 
-        val finding = Conscience.audit(frame).single { it.audit == Audit.HeroicSaturation }
+        val finding = Conscience.audit(frame).single { it.audit == Audit.HeroOfTheHill }
         val log = finding.toString()
+        assertTrue(log.startsWith("[Warning] HeroOfTheHill at release"), log)
         assertTrue(log.contains("2 visible Acts claim Heroic"), log)
         assertTrue(log.contains("Heroic→Primary"), log)
         assertTrue(log.contains("Primary→Secondary"), log)
@@ -178,7 +179,7 @@ class ConscienceTest {
     }
 
     @Test
-    fun `one visible heroic act is permitted`() {
+    fun `one visible heroic act owns the hill`() {
         val frame = AuditFrame(
             surface = "release",
             census = Census(0, 0, 0, 0, 0, 0, emptyList(), emptyList(), emptyList()),
@@ -197,7 +198,7 @@ class ConscienceTest {
             ),
         )
 
-        assertTrue(Conscience.audit(frame).none { it.audit == Audit.HeroicSaturation })
+        assertTrue(Conscience.audit(frame).none { it.audit == Audit.HeroOfTheHill })
     }
 
     @Test
