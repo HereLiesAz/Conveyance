@@ -42,12 +42,16 @@ class ConscienceTest {
         id: ElementId,
         jobs: Set<Job> = setOf(Job.Invite, Job.Report, Job.Progress, Job.Interrupt),
         ambient: Boolean = false,
+        left: Float = 0f,
+        top: Float = 0f,
+        width: Float = 20f,
+        height: Float = 20f,
     ) = AuditElement(
         id = id,
-        left = 0f,
-        top = 0f,
-        width = 0f,
-        height = 0f,
+        left = left,
+        top = top,
+        width = width,
+        height = height,
         visible = true,
         jobs = jobs,
         ambient = ambient,
@@ -71,6 +75,68 @@ class ConscienceTest {
             elements = listOf(auditElement(send, jobs = emptySet(), ambient = true)),
         )
         assertTrue(Conscience.audit(frame).none { it.audit == Audit.IdleWorker })
+    }
+
+    @Test
+    fun `related idle workers are consolidated into one surface-level recommendation`() {
+        val button = auditElement(
+            ElementId("invoice.button"),
+            jobs = setOf(Job.Invite, Job.Interrupt),
+            left = 0f,
+        )
+        val status = auditElement(
+            ElementId("invoice.status"),
+            jobs = setOf(Job.Report, Job.Progress),
+            left = 24f,
+        )
+        val identity = auditElement(
+            ElementId("invoice.identity"),
+            jobs = setOf(Job.Identify, Job.Confirm),
+            left = 48f,
+        )
+        val frame = AuditFrame(
+            surface = "invoice",
+            census = Census(0, 0, 0, 0, 0, 0, emptyList(), emptyList(), emptyList()),
+            elements = listOf(button, status, identity),
+        )
+
+        val findings = Conscience.audit(frame).filter { it.audit == Audit.IdleWorker }
+        assertEquals(1, findings.size)
+        val log = findings.single().toString()
+        assertTrue(log.contains("Combine"), log)
+        assertTrue(log.contains("invoice.button"), log)
+        assertTrue(log.contains("invoice.status"), log)
+    }
+
+    @Test
+    fun `fragmented action feedback maps directly to the SDK Offer composable`() {
+        val action = auditElement(
+            ElementId("save.button"),
+            jobs = setOf(Job.Invite, Job.Interrupt),
+            left = 0f,
+        )
+        val progress = auditElement(
+            ElementId("save.spinner"),
+            jobs = setOf(Job.Progress),
+            left = 24f,
+        )
+        val success = auditElement(
+            ElementId("save.success"),
+            jobs = setOf(Job.Confirm),
+            left = 48f,
+        )
+        val frame = AuditFrame(
+            surface = "editor",
+            census = Census(0, 0, 0, 0, 0, 0, emptyList(), emptyList(), emptyList()),
+            elements = listOf(action, progress, success),
+        )
+
+        val log = Conscience.audit(frame).single { it.audit == Audit.IdleWorker }.toString()
+        assertTrue(log.contains("Replace"), log)
+        assertTrue(log.contains("save.button"), log)
+        assertTrue(log.contains("save.spinner"), log)
+        assertTrue(log.contains("save.success"), log)
+        assertTrue(log.contains("Conveyance Offer"), log)
     }
 
     @Test
