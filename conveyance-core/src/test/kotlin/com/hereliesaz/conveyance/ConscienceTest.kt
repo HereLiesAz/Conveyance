@@ -85,6 +85,38 @@ class ConscienceTest {
     }
 
     @Test
+    fun `lint finding teaches the rule examples and opt-out`() {
+        val frame = AuditFrame(
+            surface = "invoice",
+            census = Census(0, 0, 0, 0, 0, 0, emptyList(), emptyList(), emptyList()),
+            elements = listOf(auditElement(send, jobs = setOf(Job.Invite, Job.Report))),
+        )
+
+        val finding = Conscience.audit(frame).single { it.audit == Audit.IdleWorker }
+        val log = finding.toString()
+
+        assertTrue(log.contains("Rule:"), log)
+        assertTrue(log.contains("Why:"), log)
+        assertTrue(log.contains("Examples:"), log)
+        assertTrue(log.contains("Opt-out:"), log)
+        assertTrue(log.contains("Employment.Ambient"), log)
+    }
+
+    @Test
+    fun `gate lint finding names its semantic opt-out`() {
+        val gate = Gate("recipient", livesAt = ElementId("nowhere")) { false }
+        val finding = Conscience.audit(
+            Surface("s", elements = listOf(element(send)), gates = listOf(gate)),
+        ).single()
+
+        val log = finding.toString()
+        assertTrue(log.contains("Rule:"), log)
+        assertTrue(log.contains("Examples:"), log)
+        assertTrue(log.contains("Opt-out:"), log)
+        assertTrue(log.contains("do not model it as a Gate"), log)
+    }
+
+    @Test
     fun `warnings inform but do not block`() {
         val warningOnly = listOf(
             Finding(Audit.DeadEnd, Severity.Warning, "s", "because", "instead"),
