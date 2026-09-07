@@ -1,89 +1,264 @@
 # conveyance-compose
 
-The Compose Multiplatform binding — Android and desktop today (see
-[targets](build.gradle.kts)). This is where [`conveyance-core`](../conveyance-core/README.md)'s
-model becomes pixels: the framework draws every verb's motion itself, so the application never
-writes an `AnimationSpec` or decides what a blocked control looks like.
+The Compose Multiplatform binding for [`conveyance-core`](../conveyance-core/README.md).
 
-New here? The [root quickstart](../docs/GETTING-STARTED.md) gets a screen rendering in a few
-minutes. This document is the reference once you're past that.
+Core models what the interface means. This module turns those relationships into geometry, motion, routing, and live audit evidence.
 
-## `ConveyanceHost` and `Offer`
+For a first screen, start with [Getting started](../docs/GETTING-STARTED.md). For the full model, read the [framework spec](../docs/CONVEYANCE-FRAMEWORK.md).
 
-Every surface sits inside one **[`ConveyanceHost`](src/commonMain/kotlin/com/hereliesaz/conveyance/compose/ConveyanceHost.kt)**,
-which holds what has to be shared across an entire product rather than reset per screen: the element
-registry, practice counts, and the `Stage` that draws motion above your content (a verb travelling
-from a row to an avatar has to be able to leave the row's own clip bounds).
+---
+
+## ConveyanceHost
+
+A surface lives inside `ConveyanceHost`:
 
 ```kotlin
 ConveyanceHost {
-    // your screen
+    // application UI
 }
 ```
 
-The one control is **[`Offer`](src/commonMain/kotlin/com/hereliesaz/conveyance/compose/Offer.kt)**.
-It takes an `Act` and paints all five of its states through a single `ActScope` — there is no way to
-write a control that only handles the happy path:
+The host owns cross-surface machinery such as the Element registry, practice state, Ghosts, and the Stage used to render consequence motion beyond an individual composable's clip bounds.
+
+---
+
+## Offer
+
+`Offer` makes an Act available to the person.
 
 ```kotlin
 Offer(send) {
-    // `this` is an ActScope
     Box(
         Modifier
-            .tell(owesTell, weight)      // the half-rep a control owes before first use
-            .yielding(yielding, weight)  // deforms while state is Yielding
+            .tell(owesTell, weight)
+            .yielding(yielding, weight)
             .clickable { engage() },
     ) {
-        Text(if (state is ActState.Blocked) "…" else "Send")
+        Text("Send")
     }
 }
 ```
 
-Engaging a **Blocked** act doesn't grey out or refuse in place — it leans toward the gate (the
-Refuse signature) and then carries the person there (the Escort), routed through
-[`Route`](../conveyance-core/README.md) so a blocked prerequisite behind another blocked
-prerequisite still lands somewhere they can actually act. A **Settled** act renders its own
-consequence as motion, resolved purely from what the model already knows: the act's target, and
-where that element currently is.
+`ActScope` keeps the action lifecycle together:
 
-## Named behaviors
+```text
+Ready
+Blocked
+Yielding
+Settled
+Refused
+```
 
-- **The Escort** — above. A disabled state that carries you to what's missing instead of refusing you in place.
-- **[`Collection`](src/commonMain/kotlin/com/hereliesaz/conveyance/compose/Collection.kt)** — the Migration (a creation control travels from the centre of an empty space to its corner once used) and the Ghost (a destroyed subject leaves a recoverable, flattened residue in the slot it held, rather than a snackbar in a different postcode) both live here, because both are facts about collections rather than about controls.
-- **[`Places`](src/commonMain/kotlin/com/hereliesaz/conveyance/compose/Places.kt)** — Enter and Return. A place isn't swapped in; it grows out of the element that was touched, and shrinks back into wherever that element sits *now* on the way out — not where it used to be, in case the ground moved while the person was away.
-  ```kotlin
-  Places(root = Place.root("tray")) { place ->
-      if (place.isRoot) Tray() else Detail(place.subject!!)
-  }
-  ```
-- **`Modifier.suppressEscort`** ([`Suppression.kt`](src/commonMain/kotlin/com/hereliesaz/conveyance/compose/Suppression.kt)) — holds an escort's carry back while a gesture is registered active elsewhere on the surface (a drag, a sheet mid-settle), so arriving somewhere new never happens out from under a person's finger. The felt resistance at the point of contact is never held back — only the travel.
+The application does not need a separate spinner, snackbar, or detached success object just to report the lifecycle of this Act.
 
-## The registry, for anything that needs to look
+### Act emphasis in Compose
 
-**[`ElementRegistry`](src/commonMain/kotlin/com/hereliesaz/conveyance/compose/Elements.kt)** is what
-turns the core's addresses into geometry — a consequence names the element that changes, a gate names
-where it's resolved, a place names what it grows from, and this is what answers *"and where is that,
-right now."* An address can have more than one simultaneous claimant (**tenancy**) — deliberately,
-because that's what a place transition *is*: a detail place legitimately shares its subject's
-address with the thumbnail it grew out of, for exactly as long as both are on screen.
-
-Two things read the registry without touching product code:
-
-- **`registry.census()`** → a live [`Census`](../conveyance-core/README.md) — acts on screen against
-  how many can actually be reached, computed continuously, for free, from data the registry already
-  had.
-- **`registry.auditFrame(surfaceName)`** → what [`conveyance-auditor`](../conveyance-auditor/README.md)
-  shows its judge alongside a screenshot: the truth a naive viewer never sees.
-
-## Using it
+The core Act carries semantic expressive importance:
 
 ```kotlin
-// commonMain
-dependencies {
-    implementation("com.hereliesaz.conveyance:conveyance-compose:0.1.0")
+ActEmphasis.Heroic
+ActEmphasis.Primary
+ActEmphasis.Secondary
+ActEmphasis.Supporting
+```
+
+Inside `Offer`, use `act.emphasis` or the `ActScope.emphasis` convenience property.
+
+```kotlin
+Offer(publish) {
+    val treatment = MyTheme.actTreatment(emphasis)
+    PublishControl(treatment)
 }
 ```
 
-Gradle resolves the right platform artifact (`conveyance-compose-android` or
-`conveyance-compose-desktop`) automatically via the published Kotlin Multiplatform metadata. Not yet
-on Maven Central — see the [root quickstart](../docs/GETTING-STARTED.md) for what works today.
+Conveyance intentionally does not create a parallel styling system. Compose already has themes, CompositionLocals, design tokens, and product-specific component tokens. Conveyance supplies the semantic token; the product's theme decides how that token becomes shape, type, color, motion, space, haptics, sound, or surrounding response.
+
+A Heroic Act is therefore not a special Conveyance component. It is an Act whose theme is allowed to engineer a hero moment.
+
+---
+
+## Gates and Escort
+
+A blocked Act carries a `Gate` that already names where resolution lives.
+
+The binding can therefore:
+
+1. respond at the point of contact;
+2. route through prerequisite Gates;
+3. bring the useful resolver into view;
+4. articulate it.
+
+That is the Escort.
+
+The important semantic distinction is that Gates are **resolvable** blockers. An unavailable fact with no action behind it should not be modelled as a fake Gate with a fake destination.
+
+---
+
+## ElementRegistry
+
+`ElementRegistry` turns semantic addresses into current geometry.
+
+It knows:
+
+- which Elements are composed;
+- current bounds and visibility;
+- which Act is offered at which Element;
+- which Elements resolve Gates;
+- which Elements carry travelling identity tokens;
+- declared Employment where the framework cannot infer it.
+
+From those facts it derives observed jobs and live audit evidence.
+
+### Census
+
+```kotlin
+registry.census()
+```
+
+reports what is present and what can be done there.
+
+### AuditFrame
+
+```kotlin
+registry.auditFrame("invoice")
+```
+
+captures the semantic truth of a running surface:
+
+- geometry;
+- offered Acts;
+- consequence verbs and targets;
+- reversibility;
+- Gates;
+- jobs;
+- Act emphasis;
+- Ambient declarations.
+
+That frame is what lets Conscience reason about relationships instead of only source declarations.
+
+---
+
+## Dynamic consolidation
+
+Conscience uses `AuditFrame` together with `ConsolidationAdvisor` to find under-employed clusters.
+
+Instead of:
+
+```text
+button: 2 jobs
+spinner: 1 job
+success badge: 1 job
+```
+
+becoming three unrelated warnings, the advisor can recognize a fragmented action lifecycle and recommend one richer construction.
+
+When a cluster matches a known SDK recipe, the recommendation can name it directly:
+
+```text
+Action source + progress + completion
+→ Offer
+```
+
+The intended catalog grows from actual SDK capability, not from names like `Button` or `Spinner` alone.
+
+---
+
+## Collection
+
+`Collection` is a behavioral construction for repeating identified Subjects with creation and recovery behavior.
+
+It is not merely a styled list.
+
+Because the binding knows the collection, its Subjects, and the Acts affecting them, it can render creation travel, destruction residue, restoration, and live audit evidence from semantic facts rather than application-authored animation wiring.
+
+---
+
+## Form
+
+`Form` groups related fields and completion behavior into one coherent structure.
+
+This matters to resourceful minimalism: several weak field/status/validation fragments are often better understood as one form object doing several jobs.
+
+The recommendation engine can eventually use this same capability signature to suggest `Form` when a live surface has recreated that structure by hand.
+
+---
+
+## Places
+
+`Places` hosts continuity between a Place and the Element it came from.
+
+```kotlin
+Places(root = Place.root("tray")) { place ->
+    if (place.isRoot) Tray() else Detail(place.subject!!)
+}
+```
+
+`Place.from(...)` gives an entered Place an antecedent. `Place.root(...)` names a genuine beginning.
+
+The binding can use that relationship for Enter and Return without requiring the application to describe a separate animation graph.
+
+---
+
+## Motion
+
+Consequence motion comes from the Act's semantic `Signature`.
+
+The binding owns reference motion because application-supplied durations and easing would let the same consequence teach contradictory physics across call sites.
+
+That does **not** mean all motion in a Compose product must be consequence grammar. Ambient motion, identity motion, role personality, data animation, simulation, and visual atmosphere may coexist with it because they are saying something else.
+
+The useful rule is semantic: motion used to teach a consequence should remain learnable and truthful when retargeted or interrupted.
+
+---
+
+## Employment
+
+Most jobs should be derived from behavior where the registry can see them.
+
+Use `Modifier.element(..., employment = ...)` for facts the framework genuinely cannot infer.
+
+```kotlin
+Modifier.element(
+    id = backgroundTexture,
+    employment = Employment.Ambient,
+)
+```
+
+`Ambient` is the explicit opt-out for intentionally non-operational composition.
+
+---
+
+## Suppression
+
+`Modifier.suppressEscort` temporarily holds Escort travel while another gesture or transition is actively occupying the person's hand.
+
+It does not suppress the semantic Gate, disable the Act, or turn off Conveyance. It only prevents a relocation from occurring underneath an active gesture.
+
+---
+
+## What this binding does not decide
+
+`conveyance-compose` does not prescribe:
+
+- one Material component set;
+- one palette;
+- one corner-radius system;
+- one density;
+- one amount of visual chaos;
+- one interpretation of Heroic;
+- monochrome hierarchy;
+- hue-as-rank;
+- a ban on decorative/personality motion.
+
+Those belong to product themes and companion design systems.
+
+The binding's job is to preserve semantic relationships strongly enough that whatever aesthetic you choose can still teach through use.
+
+---
+
+## Related docs
+
+- [Manifesto](../README.md)
+- [Framework spec](../docs/CONVEYANCE-FRAMEWORK.md)
+- [Rules and opt-outs](../docs/RULES-AND-OPTOUTS.md)
+- [Core module](../conveyance-core/README.md)
