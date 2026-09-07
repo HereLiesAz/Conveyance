@@ -1,13 +1,24 @@
 package com.hereliesaz.conveyance.compose
 
+import androidx.compose.runtime.Composable
 import com.hereliesaz.conveyance.ActEmphasis
 
 /**
- * The semantic emphasis token of the act this scope is rendering.
+ * The emphasis level this Act declares for itself.
  *
- * Compose already has the theming machinery. Conveyance therefore does not invent another visual
- * token system here; it exposes the semantic token directly so a product's existing theme can map
- * Heroic, Primary, Secondary, and Supporting onto whatever combination of shape, typography,
- * colour, motion, space, haptics, sound, or surrounding response belongs to that design language.
+ * This is functional metadata on the Act, not employment, visual state, or layout state.
  */
-val ActScope.emphasis: ActEmphasis get() = act.emphasis
+val ActScope.declaredEmphasis: ActEmphasis get() = act.emphasis
+
+/**
+ * Resolve this Act's declared emphasis against the other visible Acts on the current screen.
+ *
+ * Think of the hierarchy like an HTML document outline: Heroic is the page title, then Primary,
+ * Secondary, Tertiary, and Supporting descend through the outline. A screen may present at most one
+ * Heroic Act. If two or more visible Acts claim Heroic, every visible Act resolves one rung lower.
+ *
+ * Nothing is mutated. [act] keeps its declared emphasis; this function derives the presentation
+ * level from the current set of visible Acts.
+ */
+@Composable
+fun ActScope.resolvedEmphasis(): ActEmphasis = LocalElements.current.resolvedEmphasis(act)
