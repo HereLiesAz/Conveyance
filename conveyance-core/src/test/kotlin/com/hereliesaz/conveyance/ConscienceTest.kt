@@ -85,7 +85,7 @@ class ConscienceTest {
     }
 
     @Test
-    fun `lint finding teaches the rule examples and opt-out`() {
+    fun `lint finding teaches rule opt-out and links directly to docs`() {
         val frame = AuditFrame(
             surface = "invoice",
             census = Census(0, 0, 0, 0, 0, 0, emptyList(), emptyList(), emptyList()),
@@ -97,13 +97,15 @@ class ConscienceTest {
 
         assertTrue(log.contains("Rule:"), log)
         assertTrue(log.contains("Why:"), log)
-        assertTrue(log.contains("Examples:"), log)
         assertTrue(log.contains("Opt-out:"), log)
+        assertTrue(log.contains("Docs:"), log)
         assertTrue(log.contains("Employment.Ambient"), log)
+        assertTrue(log.contains("RULES-AND-OPTOUTS.md#employment"), log)
+        assertFalse(log.contains("Examples:"), log)
     }
 
     @Test
-    fun `gate lint finding names its semantic opt-out`() {
+    fun `gate lint finding links to its rule and opt-out`() {
         val gate = Gate("recipient", livesAt = ElementId("nowhere")) { false }
         val finding = Conscience.audit(
             Surface("s", elements = listOf(element(send)), gates = listOf(gate)),
@@ -111,9 +113,11 @@ class ConscienceTest {
 
         val log = finding.toString()
         assertTrue(log.contains("Rule:"), log)
-        assertTrue(log.contains("Examples:"), log)
         assertTrue(log.contains("Opt-out:"), log)
+        assertTrue(log.contains("Docs:"), log)
         assertTrue(log.contains("do not model it as a Gate"), log)
+        assertTrue(log.contains("RULES-AND-OPTOUTS.md#gates"), log)
+        assertFalse(log.contains("Examples:"), log)
     }
 
     @Test
