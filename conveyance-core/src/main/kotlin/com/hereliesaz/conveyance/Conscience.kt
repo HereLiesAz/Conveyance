@@ -7,18 +7,12 @@ enum class Audit {
     HeroicSaturation,
 }
 
-/**
- * Findings are advisory by default. Error is reserved for states the framework can prove are
- * internally incoherent or unsafe, not for breaking a preferred composition rule.
- */
 enum class Severity { Error, Warning }
 
-/** Documentation attached to every lint finding. */
 data class RuleGuide(
     val docs: String,
 )
 
-/** One observation produced by the Conscience. */
 data class Finding(
     val audit: Audit,
     val severity: Severity,
@@ -38,10 +32,9 @@ data class Finding(
 /**
  * The verification layer.
  *
- * Conscience should prefer useful relationships over isolated scolding. It can still point at one
- * broken promise, but when several weak objects are fragments of one richer object, or several
- * emphasis tokens only make sense in contrast with one another, the finding should describe the
- * system the developer actually needs to rethink.
+ * Conscience reasons about Acts, elements, gates, and their relationships. Employment remains the
+ * answer to "why is this element here?"; Act emphasis remains the answer to "how much functional
+ * prominence does this Act deserve?" Neither is derived from the other.
  */
 object Conscience {
 
@@ -65,17 +58,10 @@ object Conscience {
 
     fun audit(frame: AuditFrame): List<Finding> = buildList {
         addAll(idleWorkers(frame))
-        addAll(heroicSaturation(frame))
+        addAll(competingHeroes(frame))
         addAll(deadEnds(frame))
     }
 
-    /**
-     * Find under-employed fragments, then reason across the surface before issuing findings.
-     *
-     * If several idle workers are spatially and behaviourally related, recommend one consolidation
-     * rather than ticketing each fragment independently. When their combined jobs match a shipped
-     * SDK primitive, name that composable directly.
-     */
     private fun idleWorkers(frame: AuditFrame): List<Finding> {
         val underEmployed = frame.elements.filter { !it.ambient && it.jobs.size < 4 }
         if (underEmployed.isEmpty()) return emptyList()
@@ -117,23 +103,24 @@ object Conscience {
     }
 
     /**
-     * Heroic is meaningful through contrast, not through a global numeric budget.
+     * Heroic is the title level of the Act outline and there can be at most one per screen.
      *
-     * Two heroic acts can be exactly right. Ten can be exactly right. The only state this audit can
-     * prove has erased the distinction is a live surface where every visible offered act claims the
-     * maximum emphasis. That is worth a question, not a constructor failure.
+     * The runtime does not mutate either Act when two are declared. Their presentation is resolved
+     * one rung lower, along with every other visible Act on the screen. This finding explains why.
      */
-    private fun heroicSaturation(frame: AuditFrame): List<Finding> {
-        val offered = frame.elements.filter { it.visible && it.act != null && it.emphasis != null }
-        if (offered.size < 2 || offered.any { it.emphasis != ActEmphasis.Heroic }) return emptyList()
+    private fun competingHeroes(frame: AuditFrame): List<Finding> {
+        val heroes = frame.elements.filter {
+            it.visible && it.act != null && it.emphasis == ActEmphasis.Heroic
+        }
+        if (heroes.size < 2) return emptyList()
 
         return listOf(
             Finding(
                 audit = Audit.HeroicSaturation,
                 severity = Severity.Warning,
                 where = frame.surface,
-                because = "every visible act is Heroic, so no act is allowed to recede",
-                instead = "Keep Heroic where you want to engineer the strongest moment; let surrounding acts use quieter emphasis tokens so the distinction can be learned.",
+                because = "${heroes.size} visible Acts claim Heroic; a screen can present only one hero moment",
+                instead = "Choose one Heroic Act. Until then the screen resolves every Act one level lower: Heroic→Primary, Primary→Secondary, Secondary→Tertiary, Tertiary→Supporting.",
                 guide = emphasisGuide,
             ),
         )
