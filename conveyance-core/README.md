@@ -1,20 +1,14 @@
 # conveyance-core
 
-The type system. Pure Kotlin, zero runtime dependencies, no UI toolkit — the model a screen has to
-agree with, not a library for drawing one. If you're looking for something to put on screen, you
-want [`conveyance-compose`](../conveyance-compose/README.md); this module is what that binding
-renders.
+Pure Kotlin. No UI toolkit. This module is the semantic model that a rendered interface agrees with.
 
-The governing idea, explained at length in [the manifesto](../README.md) and specified precisely in
-[the framework spec](../docs/CONVEYANCE-FRAMEWORK.md), is **conveyance**: an interface should let a
-person predict what a control does before they touch it, and never omit what it costs. This module
-is where that idea stops being an essay and starts being a constructor that refuses bad input.
+If you want Compose components, see [`conveyance-compose`](../conveyance-compose/README.md). If you want the philosophy, read the [manifesto](../README.md). The [framework spec](../docs/CONVEYANCE-FRAMEWORK.md) explains how the SDK translates that philosophy into code.
 
-## The shape of it
+---
 
-Everything a person can do is an **[`Act`](src/main/kotlin/com/hereliesaz/conveyance/Act.kt)**, made
-through one of six factories — `reveal`, `enter`, `create`, `destroy`, `alter`, `send` — never
-constructed directly. Each factory takes exactly what its verb needs and nothing else:
+## Act
+
+Everything a person can do is an `Act`, made through one of the consequence factories:
 
 ```kotlin
 val send = Act.send(
@@ -22,73 +16,201 @@ val send = Act.send(
     subject = SubjectId("invoice.41"),
     to = recipientAvatar,
     requires = listOf(
-        Gate("recipient.chosen", livesAt = recipientField) { recipient != null },
+        Gate(
+            id = "recipient.chosen",
+            livesAt = recipientField,
+        ) { recipient != null },
     ),
+    emphasis = ActEmphasis.Primary,
 )
 ```
 
-From that one declaration, everything else is *derived*, never separately configured:
+An Act carries facts the framework can reason from:
 
-- **`act.verb`** and **`act.signature`** — which of the nine motions this is, and how it moves.
-- **`act.weight`** — Light, Medium, or Heavy, from the consequence, the scope, and whether it's
-  reversible. There is no `weight = Weight.Heavy` parameter to set wrong.
-- **`act.reversible`** — whether an `inverse` was supplied (destruction requires one; nothing else
-  is allowed to fake one).
-- **`act.state()`** — one of exactly five states (`Ready`, `Blocked`, `Yielding`, `Settled`,
-  `Refused`), derived from whether every [`Gate`](src/main/kotlin/com/hereliesaz/conveyance/Gate.kt)
-  in `requires` is currently satisfied.
+- consequence;
+- target;
+- scope;
+- Gates;
+- inverse where one exists;
+- semantic expressive emphasis.
 
-A **`Gate`** is not a boolean flag. It names `livesAt`: the element where the missing condition gets
-resolved. A blocked act isn't a dead end — it's a pointer to where a person can actually go, which is
-the entire mechanism [`conveyance-compose`](../conveyance-compose/README.md)'s Escort runs on. Given
-a set of acts, [`Route`](src/main/kotlin/com/hereliesaz/conveyance/Route.kt) will breadth-first search
-that graph for the nearest thing a person can actually do, skipping a gate that is itself blocked —
-nobody declares this graph; it falls out of every act already naming its own gates.
+The framework derives:
 
-A **[`Place`](src/main/kotlin/com/hereliesaz/conveyance/Place.kt)** is somewhere a person can be. It
-has no root-less constructor except `Place.root(id)` for a product's genuine entry point — every
-other place is `Place.from(id, origin)`, and `Act.enter` refuses a root place outright: a teleport
-with no antecedent is exactly the thing a "you are here" breadcrumb exists to prevent, so the type
-makes it unconstructable rather than merely discouraged.
+- `act.verb`;
+- `act.signature`;
+- `act.weight`;
+- `act.reversible`;
+- `act.state()`.
 
-## What's enforced, and how
+The rule is simple: if the model already knows the answer, do not make the developer type it again.
 
-Illegal states are refused at construction wherever the type system can carry the whole rule:
+---
 
-| Rule | Enforced by |
+## Act emphasis
+
+Every Act has an `ActEmphasis` token:
+
+```text
+Heroic
+Primary
+Secondary
+Supporting
+```
+
+This token does not prescribe appearance. It says how much expressive attention the consequence is allowed to command. A binding or product theme decides how that meaning becomes shape, typography, color, motion, space, haptics, sound, or surrounding response.
+
+There is no keystone boolean and no product-level keystone quota.
+
+---
+
+## Gates
+
+A `Gate` is a resolvable blocker, not just a boolean.
+
+```kotlin
+Gate(
+    id = "recipient.chosen",
+    livesAt = recipientField,
+) { recipient != null }
+```
+
+`livesAt` is required because a blocked Act should be able to lead toward something useful.
+
+If no action currently available to the person can resolve the condition, it is not a Gate. Model it as status, content, environmental fact, or another non-inviting thing instead.
+
+---
+
+## Places
+
+A Place reached from an Element preserves its antecedent:
+
+```kotlin
+Place.from("invoice.detail", origin = invoiceRow)
+```
+
+A real beginning is explicit:
+
+```kotlin
+Place.root("home")
+```
+
+There is no universal root budget.
+
+---
+
+## Destruction and reversibility
+
+Ordinary destruction requires an inverse:
+
+```kotlin
+Act.destroy(
+    id = "document.delete",
+    subject = document,
+    target = collection,
+    inverse = restore,
+)
+```
+
+If the world genuinely provides no inverse, use the named semantic exception:
+
+```kotlin
+Act.destroyIrreversibly(
+    id = "submission.finalise",
+    subject = submission,
+    target = authority,
+)
+```
+
+The exception is separate so ordinary deletion stays strongly reversible by default.
+
+---
+
+## Employment
+
+`Employment.Working` requires at least four distinct `Job`s.
+
+That is a generative constraint. Do not pad the declaration. Reimagine the object until the jobs are real.
+
+```kotlin
+Employment.Working(
+    Job.Invite,
+    Job.Report,
+    Job.Progress,
+    Job.Interrupt,
+)
+```
+
+For intentionally non-operational composition:
+
+```kotlin
+Employment.Ambient
+```
+
+`Ambient` is a semantic opt-out: it says the thing is not trying to be a working element.
+
+---
+
+## Channels
+
+`Channel` and `Meaning` provide a reference visual-language vocabulary for examples and analysis.
+
+They are not a universal aesthetic constitution.
+
+The reference mapping currently allows hue to carry stable visual identity rather than semantic rank. Products may establish another coherent grammar. The important property is learnability: repeated semantic use should not casually contradict itself.
+
+See [Rules and their opt-outs](../docs/RULES-AND-OPTOUTS.md#visual-channels).
+
+---
+
+## Conscience
+
+`Conscience` is the design-analysis layer.
+
+It returns `Finding`s rather than throwing for judgments that require context across a surface. The linter output is intentionally compact and links directly to the relevant rule documentation.
+
+Current live reasoning includes:
+
+- IdleWorker detection;
+- dynamic consolidation of related under-employed fragments;
+- direct SDK replacement suggestions when a cluster matches a known construction;
+- dead Gate resolvers;
+- Heroic saturation when every visible offered Act claims maximum expressive emphasis.
+
+The important shift is relational: Conscience should prefer "these three fragments are really one missing object" over three independent warnings whenever it has enough evidence.
+
+---
+
+## Construction-time invariants
+
+Some rules do not need a linter because the type system can state them completely:
+
+| Rule | Representation |
 |---|---|
-| A destruction has no inverse-less constructor | `Act.destroy` requires `inverse` |
-| A gate has no address-less constructor | `Gate(id, livesAt, condition)` — `livesAt` is not optional |
-| Entering a root place is refused | `Consequence.Enter`'s own `init` |
-| Chrome text that reads as an instruction can't compile | [`Label`](src/main/kotlin/com/hereliesaz/conveyance/Surface.kt)'s `init` |
-| A surface can't hold two primaries | `Surface`'s `init` |
-| A product can't declare 0 or >3 keystones | `Product`'s `init` |
-| A channel can't be paired with the wrong meaning | `DeclaredElement.channels` is a `Set<Channel>`, not a `Map<Channel, Meaning>` — there's nowhere left to write the wrong one |
+| Working elements do at least four jobs | `Employment.Working` constructor |
+| A resolvable Gate has an address | `Gate.livesAt` |
+| Entered Places have antecedents | `Place.from(...)`; root Places cannot be entered |
+| Ordinary destruction has an inverse | `Act.destroy(...)` requires `inverse` |
+| Truly irreversible destruction is explicit | `Act.destroyIrreversibly(...)` |
+| Chrome does not narrate obvious mechanics | `Label` constructor |
 
-What's left — judgements that genuinely need a whole surface gathered together rather than one
-value — is [`Conscience`](src/main/kotlin/com/hereliesaz/conveyance/Conscience.kt): idle workers,
-teleports (more than one entry point), and dead ends (a gate whose address isn't on the surface). It
-returns `Finding`s, never throws; a `Finding` always names the compliant construction, the same way a
-blocked act escorts a person to its gate rather than refusing them in place.
+Rules whose correctness depends on relationships belong in Conscience instead of being forced into arbitrary constructor quotas.
 
-The two rules no structural check can settle — *can a person predict what this does*, and *does it
-omit something they needed to know* — are the job of
-[`conveyance-auditor`](../conveyance-auditor/README.md), not this module.
+---
 
 ## Also here
 
-- **[`Weight`](src/main/kotlin/com/hereliesaz/conveyance/Weight.kt)** / **[`Grammar`](src/main/kotlin/com/hereliesaz/conveyance/Grammar.kt)** — the derivation tables from consequence + scope to physical weight and motion signature.
-- **[`Practice`](src/main/kotlin/com/hereliesaz/conveyance/Practice.kt)** — per-act familiarity, so ceremony decays with use instead of everything staying equally verbose forever.
-- **[`Reversal`](src/main/kotlin/com/hereliesaz/conveyance/Reversal.kt)** — how long a destruction stays recoverable, scaled by what it cost.
-- **[`AuditReport`](src/main/kotlin/com/hereliesaz/conveyance/AuditReport.kt)** / **`Census`** — the data models the live registry and the AI judge report through; nothing here talks to a screen or a network.
+- `Weight` — derives felt consequence magnitude.
+- `Grammar` / `Signature` — reference consequence-motion grammar.
+- `Route` — finds useful Gate-resolution paths from the semantic graph.
+- `Practice` — tracks familiarity with Acts.
+- `Reversal` — recovery timing and residue behavior.
+- `AuditFrame` / `AuditElement` / `Census` — semantic evidence for runtime analysis.
+- `ConsolidationAdvisor` — whole-surface recommendation layer for under-employed clusters.
 
-## Using it
+---
 
-```kotlin
-dependencies {
-    implementation("com.hereliesaz.conveyance:conveyance-core:0.1.0")
-}
-```
+## Rules and opt-outs
 
-Not yet on Maven Central — see the [root quickstart](../docs/GETTING-STARTED.md) for what's actually
-available today (`publishToMavenLocal`, or building against source directly).
+Every strong framework rule should either have no coherent exception or place its named semantic opt-out directly beside it.
+
+See [Rules and their opt-outs](../docs/RULES-AND-OPTOUTS.md).
