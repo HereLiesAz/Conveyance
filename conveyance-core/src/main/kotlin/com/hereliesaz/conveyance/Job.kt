@@ -3,10 +3,10 @@ package com.hereliesaz.conveyance
 /**
  * What an element is for.
  *
- * Jobs are a vocabulary for describing useful work an element may do. They are not a quota. A
- * beautifully specific element may do one job; a dense H2G2-style record may do six. Conveyance can
- * expose that difference to tools and audits without pretending arithmetic decides whether the
- * design deserves to exist.
+ * Resourceful minimalism is deliberately generative here: a working element must do at least four
+ * real jobs. The point is not tidiness or austerity. The constraint forces the designer to rethink
+ * one-purpose chrome, combine responsibilities, and invent richer elements that teach more of the
+ * interface through use.
  */
 enum class Job {
     /** Offers an act. */
@@ -47,26 +47,31 @@ enum class Job {
 sealed interface Employment {
 
     /**
-     * The element is doing one or more identifiable jobs.
+     * Doing real work. Four distinct jobs is the minimum.
      *
-     * There is deliberately no minimum count. The jobs exist so a product can reason about its
-     * elements, not so the framework can issue citations for insufficient multitasking.
+     * This is a creative constraint, not an organizational quota. If an element cannot honestly do
+     * four jobs, the intended response is to reimagine the element: merge it, transform it, let it
+     * carry state or identity, make it the place a consequence lands, or otherwise give it a richer
+     * role in the interface.
      */
     class Working(val jobs: Set<Job>) : Employment {
         constructor(vararg jobs: Job) : this(jobs.toSet())
 
         init {
-            require(jobs.isNotEmpty()) { "Working employment needs at least one actual job." }
+            require(jobs.size >= 4) {
+                "A working element needs at least four distinct jobs. Reimagine it rather than padding the declaration: $jobs"
+            }
         }
 
         override fun toString() = "Working(${jobs.joinToString(", ")})"
     }
 
     /**
-     * Deliberately present without an operational job: ground, texture, breathing room, ornament,
-     * atmosphere, or anything else the product wants there.
+     * Deliberately not operational: ground, texture, breathing room, ornament, atmosphere, or another
+     * intentionally non-working part of the composition.
      *
-     * Ambient elements are not budgeted by the framework.
+     * Ambient is not a loophole for weak controls; it means the thing is not pretending to be a
+     * working element in the first place.
      */
     data object Ambient : Employment
 }
