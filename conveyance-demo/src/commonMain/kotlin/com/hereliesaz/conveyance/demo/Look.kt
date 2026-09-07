@@ -5,34 +5,30 @@ import androidx.compose.ui.graphics.Color
 import com.hereliesaz.conveyance.Rank
 
 /**
- * The channel assignment, written out.
+ * This demo's local visual language.
  *
- * One clarification the framework needed and did not state plainly enough: Channel Economy governs
- * the interface's own vocabulary, not the content it holds. A photograph may be any colour it likes,
- * because its colour is the subject rather than a signal. What may not vary freely is chrome — the
- * parts of the screen that are the product talking.
+ * These choices are not Conveyance channel law. The framework provides semantic relationships and a
+ * reference channel vocabulary; a product is free to establish another coherent visual grammar. In
+ * this sample, a small rank palette is convenient compositional shorthand, while photographs use
+ * their own identity-rich colour because their colour belongs to the content itself.
  */
 object Look {
     val ground = Color(0xFF0B0C10)
     val ink = Color(0xFFF4F5F8)
     val quiet = Color(0xFF6E7482)
 
-    /** Hue carries semantic rank, and rank alone. One primary per surface. */
+    /** Demo-local prominence colours. This does not mean Channel.Hue universally carries rank. */
     fun rank(rank: Rank): Color = when (rank) {
         Rank.Primary -> Color(0xFFFFC24B)
         Rank.Secondary -> Color(0xFF2A2F3A)
         Rank.Tertiary -> Color(0xFF171A21)
     }
 
-    /** Chroma carries heat: how much has recently gone this way. */
+    /** In this demo, chroma is used to show how recently/often a destination has been active. */
     fun heat(fraction: Float): Color =
         Color(0xFFFFC24B).copy(alpha = (0.10f + 0.75f * fraction).coerceIn(0f, 1f))
 
-    /**
-     * Content, not chrome. Each photograph gets its own light so the tray reads as a set of
-     * particular things rather than a column of placeholders — which was the previous demo's real
-     * failure: rows nobody could care about, carrying squares nobody could name.
-     */
+    /** Content identity rather than interface chrome. */
     fun photograph(seed: Int): Brush {
         val palettes = listOf(
             listOf(Color(0xFFEF6C5A), Color(0xFF8E2E58), Color(0xFF2B1B3D)),
