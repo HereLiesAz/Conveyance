@@ -46,6 +46,8 @@ class ConscienceTest {
         top: Float = 0f,
         width: Float = 20f,
         height: Float = 20f,
+        act: ActId? = null,
+        emphasis: ActEmphasis? = null,
     ) = AuditElement(
         id = id,
         left = left,
@@ -53,7 +55,9 @@ class ConscienceTest {
         width = width,
         height = height,
         visible = true,
+        act = act,
         jobs = jobs,
+        emphasis = emphasis,
         ambient = ambient,
     )
 
@@ -137,6 +141,40 @@ class ConscienceTest {
         assertTrue(log.contains("save.spinner"), log)
         assertTrue(log.contains("save.success"), log)
         assertTrue(log.contains("Conveyance Offer"), log)
+    }
+
+    @Test
+    fun `heroic saturation is relational rather than a numeric quota`() {
+        val publish = auditElement(
+            id = ElementId("publish"),
+            act = ActId("publish"),
+            emphasis = ActEmphasis.Heroic,
+        )
+        val share = auditElement(
+            id = ElementId("share"),
+            act = ActId("share"),
+            emphasis = ActEmphasis.Heroic,
+            left = 24f,
+        )
+
+        val saturated = AuditFrame(
+            surface = "release",
+            census = Census(0, 0, 0, 0, 0, 0, emptyList(), emptyList(), emptyList()),
+            elements = listOf(publish, share),
+        )
+
+        val finding = Conscience.audit(saturated).single { it.audit == Audit.HeroicSaturation }
+        val log = finding.toString()
+        assertTrue(log.contains("every visible act is Heroic"), log)
+        assertTrue(log.contains("RULES-AND-OPTOUTS.md#act-emphasis"), log)
+
+        val contrasted = saturated.copy(
+            elements = listOf(
+                publish,
+                share.copy(emphasis = ActEmphasis.Supporting),
+            ),
+        )
+        assertTrue(Conscience.audit(contrasted).none { it.audit == Audit.HeroicSaturation })
     }
 
     @Test
