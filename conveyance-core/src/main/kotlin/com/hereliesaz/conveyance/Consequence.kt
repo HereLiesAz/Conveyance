@@ -8,8 +8,9 @@ package com.hereliesaz.conveyance
  * of every toast ever written — unrepresentable. If you cannot say what changes and where, you do
  * not yet have a design.
  *
- * There are six classes and no seventh. Choosing the class is the only expressive decision; the
- * motion, the weight and the reduced-motion behaviour all follow from it.
+ * The consequence classes form the reference grammar. Choosing one tells the framework what changed;
+ * bindings derive motion and weight from that meaning rather than asking the developer to style the
+ * result manually.
  */
 sealed interface Consequence {
 
@@ -22,9 +23,8 @@ sealed interface Consequence {
     /**
      * The person goes somewhere. The touched element becomes that place.
      *
-     * Carries the whole [Place] rather than its identity, because a place already knows the element
-     * it grows out of and asking for that twice invites the two to disagree. It also costs a
-     * syllable at every call site for information the model already holds.
+     * Rule: entered places have an antecedent.
+     * Opt-out: [Place.root] names a genuine entry point and therefore is not an Enter destination.
      */
     data class Enter(val place: Place) : Consequence {
         init {
@@ -39,7 +39,12 @@ sealed interface Consequence {
         override val target: ElementId get() = into
     }
 
-    /** A subject ceases. Never permitted without an inverse — see [Act.destroy]. */
+    /**
+     * A subject ceases.
+     *
+     * Rule: prefer [Act.destroy], which requires an inverse.
+     * Opt-out: [Act.destroyIrreversibly] explicitly declares that reality provides no inverse.
+     */
     data class Destroy(val subject: SubjectId, override val target: ElementId) : Consequence
 
     /** A subject changes in place. Only the changed property moves. */
