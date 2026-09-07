@@ -3,16 +3,16 @@ package com.hereliesaz.conveyance
 /**
  * Somewhere a person can be.
  *
- * [origin] is not optional and has no default. A place with no antecedent is a teleport, and a
- * person who has been teleported has lost the map they were building; the usual remedy is a
- * breadcrumb trail, which is instruction, which is the thing this framework exists to avoid.
+ * Rule: a place reached through the interface has an antecedent. [origin] names the element the
+ * place grows out of and can return toward, preserving the relationship the person just acted on.
  *
- * There is exactly one exception, [Root], for a product's genuine entry point. It is budgeted rather
- * than merely discouraged, because "this one is special" is how every rule dies.
+ * Opt-out: [root] names a genuine beginning where there is no visual antecedent. Root is not a
+ * continuity switch; it says this journey began here. Products may have several legitimate roots
+ * such as startup, deep-link, restored-session, notification, or external-entry destinations.
  */
 class Place private constructor(
     val id: PlaceId,
-    /** The element this place grows out of, and shrinks back into on the way out. */
+    /** The element this place grows out of, and shrinks back toward on the way out. */
     val origin: ElementId?,
     val subject: SubjectId? = null,
 ) {
@@ -22,11 +22,11 @@ class Place private constructor(
         if (isRoot) "Place(${id}, root)" else "Place($id, from $origin)"
 
     companion object {
-        /** A place reached from an element, which becomes it. */
+        /** Rule form: a place reached from an element, which becomes its antecedent. */
         fun from(id: String, origin: ElementId, subject: SubjectId? = null) =
             Place(PlaceId(id), origin, subject)
 
-        /** A product's entry point. Budgeted; everything else has an antecedent. */
+        /** Opt-out: a genuine entry point with no visual antecedent. */
         fun root(id: String) = Place(PlaceId(id), origin = null)
     }
 }
