@@ -24,19 +24,23 @@ class ChannelTest {
     }
 
     @Test
-    fun `an element may honestly do one job`() {
-        val employed = Employment.Working(Job.Report)
-        assertEquals(setOf(Job.Report), employed.jobs)
+    fun `working elements need four distinct jobs`() {
+        assertFailsWith<IllegalArgumentException> { Employment.Working(Job.Report) }
+        assertFailsWith<IllegalArgumentException> {
+            Employment.Working(Job.Invite, Job.Progress, Job.Interrupt)
+        }
+
+        val employed = Employment.Working(Job.Invite, Job.Progress, Job.Interrupt, Job.Report)
+        assertEquals(
+            setOf(Job.Invite, Job.Progress, Job.Interrupt, Job.Report),
+            employed.jobs,
+        )
     }
 
     @Test
-    fun `working employment must still name something real`() {
-        assertFailsWith<IllegalArgumentException> { Employment.Working() }
-    }
-
-    @Test
-    fun `duplicate job declarations collapse to the underlying job set`() {
-        val employed = Employment.Working(Job.Invite, Job.Invite)
-        assertEquals(setOf(Job.Invite), employed.jobs)
+    fun `duplicate declarations do not fake the four-job constraint`() {
+        assertFailsWith<IllegalArgumentException> {
+            Employment.Working(Job.Invite, Job.Invite, Job.Invite, Job.Invite)
+        }
     }
 }
