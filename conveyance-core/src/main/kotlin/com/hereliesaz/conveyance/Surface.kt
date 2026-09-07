@@ -12,17 +12,41 @@ enum class Rank { Primary, Secondary, Tertiary }
 /**
  * User-facing chrome text.
  *
- * Conveyance does not impose arbitrary word counts, punctuation bans, or vocabulary blacklists.
- * Labels may be terse, conversational, strange, funny, instructional, or deliberately verbose when
- * the product calls for it. The useful question is whether the language helps the interface teach
- * itself in context, not whether it passes a tailoring specification.
+ * Conveyance trusts the person using the interface. Chrome should name what matters, not narrate
+ * obvious mechanics, issue little commands, or compensate in prose for an affordance that ought to
+ * convey itself. This is deliberately different from policing tone or style: labels may be strange,
+ * funny, conversational, terse, or verbose. What they may not do is talk down to the user with
+ * needless interaction instructions.
+ *
+ * The small vocabulary below is therefore a pressure on the designer, not a ban on language in
+ * content. If a control needs to say "tap", "click", "press", or "swipe", the first question should
+ * be why the control does not already look and behave like something that can be acted on. Likewise,
+ * filler such as "please", "simply", and "just" usually describes the designer's anxiety rather than
+ * the person's task.
  */
 data class Label(val text: String) {
     init {
         require(text.isNotBlank()) { "A label cannot be blank." }
+        val words = text.trim()
+            .split(Regex("[\\s\\p{Zs}]+"))
+            .filter { it.isNotBlank() }
+            .map { it.trim(',', '.', '!', '?', ':', ';').lowercase() }
+
+        val needless = words.filter { it in NEEDLESS_CHROME }
+        require(needless.isEmpty()) {
+            "\"$text\" narrates the interface with ${needless.distinct().joinToString()}. " +
+                "Trust the user: name the thing or act, and let the interface convey how it works."
+        }
     }
 
     override fun toString() = text
+
+    private companion object {
+        val NEEDLESS_CHROME = setOf(
+            "tap", "click", "press", "swipe", "drag", "select", "choose",
+            "please", "simply", "just",
+        )
+    }
 }
 
 /** An element as declared to the Conscience. */
