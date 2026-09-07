@@ -1,20 +1,16 @@
-# Conveyance Rules and Their Opt-Outs
+# Conveyance rules and their opt-outs
 
-Conveyance is deliberately demanding. Its rules exist to make a designer reconsider the interface, combine responsibilities, trust the person using it, and make consequences legible without explanatory scaffolding.
+Conveyance is deliberately demanding where pressure produces a better interface. A rule should make a designer reconsider what an object is, what an action teaches, or how several fragments could become one richer thing.
 
-A strong rule is not weakened because a legitimate exception exists.
+But a legitimate exception is not a reason to weaken a useful rule.
 
-The rule and its exception belong together.
+The rule and its exception belong together:
 
-> **Rule → named semantic opt-out.**
+> **Strong generative rule → named semantic opt-out.**
 >
 > The opt-out must say what the thing **is instead**. `ignore = true`, suppression annotations, and vague "custom" switches are not Conveyance vocabulary.
 
-The question is not "can this rule ever be broken?". The useful questions are:
-
-1. Does the rule provoke a more inventive or more self-explanatory interface?
-2. When the rule genuinely does not describe the thing, can the designer say why in the model itself?
-3. Can Conscience distinguish that deliberate exception from an accidental violation?
+When Conscience reports one of these rules, the build log stays short and links here for the reasoning, examples, ideas, and opt-out.
 
 ---
 
@@ -24,7 +20,9 @@ The question is not "can this rule ever be broken?". The useful questions are:
 
 `Employment.Working` requires at least four distinct `Job`s.
 
-The point is not efficiency arithmetic. The pressure is creative: if a button only submits, a label only labels, and a status chip only reports, the designer is encouraged to ask whether those fragments could become one richer thing that invites, reports, progresses, confirms, locates, groups, identifies, interrupts, or otherwise earns its space in several ways.
+The number is not a cleanliness quota. It is there to make a one-purpose object uncomfortable enough that the designer asks a more useful question: **what else could this thing already be doing?**
+
+A control that begins work can also report that work, carry its result, interrupt it, identify the subject, locate the person, become the destination of a consequence, or absorb another fragment of chrome that currently exists only to explain it.
 
 ```kotlin
 Employment.Working(
@@ -35,15 +33,17 @@ Employment.Working(
 )
 ```
 
+Conscience reasons across the whole surface before complaining about isolated IdleWorkers. If three nearby two-job objects collectively describe one richer object, the useful finding is not three tickets. It is a consolidation suggestion. If that pattern matches something the SDK already offers, Conscience can name the replacement directly—for example `Offer`, `Form`, `Collection`, or `Places`.
+
 ### Opt-out — `Employment.Ambient`
 
-Use `Employment.Ambient` when the element is **not attempting to be operational**: ground, texture, breathing room, atmosphere, ornament, a rule, or another presence whose purpose would be distorted by inventing four fake jobs.
+Use `Employment.Ambient` when the thing is intentionally **not operational**: ground, texture, atmosphere, breathing room, ornament, illustration, or another presence whose purpose would be distorted by inventing fake jobs.
 
 ```kotlin
 Employment.Ambient
 ```
 
-`Ambient` is not "ignore the employment rule". It says: *this is not a working element*.
+`Ambient` does not mean "ignore the four-job rule." It says: **this is not a working element.**
 
 ---
 
@@ -53,41 +53,39 @@ Employment.Ambient
 
 `Label` rejects instructional filler such as `tap`, `click`, `press`, `swipe`, `drag`, `select`, `choose`, `please`, `simply`, and `just`.
 
-The rule is about trusting the person. If an affordance only works after the interface says "tap here", the extra sentence is usually repairing a design failure in words.
+The point is not banning words. The point is trusting the person. If an affordance only works after the interface says "tap here", the sentence is usually repairing a design failure in prose.
 
-The rule is **not** a general vocabulary ban and is not a prose style guide.
+Labels may be strange, funny, terse, verbose, conversational, profane, poetic, or product-specific. Conveyance is not a copy editor.
 
 ### Opt-out — it is content, not `Label`
 
-Actual prose, documentation, user-authored text, narrative copy, help, warnings whose content is genuinely necessary, and other reading material are not chrome labels. Do not model them as `Label` merely because they are text on a screen.
+Documentation, user-authored text, narrative copy, necessary warnings, help, prose, and other material whose purpose is genuinely to be read are content. Do not model them as chrome merely because they appear on a screen.
 
-The opt-out is therefore semantic and structural: **content remains content**.
+The opt-out says what the text **is instead**: content.
 
 ---
 
 ## Continuity of place
 
-### Rule — entered places have an antecedent
+### Rule — an entered place has an antecedent
 
-A navigated `Place` is made with `Place.from(...)`. Its origin is the element it grows out of and returns toward.
+A navigated place is made with `Place.from(...)`. Its origin is the element it grows out of and returns toward.
 
 ```kotlin
 Place.from("invoice.detail", origin = invoiceRow)
 ```
 
-This creates continuity instead of teleporting the person and then rebuilding the lost relationship with breadcrumbs.
+This is not a demand for one visual transition style. It is a demand that navigation preserve a relationship the person can learn instead of teleporting them and rebuilding the lost map with breadcrumbs.
 
 ### Opt-out — `Place.root(...)`
 
-Use `Place.root(...)` when there genuinely is no visual antecedent: an application entry point, restored/deep-linked entry, externally launched destination, or another true beginning.
+Use `Place.root(...)` when there genuinely is no visual antecedent: an application entry point, restored entry, external/deep-link entry, or another true beginning.
 
 ```kotlin
 Place.root("home")
 ```
 
-A root is not an entered place with continuity disabled. It declares: *this is where this journey begins*.
-
-There is no universal quota on roots in core Conveyance. A product may have several legitimate entry points.
+There is no universal root quota. A product can have several genuine beginnings. `Root` says **this journey begins here**; it is not continuity with enforcement switched off.
 
 ---
 
@@ -101,13 +99,13 @@ A `Gate` carries `livesAt`. When an Act is blocked, the interface can escort the
 Gate("recipient.chosen", livesAt = recipientField) { recipient != null }
 ```
 
-### Opt-out — do not model an unresolvable state as a Gate
+Conscience reports a Gate whose declared resolver is absent because the model promised a route that the rendered surface did not provide.
 
-If there is nothing the person can currently do to satisfy the condition, it is not a resolvable Gate. Represent the state as a non-inviting/status element, or as ordinary content explaining an external fact when explanation is genuinely necessary.
+### Opt-out — do not model an unresolvable fact as a Gate
 
-The exception is not a Gate with a fake address. It is the declaration that **there is no available act to escort to**.
+If there is nothing the person can currently do to satisfy the condition, it is not a resolvable Gate. Represent it as status, content, environmental fact, or another non-inviting thing instead.
 
-Conscience may still report a Gate whose declared resolver is absent because that is a contradiction between what the model promises and what composed.
+The exception is not a Gate with a fake address. It says: **there is no available act to escort to.**
 
 ---
 
@@ -115,7 +113,7 @@ Conscience may still report a Gate whose declared resolver is absent because tha
 
 ### Rule — destruction is reversible whenever reality permits it
 
-Use `Act.destroy(...)`. The inverse is mandatory.
+Use `Act.destroy(...)`; its inverse is mandatory.
 
 ```kotlin
 Act.destroy(
@@ -126,7 +124,7 @@ Act.destroy(
 )
 ```
 
-This pressure is intentional. It forces the designer to look for undo, recovery, staging, a Ghost, or another respectful alternative before reaching for friction and confirmation.
+The pressure is intentional. Before introducing confirmation friction, look for undo, recovery, staging, a Ghost, delayed commitment, or another construction that lets the person act without being treated as a likely mistake.
 
 ### Opt-out — `Act.destroyIrreversibly(...)`
 
@@ -140,27 +138,65 @@ Act.destroyIrreversibly(
 )
 ```
 
-Examples include external irreversible side effects, legal submissions, physical actions, or remote operations the product cannot restore.
+Examples include legal submissions, physical effects, or external operations the product cannot restore. The separate factory keeps the exception visible to weight, audits, and bindings without weakening normal destruction.
 
-This factory exists so the exception does not weaken `Act.destroy`. It also keeps irreversibility visible to weight, audits, and bindings.
+---
+
+## Act emphasis
+
+### Rule — expressive importance is semantic, not decorative
+
+Every Act carries an `ActEmphasis` token:
+
+```kotlin
+ActEmphasis.Heroic
+ActEmphasis.Primary
+ActEmphasis.Secondary
+ActEmphasis.Supporting
+```
+
+The token says **how much expressive attention this consequence is allowed to command**. It does not say what that attention looks like.
+
+A Compose theme may map Heroic onto stronger shape transformation, typography, space, color, motion, haptics, sound, surrounding response, or something entirely different. A restrained banking product and an H2G2 maximalist product can therefore share the same semantic Act model without sharing an aesthetic.
+
+```kotlin
+val publish = Act.send(
+    id = "release.publish",
+    subject = release,
+    to = store,
+    emphasis = ActEmphasis.Heroic,
+)
+```
+
+`Heroic` is where the product deliberately engineers a hero moment: not simply "make this loud", but spend more of the design language on an interaction important enough to become unusually legible and memorable.
+
+There is no numeric Heroic budget. Two may be right. Ten may be right. Conscience instead looks for relational evidence that the token has stopped conveying anything. If every visible offered act is Heroic, none is being allowed to recede, so `HeroicSaturation` asks the developer to reconsider the contrast.
+
+### Opt-out — use the quieter token that actually describes the act
+
+There is no separate suppression switch. An act that is not a hero moment is `Primary`, `Secondary`, or `Supporting` according to its role.
+
+If a product intentionally wants every visible act at maximum expressive intensity, it may keep them Heroic; the finding is advisory. The opt-out is the design decision itself, not an arbitrary global quota exemption.
 
 ---
 
 ## Consequence motion
 
-### Rule — consequence motion teaches consequence
+### Rule — motion that communicates consequence must tell the truth
 
-A Conveyance consequence has a grammar-derived `Signature`. Motion used to communicate Reveal, Enter, Create, Destroy, Alter, Send, Refuse, Yield, or Return should remain recognisable enough that the product can be learned by watching it.
+A Conveyance consequence has a grammar-derived `Signature`. When motion is being used to teach Reveal, Enter, Create, Destroy, Alter, Send, Refuse, Yield, or Return, repeated use should remain learnable enough that the person can predict what is happening.
 
-### Opt-out — motion that is not consequence grammar
+The stronger rule is not "only these animations may exist." It is:
 
-Ambient movement, stable identity motion, role personality, decorative life, data animation, simulation, and other motion whose job is **not to describe a consequence** is outside the consequence grammar.
+> **Do not teach one consequence with a motion and then reuse that learned motion to mean something contradictory.**
 
-Do not lie by assigning it a consequence verb merely to obtain an animation.
+Motion should also remain truthful when reality changes halfway through it. An interrupted or retargeted act should respond to the new state rather than finishing an obsolete canned animation first.
 
-Bindings and companion libraries may expose named motion vocabularies such as `Ambient`, `Identity`, or `Personality`; those motions coexist with consequence grammar because they are saying something else.
+### Opt-out — motion that is saying something else
 
-The rule is therefore not "only nine animations may exist". It is "do not borrow a consequence's learned motion to mean an unrelated consequence".
+Ambient drift, stable identity motion, role personality, illustration, simulation, data animation, decorative life, and other movement whose job is **not to describe a consequence** are outside consequence grammar.
+
+Name that different purpose in the product or binding. Do not lie by assigning a consequence verb merely to obtain an animation.
 
 ---
 
@@ -168,19 +204,23 @@ The rule is therefore not "only nine animations may exist". It is "do not borrow
 
 ### Rule — semantic visual language should be learnable
 
-When a product uses hue, chroma, shape, size, elevation, opacity, typography, density, motion, haptics, or sound **semantically**, repeated use should not contradict itself casually.
+Hue, chroma, shape, size, elevation, opacity, typography, density, motion, haptics, and sound do not have universal meanings built into nature or Compose.
 
-Conveyance's reference `Channel` mapping is a useful vocabulary and a test bed, not a universal tailoring specification.
+Meaning comes from the grammar a product establishes through repeated use.
 
-### Opt-out — identity, content, atmosphere, and product grammar
+Conveyance ships a reference `Channel` mapping because examples and audits need a vocabulary. It is not a tailoring specification. A product may replace that mapping with another coherent grammar.
 
-A visual property may instead be carrying stable identity, content, atmosphere, illustration, brand language, or another product-defined grammar.
+H2G2-style identity hues are a canonical example: hue answers **who/what is this?**, while another channel can carry state, importance, or consequence.
 
-H2G2-style identity hues are the canonical example: hue distinguishes *who/what this is*, while some other channel can carry rank or state.
+The useful question is not "are all shapes consistent?" but **"is this inconsistency doing work?"** Visual tension, clash, irregular composition, and deliberate maximalism are valid when the contrast communicates rather than merely accumulates.
 
-The opt-out is not "random color is allowed". It is: **this channel is intentionally carrying a different named job in this product**.
+### Opt-out — the channel is carrying another named purpose
 
-Accessibility still applies regardless of which visual grammar is chosen.
+A visual property may be carrying identity, content, atmosphere, brand language, illustration, personality, simulation, or another product-defined grammar.
+
+The opt-out is not "randomness is allowed." It says: **this channel is intentionally saying something else.**
+
+Accessibility requirements still apply regardless of the chosen grammar.
 
 ---
 
@@ -188,27 +228,57 @@ Accessibility still applies regardless of which visual grammar is chosen.
 
 ### Rule — invitation, progress, result, and failure keep one identity
 
-An Act should not become a button plus unrelated spinner plus unrelated toast plus unrelated error banner. The person should be able to follow the same subject through engagement and consequence.
+An Act should not become a button plus unrelated spinner plus unrelated toast plus unrelated error banner. The person should be able to follow one thing through engagement and consequence.
 
-### Opt-out — the process genuinely outlives the originating element
+The rule is about continuity of identity, not forcing every durable process to remain physically inside the original pixels forever.
 
-Some work becomes a durable process of its own: a build, import, render, workflow, swarm, background sync, deployment, or long-running external operation.
+### Opt-out — the action genuinely creates a durable process
 
-In that case the new process must receive its **own stable subject identity** and the transition from origin to process must be visible. The opt-out is not "show a global spinner"; it is "this action created a new thing whose state now belongs to that thing".
+A build, import, render, deployment, workflow, sync, or other long-running operation may become a subject of its own.
+
+When that happens, give the process its **own stable identity** and make the handoff visible. The exception is not "show a global spinner"; it says **this action created a new thing whose state now belongs to that thing.**
 
 ---
 
-## Keystone expression
+## Dynamic Conscience recommendations
 
-### Rule — keystone treatment means something
+Conscience should prefer relational findings over isolated findings whenever it has enough evidence.
 
-If an Act is marked as a keystone, the product is claiming that the act deserves unusually expressive treatment. That distinction should remain intentional rather than becoming a decorative flag sprinkled everywhere.
+Given:
 
-### Opt-out — do not mark a keystone
+```text
+save.button   → Invite + Interrupt
+save.spinner  → Progress
+save.success  → Confirm
+```
 
-A product is not required to manufacture an emotional centre. `Product.keystones` may be empty, and a product may define its own expressive hierarchy.
+three separate IdleWorker warnings are less useful than recognizing one fragmented action lifecycle.
 
-The core no longer imposes a numeric one-to-three quota. The useful rule is semantic: if everything is called exceptional, the word has stopped carrying information.
+The runtime registry already knows element jobs, offered acts, gates, geometry, subjects, consequences, and emphasis. `ConsolidationAdvisor` can combine that evidence and compare it with a capability catalog of SDK constructions.
+
+The intended architecture is:
+
+```text
+observed capabilities
+        ↓
+behavioral pattern
+        ↓
+available Conveyance construction
+```
+
+Examples:
+
+```text
+Action source + progress reporter + completion reporter
+→ one action lifecycle
+→ Offer
+
+repeating identified subjects + create destination + destruction/recovery behavior
+→ managed collection
+→ Collection
+```
+
+The catalog belongs to the SDK, not to a pile of linter folklore, so recommendations can evolve with the components Conveyance actually ships.
 
 ---
 
@@ -217,8 +287,8 @@ The core no longer imposes a numeric one-to-three quota. The useful rule is sema
 Every hard Conveyance requirement should satisfy one of two conditions:
 
 1. **No legitimate exception exists because violating it makes the model internally incoherent**, or
-2. **A named semantic opt-out is documented immediately beside it.**
+2. **A named semantic opt-out is documented directly beside it.**
 
-When a new rule is proposed, its opt-out should be designed at the same time. If the only available escape hatch is "ignore Conveyance here", the vocabulary is unfinished.
+When a new rule is proposed, design its exception at the same time. If the only escape hatch is "ignore Conveyance here", the vocabulary is unfinished.
 
-When an opt-out is proposed, it should answer **what the thing is instead**. If it merely turns off enforcement, it is a suppression switch and should be treated with suspicion.
+When an opt-out is proposed, it should answer **what the thing is instead**. If it merely disables enforcement, it is a suppression switch and should be treated with suspicion.
