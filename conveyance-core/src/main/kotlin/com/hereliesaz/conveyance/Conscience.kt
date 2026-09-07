@@ -15,23 +15,22 @@ enum class Severity { Error, Warning }
 /**
  * Compact teaching material that accompanies every lint finding.
  *
- * CI output should teach without becoming a wall of doctrine. The log therefore carries the rule,
- * why it exists, the semantic opt-out, and a direct link to the richer documentation where examples
- * live beside the rule.
+ * The log states the rule and why it exists, then links directly to the documentation section that
+ * carries the examples and exact semantic opt-out. This keeps CI readable without reducing the
+ * finding to an unexplained code.
  */
 data class RuleGuide(
     val rule: String,
     val why: String,
-    val optOut: String,
-    val docsUrl: String,
+    val docs: String,
 )
 
 /**
  * One observation produced by the Conscience.
  *
  * [guide] is mandatory. There is deliberately no terse finding constructor: if a new lint rule
- * cannot explain its pressure, its honest opt-out, and where to learn more, that rule is not ready
- * to police anybody.
+ * cannot explain its pressure and point to its documented examples and opt-out, that rule is not
+ * ready to police anybody.
  */
 data class Finding(
     val audit: Audit,
@@ -47,8 +46,7 @@ data class Finding(
         append("  Try: $instead")
         append("\n  Rule: ${guide.rule}")
         append("\n  Why: ${guide.why}")
-        append("\n  Opt-out: ${guide.optOut}")
-        append("\n  Docs: ${guide.docsUrl}")
+        append("\n  Examples and opt-out: ${guide.docs}")
     }
 }
 
@@ -61,21 +59,16 @@ data class Finding(
  */
 object Conscience {
 
-    private const val RULES_DOC =
-        "https://github.com/HereLiesAz/Conveyance/blob/main/docs/RULES-AND-OPTOUTS.md"
-
     val employmentGuide = RuleGuide(
         rule = "A working element does at least four distinct jobs.",
         why = "The constraint forces one-purpose chrome to be reimagined as richer, more useful interface objects.",
-        optOut = "Declare Employment.Ambient when the element is intentionally non-operational.",
-        docsUrl = "$RULES_DOC#employment",
+        docs = "https://github.com/HereLiesAz/Conveyance/blob/main/docs/RULES-AND-OPTOUTS.md#employment",
     )
 
     val gateGuide = RuleGuide(
         rule = "A resolvable blocker names where the person can resolve it.",
         why = "A blocked act should escort toward something useful instead of becoming an inert disabled control or a dead end.",
-        optOut = "If nothing the person can currently do can satisfy it, do not model it as a Gate.",
-        docsUrl = "$RULES_DOC#gates",
+        docs = "https://github.com/HereLiesAz/Conveyance/blob/main/docs/RULES-AND-OPTOUTS.md#gates",
     )
 
     fun audit(product: Product): List<Finding> = product.surfaces.flatMap { audit(it) }
@@ -104,7 +97,7 @@ object Conscience {
                 where = frame.surface,
                 because = "${underEmployed.size} working element(s) are doing fewer than four jobs: " +
                     underEmployed.joinToString { "${it.id.value} (${it.jobs.size})" },
-                instead = "Reimagine each element until it honestly does four jobs, or declare it Ambient if it is not operational chrome.",
+                instead = "Reimagine each element until it honestly does four jobs, or use the documented semantic opt-out when the rule genuinely does not describe it.",
                 guide = employmentGuide,
             ),
         )
@@ -123,7 +116,7 @@ object Conscience {
                 severity = Severity.Warning,
                 where = "${surface.name}/${gate.id}",
                 because = "its declared resolver ${gate.livesAt.value} is not on this surface",
-                instead = "Expose the declared resolver, point the gate at something reachable, or stop modelling an unresolvable condition as a Gate.",
+                instead = "Expose the declared resolver, point the gate at something reachable, or use the documented semantic opt-out if this is not actually a resolvable Gate.",
                 guide = gateGuide,
             )
         }
@@ -137,7 +130,7 @@ object Conscience {
                 severity = Severity.Warning,
                 where = "${frame.surface}/${address.value}",
                 because = "its declared resolver did not compose in this frame",
-                instead = "Expose the declared resolver, defer the Gate until it exists, or represent the condition as non-inviting status if it cannot be resolved here.",
+                instead = "Expose the declared resolver, defer the Gate until it exists, or use the documented semantic opt-out if the condition is not resolvable here.",
                 guide = gateGuide,
             )
         }
