@@ -119,7 +119,14 @@ class ConscienceTest {
     @Test
     fun `warnings inform but do not block`() {
         val warningOnly = listOf(
-            Finding(Audit.DeadEnd, Severity.Warning, "s", "because", "instead"),
+            Finding(
+                audit = Audit.DeadEnd,
+                severity = Severity.Warning,
+                where = "s",
+                because = "because",
+                instead = "instead",
+                guide = Conscience.gateGuide,
+            ),
         )
         assertFalse(Conscience.blocks(warningOnly))
     }
