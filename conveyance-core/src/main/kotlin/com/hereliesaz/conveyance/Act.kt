@@ -6,8 +6,12 @@ package com.hereliesaz.conveyance
  * An act is not a button. A button is an appearance with a callback attached, and the gap between
  * that appearance and what actually happens is exactly where instruction has to be inserted to patch
  * things up — the tooltip, the "Are you sure?", the toast reporting on something that happened
- * somewhere off-screen. An act closes the gap by carrying its own consequence, its own conditions
- * and, where reality permits it, its own reversal, so there is nothing left to narrate.
+ * somewhere off-screen. An act closes that gap by carrying its own consequence, its own conditions
+ * and, where reality permits it, its own reversal.
+ *
+ * [emphasis] is deliberately semantic rather than visual. The act says how much expressive attention
+ * it deserves; the binding and product theme decide what Heroic, Primary, Secondary, and Supporting
+ * look and feel like in that product.
  *
  * There is no public constructor. Acts are made through verb factories, each of which takes exactly
  * what its verb needs and nothing else. A strong rule is paired with a named semantic opt-out when
@@ -21,8 +25,8 @@ class Act private constructor(
     val requires: List<Gate>,
     /** The act that undoes this one, when one exists in the world being modelled. */
     val inverse: Act?,
-    /** Marked as an expressive core of the product. */
-    val keystone: Boolean,
+    /** Semantic expressive importance. The binding decides how this token is rendered. */
+    val emphasis: ActEmphasis,
     private val perform: suspend () -> Outcome,
 ) {
     /** Which verb this act speaks. Derived; there is no routing decision to make. */
@@ -77,7 +81,7 @@ class Act private constructor(
         return terminal
     }
 
-    override fun toString() = "Act($id, $verb, $weight${if (keystone) ", keystone" else ""})"
+    override fun toString() = "Act($id, $verb, $weight, $emphasis)"
 
     companion object {
 
@@ -86,10 +90,11 @@ class Act private constructor(
             id: String,
             target: ElementId,
             requires: List<Gate> = emptyList(),
+            emphasis: ActEmphasis = ActEmphasis.Supporting,
             perform: suspend () -> Outcome = { Outcome.Done },
         ) = Act(
             ActId(id), Consequence.Reveal(target), Scope.Detail, requires,
-            inverse = null, keystone = false, perform = perform,
+            inverse = null, emphasis = emphasis, perform = perform,
         )
 
         /**
@@ -103,11 +108,11 @@ class Act private constructor(
             id: String,
             place: Place,
             requires: List<Gate> = emptyList(),
-            keystone: Boolean = false,
+            emphasis: ActEmphasis = ActEmphasis.Supporting,
             perform: suspend () -> Outcome = { Outcome.Done },
         ) = Act(
             ActId(id), Consequence.Enter(place), Scope.Item, requires,
-            inverse = null, keystone = keystone, perform = perform,
+            inverse = null, emphasis = emphasis, perform = perform,
         )
 
         /** A new subject exists, in a named collection, having come out of this control. */
@@ -117,11 +122,11 @@ class Act private constructor(
             into: ElementId,
             scope: Scope = Scope.Item,
             requires: List<Gate> = emptyList(),
-            keystone: Boolean = false,
+            emphasis: ActEmphasis = ActEmphasis.Supporting,
             perform: suspend () -> Outcome = { Outcome.Done },
         ) = Act(
             ActId(id), Consequence.Create(subject, into), scope, requires,
-            inverse = null, keystone = keystone, perform = perform,
+            inverse = null, emphasis = emphasis, perform = perform,
         )
 
         /**
@@ -141,10 +146,11 @@ class Act private constructor(
             inverse: Act,
             scope: Scope = Scope.Item,
             requires: List<Gate> = emptyList(),
+            emphasis: ActEmphasis = ActEmphasis.Supporting,
             perform: suspend () -> Outcome = { Outcome.Done },
         ) = Act(
             ActId(id), Consequence.Destroy(subject, target), scope, requires,
-            inverse = inverse, keystone = false, perform = perform,
+            inverse = inverse, emphasis = emphasis, perform = perform,
         )
 
         /**
@@ -161,10 +167,11 @@ class Act private constructor(
             target: ElementId,
             scope: Scope = Scope.Item,
             requires: List<Gate> = emptyList(),
+            emphasis: ActEmphasis = ActEmphasis.Supporting,
             perform: suspend () -> Outcome = { Outcome.Done },
         ) = Act(
             ActId(id), Consequence.Destroy(subject, target), scope, requires,
-            inverse = null, keystone = false, perform = perform,
+            inverse = null, emphasis = emphasis, perform = perform,
         )
 
         /** A subject changes in place. Only the changed property moves. */
@@ -176,10 +183,11 @@ class Act private constructor(
             scope: Scope = Scope.Detail,
             requires: List<Gate> = emptyList(),
             inverse: Act? = null,
+            emphasis: ActEmphasis = ActEmphasis.Supporting,
             perform: suspend () -> Outcome = { Outcome.Done },
         ) = Act(
             ActId(id), Consequence.Alter(subject, property, target), scope, requires,
-            inverse = inverse, keystone = false, perform = perform,
+            inverse = inverse, emphasis = emphasis, perform = perform,
         )
 
         /** A subject leaves the person's control, toward something they can see. */
@@ -189,12 +197,12 @@ class Act private constructor(
             to: ElementId,
             scope: Scope = Scope.Item,
             requires: List<Gate> = emptyList(),
-            keystone: Boolean = false,
+            emphasis: ActEmphasis = ActEmphasis.Supporting,
             inverse: Act? = null,
             perform: suspend () -> Outcome = { Outcome.Done },
         ) = Act(
             ActId(id), Consequence.Send(subject, to), scope, requires,
-            inverse = inverse, keystone = keystone, perform = perform,
+            inverse = inverse, emphasis = emphasis, perform = perform,
         )
     }
 }
