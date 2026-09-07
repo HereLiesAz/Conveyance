@@ -144,7 +144,7 @@ class ConscienceTest {
     }
 
     @Test
-    fun `heroic saturation is relational rather than a numeric quota`() {
+    fun `two visible heroic acts are reported as competing titles`() {
         val publish = auditElement(
             id = ElementId("publish"),
             act = ActId("publish"),
@@ -156,25 +156,58 @@ class ConscienceTest {
             emphasis = ActEmphasis.Heroic,
             left = 24f,
         )
+        val primary = auditElement(
+            id = ElementId("preview"),
+            act = ActId("preview"),
+            emphasis = ActEmphasis.Primary,
+            left = 48f,
+        )
 
-        val saturated = AuditFrame(
+        val frame = AuditFrame(
             surface = "release",
             census = Census(0, 0, 0, 0, 0, 0, emptyList(), emptyList(), emptyList()),
-            elements = listOf(publish, share),
+            elements = listOf(publish, share, primary),
         )
 
-        val finding = Conscience.audit(saturated).single { it.audit == Audit.HeroicSaturation }
+        val finding = Conscience.audit(frame).single { it.audit == Audit.HeroicSaturation }
         val log = finding.toString()
-        assertTrue(log.contains("every visible act is Heroic"), log)
+        assertTrue(log.contains("2 visible Acts claim Heroic"), log)
+        assertTrue(log.contains("Heroic→Primary"), log)
+        assertTrue(log.contains("Primary→Secondary"), log)
         assertTrue(log.contains("RULES-AND-OPTOUTS.md#act-emphasis"), log)
+    }
 
-        val contrasted = saturated.copy(
+    @Test
+    fun `one visible heroic act is permitted`() {
+        val frame = AuditFrame(
+            surface = "release",
+            census = Census(0, 0, 0, 0, 0, 0, emptyList(), emptyList(), emptyList()),
             elements = listOf(
-                publish,
-                share.copy(emphasis = ActEmphasis.Supporting),
+                auditElement(
+                    id = ElementId("publish"),
+                    act = ActId("publish"),
+                    emphasis = ActEmphasis.Heroic,
+                ),
+                auditElement(
+                    id = ElementId("share"),
+                    act = ActId("share"),
+                    emphasis = ActEmphasis.Primary,
+                    left = 24f,
+                ),
             ),
         )
-        assertTrue(Conscience.audit(contrasted).none { it.audit == Audit.HeroicSaturation })
+
+        assertTrue(Conscience.audit(frame).none { it.audit == Audit.HeroicSaturation })
+    }
+
+    @Test
+    fun `act emphasis demotes one rung when hero claims compete`() {
+        assertEquals(ActEmphasis.Heroic, ActEmphasis.Heroic.resolve(heroicClaims = 1))
+        assertEquals(ActEmphasis.Primary, ActEmphasis.Heroic.resolve(heroicClaims = 2))
+        assertEquals(ActEmphasis.Secondary, ActEmphasis.Primary.resolve(heroicClaims = 2))
+        assertEquals(ActEmphasis.Tertiary, ActEmphasis.Secondary.resolve(heroicClaims = 2))
+        assertEquals(ActEmphasis.Supporting, ActEmphasis.Tertiary.resolve(heroicClaims = 2))
+        assertEquals(ActEmphasis.Supporting, ActEmphasis.Supporting.resolve(heroicClaims = 2))
     }
 
     @Test
