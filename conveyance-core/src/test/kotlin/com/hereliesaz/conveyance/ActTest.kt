@@ -36,10 +36,6 @@ class ActTest {
         assertEquals(ActState.Ready, act.state())
     }
 
-    /**
-     * The framework's replacement for the disabled state. A blocked act is not inert and does not
-     * fail: it reports where to go, and the binding carries the person there.
-     */
     @Test
     fun `a blocked act escorts instead of performing`() = runTest {
         var performed = false
@@ -58,7 +54,7 @@ class ActTest {
     }
 
     @Test
-    fun `an engaged act yields, then settles, in that order`() = runTest {
+    fun `an engaged act yields then settles`() = runTest {
         val act = Act.create("invoice.new", invoice, into = list)
         val seen = mutableListOf<ActState>()
 
@@ -67,35 +63,44 @@ class ActTest {
     }
 
     @Test
-    fun `failure becomes a state of the element, carrying a derived retry`() = runTest {
+    fun `failure becomes a state of the element carrying a derived retry`() = runTest {
         val act = Act.send("invoice.send", invoice, recipientAvatar) { Outcome.Failed(Refusal.Unreachable) }
         val refused = assertIs<ActState.Refused>(act.engage())
         assertEquals(Refusal.Unreachable, refused.refusal)
         assertTrue(refused.retryable)
 
         val denied = Act.send("x", invoice, recipientAvatar) { Outcome.Failed(Refusal.Denied) }
-        assertFalse(assertIs<ActState.Refused>(denied.engage()).retryable, "Retrying a refusal invites repeated failure.")
+        assertFalse(assertIs<ActState.Refused>(denied.engage()).retryable)
     }
 
     @Test
-    fun `work that dies part-way is interrupted, not silently settled`() = runTest {
+    fun `work that dies part-way is interrupted`() = runTest {
         val act = Act.create("boom", invoice, into = list) { error("connection dropped") }
         assertEquals(ActState.Refused(Refusal.Interrupted), act.engage())
     }
 
-    /**
-     * There is no way to write a destruction without a reversal — [Act.destroy] takes a non-null
-     * inverse. This test records the consequence of that: every destructive act is reversible, so
-     * the Ghost is always available and a confirmation dialog is never needed.
-     */
     @Test
-    fun `every destruction is reversible by construction`() {
+    fun `ordinary destruction stays reversible by construction`() {
         val restore = Act.create("invoice.restore", invoice, into = list)
         val delete = Act.destroy("invoice.delete", invoice, target = list, inverse = restore)
 
         assertTrue(delete.reversible)
         assertEquals(restore, delete.inverse)
-        assertTrue(delete.signature.leavesResidue, "A destruction with no Ghost has nowhere to be undone from.")
+        assertTrue(delete.signature.leavesResidue)
+    }
+
+    @Test
+    fun `irreversible destruction is a named opt-out not a nullable inverse`() {
+        val destroy = Act.destroyIrreversibly(
+            id = "invoice.submit.final",
+            subject = invoice,
+            target = list,
+            scope = Scope.Everything,
+        )
+
+        assertFalse(destroy.reversible)
+        assertEquals(null, destroy.inverse)
+        assertEquals(Verb.Destroy, destroy.verb)
     }
 
     @Test
@@ -110,15 +115,8 @@ class ActTest {
         assertEquals(list, enter.consequence.target)
     }
 
-    /**
-     * A root place has no antecedent to grow out of, so entering one is not a smaller version of
-     * Enter -- it is not Enter at all. This used to fail only when something later read
-     * [Consequence.target] (an audit, a render), which meant the bad act could be constructed,
-     * passed around and even offered on screen before anything noticed. Refusing at construction
-     * is what makes the framework's own claim -- that this cannot be represented -- actually true.
-     */
     @Test
-    fun `entering a root place is refused where the act is made, not wherever it is later read`() {
+    fun `entering a root place is refused where the act is made`() {
         assertFailsWith<IllegalArgumentException> { Act.enter("go.home", Place.root("home")) }
         assertFailsWith<IllegalArgumentException> { Consequence.Enter(Place.root("home")) }
     }
