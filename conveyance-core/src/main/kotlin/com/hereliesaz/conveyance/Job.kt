@@ -3,9 +3,10 @@ package com.hereliesaz.conveyance
 /**
  * What an element is for.
  *
- * Resourceful minimalism is unenforceable as advice and trivial to enforce as arithmetic, so jobs
- * are enumerable and elements declare them. An element that cannot name four is standing around
- * watching one guy dig.
+ * Jobs are a vocabulary for describing useful work an element may do. They are not a quota. A
+ * beautifully specific element may do one job; a dense H2G2-style record may do six. Conveyance can
+ * expose that difference to tools and audits without pretending arithmetic decides whether the
+ * design deserves to exist.
  */
 enum class Job {
     /** Offers an act. */
@@ -46,37 +47,26 @@ enum class Job {
 sealed interface Employment {
 
     /**
-     * Doing real work. Four jobs is the minimum. For an inviting element, three of the four
-     * cost nothing to justify -- [Job.Invite] is the declaration itself, [Job.Progress] is true
-     * the moment it exists (Offer renders every act's states, Yielding included, from the same
-     * pixels), and [Job.Interrupt] is owed for the same reason Law 4 already names it. But
-     * nothing here is inferred: the type does not add jobs on an element's behalf, because a
-     * claimed job with no code standing behind it is exactly the failure this law exists to
-     * catch, not a shortcut around declaring it. A developer who has internalised that the first
-     * three are close to automatic still has to write all four down -- what that buys is one
-     * real job of friction, not zero.
+     * The element is doing one or more identifiable jobs.
      *
-     * The count is checked at construction rather than by a later audit, because an unemployed
-     * element that reaches an audit has already been designed, reviewed and probably shipped.
+     * There is deliberately no minimum count. The jobs exist so a product can reason about its
+     * elements, not so the framework can issue citations for insufficient multitasking.
      */
     class Working(val jobs: Set<Job>) : Employment {
         constructor(vararg jobs: Job) : this(jobs.toSet())
 
         init {
-            require(jobs.size >= 4) {
-                "An element with ${jobs.size} job(s) is standing around. " +
-                    "Merge it with its neighbour, or delete it: $jobs"
-            }
+            require(jobs.isNotEmpty()) { "Working employment needs at least one actual job." }
         }
 
         override fun toString() = "Working(${jobs.joinToString(", ")})"
     }
 
     /**
-     * Deliberately doing nothing: a ground, a rule, a field of space.
+     * Deliberately present without an operational job: ground, texture, breathing room, ornament,
+     * atmosphere, or anything else the product wants there.
      *
-     * Budgeted per surface, because an exemption that is not counted quietly becomes the norm and
-     * then the whole rule was decorative.
+     * Ambient elements are not budgeted by the framework.
      */
     data object Ambient : Employment
 }
