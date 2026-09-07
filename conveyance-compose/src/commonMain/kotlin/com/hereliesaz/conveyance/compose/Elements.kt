@@ -95,20 +95,13 @@ class ElementRegistry {
         var placement: Placement? by mutableStateOf(null)
         var employment: Employment? by mutableStateOf(null)
 
-        /**
-         * How to draw this element somewhere else.
-         *
-         * A verb that travels has to render the thing that is travelling, and only the element
-         * itself knows what it looks like. Holding it here is what lets the framework fly a row to
-         * an avatar without the app writing a single line of animation.
-         */
+        /** How to draw this element somewhere else when a verb carries it across the window. */
         var token: (@Composable () -> Unit)? = null
 
         @OptIn(ExperimentalFoundationApi::class)
         var requester: BringIntoViewRequester? = null
     }
 
-    /** Whoever currently answers for this address. */
     private fun tenant(id: ElementId): Tenant? = tenancy[id]?.lastOrNull()
 
     private fun claim(id: ElementId, owner: Any): Tenant {
@@ -119,79 +112,31 @@ class ElementRegistry {
         return fresh
     }
 
-    /** Addresses that have actually been laid out, as opposed to merely spoken for. */
     private fun composed(): Set<ElementId> =
         tenancy.keys.filterTo(mutableSetOf()) { tenant(it)?.placement != null }
 
-    /** Elements that are some gate's address. Where a person is carried when something is missing. */
     private val gateFlags = mutableStateMapOf<ElementId, Boolean>()
 
-    /**
-     * Every address currently a gate's own -- live.
-     *
-     * The same fact [markGate] already records for the escort's own use, made public so a live
-     * [com.hereliesaz.conveyance.AuditFrame] can carry it out to a whole-surface audit that runs
-     * against a real running app rather than only a hand-declared `Surface` fixture.
-     */
     val gateAddresses: Set<ElementId> get() = gateFlags.keys
 
-    /** One claimant's hold on an [ActId] -- the same shape [Tenant] gives an [ElementId], and for
-     *  the same reason: the offering composable's own identity, so a departing claimant can hand
-     *  the id back to whoever else still holds it instead of erasing it outright. */
     private class OfferClaim(val owner: Any, val act: Act, val at: ElementId)
 
-    /**
-     * The act each element is offering, kept whole rather than by identity.
-     *
-     * Holding the act itself is what makes an audit possible at all: its verb, its weight, whether
-     * it can be taken back. An id would have been enough to count with and useless to judge by.
-     *
-     * Tenanted, like [tenancy]: the same [ActId] can legitimately be offered from more than one
-     * composable at once -- the same act rendered in both a list row and the detail place growing
-     * out of it, mid-transition, the identical reason [ElementId] addresses are tenanted rather
-     * than owned. A flat single-claim map made one of those composables leaving the composition
-     * silently erase a still-mounted sibling's registration; see [currentOffers] for what a read
-     * actually gets.
-     */
     private val offered = mutableStateMapOf<ActId, List<OfferClaim>>()
 
-    /** The newest claimant for each currently-offered [ActId] -- what every read in this class
-     *  other than [offer]/[withdraw] means by "the" offer, the [tenant] of [offer] cases. */
     private val currentOffers: Map<ActId, Pair<Act, ElementId>>
         get() = offered.mapNotNull { (id, claims) -> claims.lastOrNull()?.let { id to (it.act to it.at) } }.toMap()
 
-    /**
-     * The element an escort has just delivered someone to, which that element renders as
-     * articulation until it is dismissed.
-     *
-     * Held centrally rather than per element because only one thing can be the answer to "here is
-     * what you were missing" at a time. Two simultaneous articulations would be two signs competing
-     * for attention, which is the construction zone again.
-     */
     var articulating: ElementId? by mutableStateOf(null)
         private set
 
     operator fun get(id: ElementId): Placement? = tenant(id)?.placement
 
-    /** Unclipped bounds, present whether or not the element is currently on screen. */
     fun bounds(id: ElementId): Rect? = tenant(id)?.placement?.bounds
 
-    /** Whether an address currently resolves to a composed element. */
     fun resolves(id: ElementId): Boolean = tenant(id)?.placement != null
 
-    /** Whether the person can actually see it right now. An escort must check this first. */
     fun visible(id: ElementId): Boolean = tenant(id)?.placement?.visible == true
 
-    /**
-     * Where an address is according to whoever held it *before* its current holder.
-     *
-     * This is the one query a place transition must ask, and asking the ordinary one would be
-     * circular: while a detail place is growing out of a photograph, the large photograph inside it
-     * answers to the same name, so "where is the photograph" would return the moving place itself
-     * and the geometry would chase its own tail. The thing a place grows out of is by definition the
-     * claim underneath its own, which is exactly what this returns — falling back to the only
-     * claimant when the place has not composed yet, or does not re-use the name at all.
-     */
     internal fun anchor(id: ElementId): Rect? {
         val held = tenancy[id].orEmpty()
         val below = held.getOrNull(held.lastIndex - 1) ?: held.lastOrNull()
@@ -219,14 +164,6 @@ class ElementRegistry {
 
     /**
      * What an element is actually doing, worked out rather than asked for.
-     *
-     * Everything here is already known: an element backing an act invites; a gate's address is
-     * where an unmet condition gets resolved; an element with a travelling token is one a verb can
-     * carry. None of that should be typed by anyone, and an element is free to pick up and drop
-     * jobs as its surroundings change without a stale label contradicting it.
-     *
-     * The union with a declaration is for what the framework genuinely cannot see -- a value it did
-     * not compute, a grouping it did not impose.
      */
     fun jobsOf(id: ElementId): Set<Job> = buildSet {
         if (currentOffers.values.any { it.second == id }) add(Job.Invite)
@@ -246,27 +183,8 @@ class ElementRegistry {
         if (remaining.isEmpty()) offered.remove(id) else offered[id] = remaining
     }
 
-    /**
-     * The act offered at an address.
-     *
-     * This is the edge of the prerequisite graph, and nobody wrote it down. A gate names the element
-     * where it is resolved; that element is offering an act; therefore that act is what resolves the
-     * gate. Both halves were already required for other reasons, so the whole flowchart of a
-     * product's preconditions is derivable and cannot drift out of step with the acts it describes.
-     */
     fun offering(id: ElementId): Act? = currentOffers.values.firstOrNull { it.second == id }?.first
 
-    /**
-     * Count what is on screen against what can be done with it.
-     *
-     * Live, and free: the registry already knew every addressed element, and Offer already knew
-     * every act. Nothing here is new information -- the two halves simply had never been asked to
-     * compare notes.
-     *
-     * An element that has not declared what it is for counts as chrome. That is deliberate rather
-     * than punitive: undeclared is exactly the state of an element nobody has had to justify, and
-     * this measurement exists to find those.
-     */
     fun census(): Census {
         val composed = composed()
         val current = currentOffers
@@ -300,14 +218,7 @@ class ElementRegistry {
         )
     }
 
-    /**
-     * Everything the framework knows about this surface, for something that will be shown only the
-     * pixels.
-     *
-     * This is the half a screenshot cannot contain, and the reason grading a naive viewer is
-     * possible at all: the framework holds the answers, so the gap between what a first-time
-     * observer predicts and what is actually true can be measured rather than guessed at.
-     */
+    /** Everything the framework knows about this live surface. */
     fun auditFrame(surface: String): AuditFrame {
         val byElement = currentOffers.values.associateBy { it.second }
         val elements = composed().map { id ->
@@ -327,20 +238,13 @@ class ElementRegistry {
                 reversible = act?.reversible == true,
                 blocked = act?.state() is ActState.Blocked,
                 jobs = jobsOf(id),
-                keystone = act?.keystone == true,
+                emphasis = act?.emphasis,
                 ambient = tenant(id)?.employment == Employment.Ambient,
             )
         }
         return AuditFrame(surface = surface, census = census(), elements = elements, gateAddresses = gateAddresses)
     }
 
-    /**
-     * Give up one claim on an address.
-     *
-     * The address itself only disappears when the last claimant has gone. A departing tenant that
-     * was merely the most recent hands the name back rather than deleting it, which is what stops a
-     * place transition from erasing the element it is transitioning out of.
-     */
     internal fun forget(id: ElementId, owner: Any) {
         val remaining = tenancy[id].orEmpty().filterNot { it.owner === owner }
         if (remaining.isEmpty()) {
@@ -360,26 +264,16 @@ class ElementRegistry {
         claim(id, owner).token = token
     }
 
-    /**
-     * Carry the person to [id]: bring it into view if it is not, then articulate it.
-     *
-     * This is the Escort, and it is the whole of the framework's answer to the disabled state. A
-     * greyed-out control announces a rule and abandons you; this arrives at the thing you were
-     * missing. The order matters — articulating something off-screen would be emphasising a thing
-     * nobody is looking at.
-     */
     @OptIn(ExperimentalFoundationApi::class)
     suspend fun escortTo(id: ElementId) {
         tenant(id)?.requester?.bringIntoView()
         articulating = id
     }
 
-    /** The person has arrived and acted; the emphasis has done its job and stops. */
     fun settleArticulation() {
         articulating = null
     }
 
-    /** Every address currently composed. Used by the audits, not by product code. */
     val placed: Set<ElementId> get() = composed()
 }
 
@@ -387,34 +281,15 @@ private val NoRegistry = ElementRegistry()
 
 val LocalElements = staticCompositionLocalOf { NoRegistry }
 
-/**
- * Give this element its address.
- *
- * Registration follows the element through recomposition and scrolling because it is driven by
- * layout rather than by composition: `onGloballyPositioned` fires whenever the element actually
- * moves, which is exactly when a motion aimed at it would otherwise be aiming at the wrong place.
- * Deregistration is tied to leaving the composition, so an address never outlives the thing it names
- * and an escort can never travel to a control that has since been removed.
- */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun Modifier.element(
     id: ElementId,
-    /** How to draw this element elsewhere, when a verb carries it across the window. */
     token: (@Composable () -> Unit)? = null,
-    /**
-     * What this element is for, *only* where the framework cannot work it out.
-     *
-     * Most elements should leave this null: backing an act, being a gate's address and carrying a
-     * travelling token are all derived. Declare only what is genuinely invisible from the model.
-     */
     employment: Employment? = null,
 ): Modifier {
     val registry = LocalElements.current
     val requester = remember(id) { BringIntoViewRequester() }
-    // This call site's identity, which is what the registry tenants an address to. Two composables
-    // may legitimately answer to one name at once -- a thumbnail and the place growing out of it --
-    // and telling them apart is what lets the second hand the name back when it leaves.
     val claim = remember(id) { Any() }
     DisposableEffect(registry, id, token, employment) {
         registry.attach(id, claim, requester)
@@ -423,13 +298,6 @@ fun Modifier.element(
         onDispose { registry.forget(id, claim) }
     }
 
-    // Articulation, rendered by the framework rather than left to the app.
-    //
-    // An escort that only sets a flag has not escorted anyone -- it has told the application to
-    // draw something, which is the application conveying, not the framework. So the arrival is
-    // physical and it is geometry only: the element settles under the person's attention the way a
-    // thing does when it is put down in front of you. No colour is involved, because every channel
-    // already carries an assigned meaning and "look here" is not one of them.
     val arriving = registry.articulating == id
     val settle = remember(id) { Animatable(0f) }
     LaunchedEffect(arriving) {
@@ -441,18 +309,11 @@ fun Modifier.element(
 
     return bringIntoViewRequester(requester)
         .graphicsLayer {
-            // Perceptible on purpose. An emphasis nobody can see is an emphasis that did not
-            // happen, and the first version of this was a four-percent scale -- technically a
-            // settle, practically nothing.
             val lift = settle.value
             scaleX = 1f + lift * 0.12f
             scaleY = 1f + lift * 0.12f
         }
         .onGloballyPositioned { coordinates ->
-        // Both corners are mapped through the ancestor transforms, never just the origin. Mapping
-        // only the origin and pairing it with the raw layout size yields an incoherent rect the
-        // moment anything is scaled -- a transformed position wearing an untransformed size -- and
-        // a morph aimed at it would arrive in the right place at the wrong size.
         val size = coordinates.size
         registry.place(
             id,
@@ -468,10 +329,4 @@ fun Modifier.element(
     }
 }
 
-/**
- * Every subject has an address, derived rather than declared.
- *
- * This is what lets a Send find the card it is sending and a Destroy find the row it is destroying,
- * without the app wiring anything up. A collection registers its items here automatically.
- */
 fun subjectElement(subject: SubjectId): ElementId = ElementId("subject:${subject.value}")
