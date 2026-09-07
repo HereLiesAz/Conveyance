@@ -4,8 +4,9 @@ package com.hereliesaz.conveyance
  * How prominent an element is in the current composition.
  *
  * Rank is descriptive, not a dress code. A surface may have several prominent things, no obvious
- * primary, or a deliberately chaotic hierarchy if that better serves the product. Conveyance should
- * help a design communicate what it is doing, not force every screen into the same composition.
+ * primary, or a deliberately chaotic hierarchy if that better serves the product. This is separate
+ * from [ActEmphasis]: element rank describes composition; act emphasis says how much expressive
+ * attention a consequence is allowed to command.
  */
 enum class Rank { Primary, Secondary, Tertiary }
 
@@ -15,14 +16,7 @@ enum class Rank { Primary, Secondary, Tertiary }
  * Conveyance trusts the person using the interface. Chrome should name what matters, not narrate
  * obvious mechanics, issue little commands, or compensate in prose for an affordance that ought to
  * convey itself. This is deliberately different from policing tone or style: labels may be strange,
- * funny, conversational, terse, or verbose. What they may not do is talk down to the user with
- * needless interaction instructions.
- *
- * The small vocabulary below is therefore a pressure on the designer, not a ban on language in
- * content. If a control needs to say "tap", "click", "press", or "swipe", the first question should
- * be why the control does not already look and behave like something that can be acted on. Likewise,
- * filler such as "please", "simply", and "just" usually describes the designer's anxiety rather than
- * the person's task.
+ * funny, conversational, terse, or verbose.
  */
 data class Label(val text: String) {
     init {
@@ -58,12 +52,7 @@ data class DeclaredElement(
     val channels: Set<Channel> = emptySet(),
 )
 
-/**
- * One surface's worth of claims.
- *
- * Budgets belong in product-specific design systems when they are useful. The core framework does
- * not limit how many prominent or ambient elements a surface may contain.
- */
+/** One surface's worth of claims. */
 data class Surface(
     val name: String,
     val elements: List<DeclaredElement> = emptyList(),
@@ -71,14 +60,8 @@ data class Surface(
     val places: List<Place> = emptyList(),
 )
 
-/**
- * Everything, for audits that are meaningful across a whole product.
- *
- * Keystones are optional expressive anchors. Products may have none, one, several, or many; scarcity
- * is a design choice, not a framework law.
- */
+/** Everything needed for audits that are meaningful across a whole product. */
 data class Product(
     val name: String,
-    val keystones: List<ActId> = emptyList(),
     val surfaces: List<Surface> = emptyList(),
 )
