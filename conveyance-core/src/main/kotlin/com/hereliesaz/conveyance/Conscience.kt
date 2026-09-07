@@ -27,9 +27,9 @@ data class Finding(
 /**
  * The verification layer.
  *
- * Conscience is a critic, not a cop. It should point out contradictions the product may have missed
- * and leave aesthetic order, density, prominence, repetition, ornament, and controlled chaos to the
- * product. A warning is useful when it reveals a consequence; a quota dressed up as a warning is not.
+ * Conscience is a critic, not a cop. It points out contradictions and violations of generative
+ * constraints, while leaving aesthetic order, density, prominence, repetition, ornament, and
+ * controlled chaos to the product.
  */
 object Conscience {
 
@@ -40,7 +40,28 @@ object Conscience {
     }
 
     fun audit(frame: AuditFrame): List<Finding> = buildList {
+        addAll(idleWorkers(frame))
         addAll(deadEnds(frame))
+    }
+
+    /**
+     * The static model cannot contain an under-employed Working element because Employment.Working
+     * enforces the four-job creative constraint at construction. A live frame can still expose a
+     * custom-rendered element that bypassed that declaration, so the auditor keeps watch there.
+     */
+    private fun idleWorkers(frame: AuditFrame): List<Finding> {
+        val underEmployed = frame.elements.filter { !it.ambient && it.jobs.size < 4 }
+        if (underEmployed.isEmpty()) return emptyList()
+        return listOf(
+            Finding(
+                audit = Audit.IdleWorker,
+                severity = Severity.Warning,
+                where = frame.surface,
+                because = "${underEmployed.size} working element(s) are doing fewer than four jobs: " +
+                    underEmployed.joinToString { "${it.id.value} (${it.jobs.size})" },
+                instead = "Reimagine each element until it honestly does four jobs, or declare it Ambient if it is not operational chrome.",
+            ),
+        )
     }
 
     /**
