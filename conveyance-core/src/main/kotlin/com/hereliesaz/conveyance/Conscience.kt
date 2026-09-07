@@ -4,6 +4,7 @@ package com.hereliesaz.conveyance
 enum class Audit {
     IdleWorker,
     DeadEnd,
+    HeroicSaturation,
 }
 
 /**
@@ -12,21 +13,12 @@ enum class Audit {
  */
 enum class Severity { Error, Warning }
 
-/**
- * Documentation attached to every lint finding.
- *
- * The log stays short and sends the designer to the rule's own section for examples, ideas, and the
- * precise semantic opt-out. Conveyance should convey without turning a build log into a manual.
- */
+/** Documentation attached to every lint finding. */
 data class RuleGuide(
     val docs: String,
 )
 
-/**
- * One observation produced by the Conscience.
- *
- * [guide] is mandatory so every lint rule has a direct route to its explanation and opt-out.
- */
+/** One observation produced by the Conscience. */
 data class Finding(
     val audit: Audit,
     val severity: Severity,
@@ -46,9 +38,10 @@ data class Finding(
 /**
  * The verification layer.
  *
- * Conscience is a critic, not a cop. It points out contradictions and violations of generative
- * constraints, while leaving aesthetic order, density, prominence, repetition, ornament, and
- * controlled chaos to the product.
+ * Conscience should prefer useful relationships over isolated scolding. It can still point at one
+ * broken promise, but when several weak objects are fragments of one richer object, or several
+ * emphasis tokens only make sense in contrast with one another, the finding should describe the
+ * system the developer actually needs to rethink.
  */
 object Conscience {
 
@@ -60,6 +53,10 @@ object Conscience {
         docs = "https://github.com/HereLiesAz/Conveyance/blob/main/docs/RULES-AND-OPTOUTS.md#gates",
     )
 
+    val emphasisGuide = RuleGuide(
+        docs = "https://github.com/HereLiesAz/Conveyance/blob/main/docs/RULES-AND-OPTOUTS.md#act-emphasis",
+    )
+
     fun audit(product: Product): List<Finding> = product.surfaces.flatMap { audit(it) }
 
     fun audit(surface: Surface): List<Finding> = buildList {
@@ -68,18 +65,16 @@ object Conscience {
 
     fun audit(frame: AuditFrame): List<Finding> = buildList {
         addAll(idleWorkers(frame))
+        addAll(heroicSaturation(frame))
         addAll(deadEnds(frame))
     }
 
     /**
-     * The static model cannot contain an under-employed Working element because Employment.Working
-     * enforces the four-job creative constraint at construction. A live frame can still expose a
-     * custom-rendered element that bypassed that declaration, so the auditor keeps watch there.
+     * Find under-employed fragments, then reason across the surface before issuing findings.
      *
-     * This audit reasons across the whole surface before issuing findings. If several idle workers
-     * are spatially and behaviourally related, it recommends one consolidation rather than ticketing
-     * each fragment independently. When their combined jobs match a shipped SDK primitive, the
-     * recommendation names that composable directly.
+     * If several idle workers are spatially and behaviourally related, recommend one consolidation
+     * rather than ticketing each fragment independently. When their combined jobs match a shipped
+     * SDK primitive, name that composable directly.
      */
     private fun idleWorkers(frame: AuditFrame): List<Finding> {
         val underEmployed = frame.elements.filter { !it.ambient && it.jobs.size < 4 }
@@ -107,8 +102,7 @@ object Conscience {
             )
         }.toMutableList()
 
-        val leftovers = underEmployed.filter { it.id !in covered }
-        leftovers.forEach { element ->
+        underEmployed.filter { it.id !in covered }.forEach { element ->
             findings += Finding(
                 audit = Audit.IdleWorker,
                 severity = Severity.Warning,
@@ -123,10 +117,28 @@ object Conscience {
     }
 
     /**
-     * A gate whose advertised resolver is absent is worth pointing out because the escort cannot
-     * complete as described. This remains a warning: dynamic products may intentionally resolve the
-     * condition elsewhere or compose the target later.
+     * Heroic is meaningful through contrast, not through a global numeric budget.
+     *
+     * Two heroic acts can be exactly right. Ten can be exactly right. The only state this audit can
+     * prove has erased the distinction is a live surface where every visible offered act claims the
+     * maximum emphasis. That is worth a question, not a constructor failure.
      */
+    private fun heroicSaturation(frame: AuditFrame): List<Finding> {
+        val offered = frame.elements.filter { it.visible && it.act != null && it.emphasis != null }
+        if (offered.size < 2 || offered.any { it.emphasis != ActEmphasis.Heroic }) return emptyList()
+
+        return listOf(
+            Finding(
+                audit = Audit.HeroicSaturation,
+                severity = Severity.Warning,
+                where = frame.surface,
+                because = "every visible act is Heroic, so no act is allowed to recede",
+                instead = "Keep Heroic where you want to engineer the strongest moment; let surrounding acts use quieter emphasis tokens so the distinction can be learned.",
+                guide = emphasisGuide,
+            ),
+        )
+    }
+
     private fun deadEnds(surface: Surface): List<Finding> {
         val present = surface.elements.map { it.id }.toSet()
         return surface.gates.filter { it.livesAt !in present }.map { gate ->
@@ -155,6 +167,5 @@ object Conscience {
         }
     }
 
-    /** Whether any finding represents a proven build-stopping problem. */
     fun blocks(findings: List<Finding>): Boolean = findings.any { it.severity == Severity.Error }
 }
