@@ -5,8 +5,15 @@ import kotlin.test.assertEquals
 
 class SurfaceTest {
 
+    private fun working() = Employment.Working(
+        Job.Invite,
+        Job.Report,
+        Job.Progress,
+        Job.Interrupt,
+    )
+
     private fun element(id: String, rank: Rank) =
-        DeclaredElement(ElementId(id), Employment.Working(Job.Report), rank = rank)
+        DeclaredElement(ElementId(id), working(), rank = rank)
 
     @Test
     fun `a surface may have several prominent elements`() {
@@ -27,16 +34,23 @@ class SurfaceTest {
     }
 
     @Test
-    fun `keystones are optional and unbudgeted`() {
-        assertEquals(0, Product("p").keystones.size)
-        assertEquals(8, Product("p", keystones = (1..8).map { ActId("k$it") }).keystones.size)
+    fun `act emphasis is semantic and defaults to supporting`() {
+        val supporting = Act.reveal("details", ElementId("details"))
+        val heroic = Act.reveal(
+            "reveal.world",
+            ElementId("world"),
+            emphasis = ActEmphasis.Heroic,
+        )
+
+        assertEquals(ActEmphasis.Supporting, supporting.emphasis)
+        assertEquals(ActEmphasis.Heroic, heroic.emphasis)
     }
 
     @Test
     fun `reference channels remain readable from declarations`() {
         val element = DeclaredElement(
             ElementId("a"),
-            Employment.Working(Job.Report),
+            working(),
             channels = setOf(Channel.Hue, Channel.Elevation),
         )
         assertEquals(
