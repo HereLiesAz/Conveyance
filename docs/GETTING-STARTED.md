@@ -1,57 +1,21 @@
-## Getting started
+# Getting started
 
-A working screen in about ten minutes: one `Act`, one blocked precondition, one Escort, rendered
-with no animation code of your own. If you want the philosophy first, read
-[the manifesto](../README.md) or [the full spec](CONVEYANCE-FRAMEWORK.md) — this page assumes you
-already want to see it work. For the generated, per-class/per-function reference (every public
-signature and KDoc comment across `conveyance-core`/`conveyance-compose`/`conveyance-auditor`,
-kept current automatically on every push to `main`), see the
-[wiki's API reference](../../../wiki/api-reference/conveyance-core/index).
+This page gets one real Conveyance interaction on screen without making you learn the entire framework first.
 
-## `convey` — a second, independent implementation
+For philosophy, read the [manifesto](../README.md). For the semantic model and architecture, read the [framework spec](CONVEYANCE-FRAMEWORK.md). For individual rules, examples, ideas, and semantic opt-outs, see [Rules and their opt-outs](RULES-AND-OPTOUTS.md).
 
-`convey/` in this repo is a git submodule pointing at [`HereLiesAz/convey`](https://github.com/HereLiesAz/convey)
-— its own repository, with its own history, issues, and CI. It is not a copy of `conveyance-core`/
-`conveyance-compose`'s code, and it does not share their API (`ConveyGrammar`/`ConveyWeight`/
-`ConveyOffer`/... rather than `Act`/`Gate`/`ActScope`/...). It is a separately-developed Compose
-Multiplatform implementation of the same manifesto, linked here so this repo can act as the single
-place to find every SDK offered on top of the Conveyance Manifesto, without merging its code or
-history into this one. Cloning this repo does not fetch it automatically:
+---
 
-```bash
-git submodule update --init convey
-```
+## 1. Add the SDK
 
-See [`convey`'s own `AGENTS.md`](../convey/AGENTS.md) for its module shape, build instructions, and
-current composable inventory — it is not covered by the rest of this document, which describes
-`conveyance-core`/`conveyance-compose` only.
-
-## `convey-web` — the web counterpart
-
-`convey-web/` is the same idea, for the web: a git submodule pointing at
-[`HereLiesAz/convey-web`](https://github.com/HereLiesAz/convey-web) — its own repository, own
-history, own CI. TypeScript + native Web Components rather than Kotlin + Compose, sharing
-`convey`'s vocabulary (`ConveyGrammar`/`ConveyWeight`/...) rather than `conveyance-core`'s
-(`Act`/`Gate`/...), so a screen described one way in Compose reads the same way in a browser.
-
-```bash
-git submodule update --init convey-web
-```
-
-See [`convey-web`'s own `AGENTS.md`](../convey-web/AGENTS.md) for its module shape and build
-instructions.
-
-## What's actually available today
-
-This project isn't on Maven Central yet — see [the SDK inventory below](#what-this-sdk-offers-today)
-for the honest state of publishing. Right now, the fastest path is building against source:
+Until published coordinates are available, the simplest route is to build against source:
 
 ```kotlin
-// settings.gradle.kts, in the app that wants to use it
+// settings.gradle.kts
 includeBuild("../Conveyance")
 ```
 
-or, to depend on it like a normal published library from your local machine:
+Or publish locally:
 
 ```bash
 git clone https://github.com/HereLiesAz/Conveyance
@@ -59,33 +23,15 @@ cd Conveyance
 ./gradlew publishToMavenLocal
 ```
 
-```kotlin
-// your app's settings.gradle.kts
-dependencyResolutionManagement {
-    repositories {
-        mavenLocal()
-        mavenCentral()
-        google()
-    }
-}
-```
+Then depend on the core model and Compose binding from your application.
+
+---
+
+## 2. Declare an Act
+
+An Act is a semantic action, not a button.
 
 ```kotlin
-// your app's build.gradle.kts
-dependencies {
-    implementation("com.hereliesaz.conveyance:conveyance-core:0.1.0")
-    implementation("com.hereliesaz.conveyance:conveyance-compose:0.1.0")
-}
-```
-
-## Your first Act
-
-An `Act` is never constructed directly — one of six verb factories, each taking exactly what its
-verb needs:
-
-```kotlin
-// Recipient is your own type -- the framework only ever needs to know whether one is chosen.
-val chosen = mutableStateOf<Recipient?>(null)
 val recipientField = ElementId("recipient.field")
 val recipientAvatar = ElementId("recipient.avatar")
 
@@ -94,111 +40,214 @@ val send = Act.send(
     subject = SubjectId("invoice.41"),
     to = recipientAvatar,
     requires = listOf(
-        // The gate names *where* the missing condition gets resolved -- not just that it's missing.
-        Gate("recipient.chosen", livesAt = recipientField) { chosen.value != null },
+        Gate(
+            id = "recipient.chosen",
+            livesAt = recipientField,
+        ) { chosenRecipient != null },
     ),
+    emphasis = ActEmphasis.Primary,
 )
 ```
 
-Nothing here is UI. `send.weight`, `send.reversible`, `send.state()` are all already derived —
-there is no separate place to declare how heavy this feels or whether it can be undone.
+The Act already tells Conveyance:
 
-## Render it
+- what kind of consequence this is;
+- where it lands;
+- what blocks it;
+- whether it can be reversed;
+- how broad its consequence is;
+- how much expressive emphasis the product intends.
 
-Every surface sits inside one `ConveyanceHost`. The one control is `Offer`, which paints all five of
-an act's states through a single scope:
+From that the framework can derive state, verb, weight, motion grammar, routing evidence, and audit evidence.
+
+---
+
+## 3. Offer the Act
+
+Wrap the surface in `ConveyanceHost`, then render the Act with `Offer`.
 
 ```kotlin
-setContent {
-    ConveyanceHost {
-        Column {
-            Offer(send) {
-                // No branch for Blocked here: the framework renders the felt refusal and the
-                // Escort itself. The label doesn't need to change for a person to feel the state.
-                Box(
-                    Modifier
-                        .tell(owesTell, weight)
-                        .clickable { engage() },
-                ) {
-                    Text("Send")
-                }
-            }
-
-            // The gate's address. Nothing wires this to the act above by hand --
-            // the Gate already named it.
-            Offer(
-                Act.alter("recipient.choose", SubjectId("recipient"), "recipient", recipientField) {
-                    chosen.value = Recipient("Mara")
-                    Outcome.Done
-                },
-                element = recipientField,
+ConveyanceHost {
+    Column {
+        Offer(send) {
+            Box(
+                Modifier
+                    .tell(owesTell, weight)
+                    .clickable { engage() },
             ) {
-                Box(Modifier.clickable { engage() }) { Text("Mara") }
+                Text("Send")
+            }
+        }
+
+        Offer(
+            act = Act.alter(
+                id = "recipient.choose",
+                subject = SubjectId("recipient"),
+                property = "recipient",
+                target = recipientField,
+            ) {
+                chosenRecipient = Recipient("Mara")
+                Outcome.Done
+            },
+            element = recipientField,
+        ) {
+            Box(Modifier.clickable { engage() }) {
+                Text("Mara")
             }
         }
     }
 }
 ```
 
-Run it. Tap **Send** before choosing anyone: instead of doing nothing, it leans toward the gate (felt
-resistance at the point of contact) and then carries you there — the whole framework's answer to the
-disabled state. Tap **Mara**, then **Send** again: it settles, no animation you wrote anywhere.
+Tap **Send** before choosing anyone. The Act is blocked by a Gate that already names where resolution lives. The binding can resist at the point of contact and escort toward the resolver instead of doing nothing.
 
-## Where to go from here
+Choose **Mara**, then Send again. The same offered element passes through the Act lifecycle rather than outsourcing progress and result to unrelated UI.
 
-- **[conveyance-core](../conveyance-core/README.md)** — the full type system: `Place`, `Route`,
-  `Weight`, what's refused at construction and why.
-- **[conveyance-compose](../conveyance-compose/README.md)** — `Collection` (Migration + Ghost),
-  `Places` (Enter/Return), suppression, the live registry.
-- **[conveyance-auditor](../conveyance-auditor/README.md)** — show your screen to a naive viewer and
-  grade what they predicted, no API key required.
-- **[conveyance-demo](../conveyance-demo)** — a full working app (`./gradlew :conveyance-demo:run`)
-  with three tabs. **Photos** exercises Create, Enter, Return, Send, Alter, and Refuse together
-  against this repo's own `conveyance-core`/`conveyance-compose`. **Styles** showcases the five
-  separate composable-set libraries (`conveyance-h2g2`, `conveyance-expressive`,
-  `conveyance-liquid`, `conveyance-bacterium`, `conveyance-space`) alongside the photo gallery.
-  **Convey** showcases `conveyance-convey` — a second, standalone Compose Multiplatform design
-  system with no dependency on `conveyance-core`/`conveyance-compose` — including its weight
-  hierarchy and morph controls, kinetic text, subject-verb-object scene animation driven by
-  WordNet/VerbNet lexicons, topographical layout, and an attention grid.
-- **[The framework spec](CONVEYANCE-FRAMEWORK.md)** — every law, every audit, every named behavior,
-  precisely.
+---
 
-## What this SDK offers today
+## 4. Use Act emphasis as a semantic token
 
-An honest accounting, not a sales pitch:
+Every Act has one of four emphasis levels:
 
-**Solid:** the type system (`conveyance-core`), the Compose binding for Android and desktop
-(`conveyance-compose`), the keyless-capable AI judge (`conveyance-auditor`), one real demo app
-exercising most of the grammar, 100+ deterministic tests. `Job.Interrupt` has a live binding now
-too — `ActScope.interrupt()` cancels an act's own in-flight work and it settles as
-`ActState.Refused(Refusal.Interrupted)`, the same vocabulary any other failure reports through.
-`Conscience` also runs against a real running app now: `Conscience.audit(AuditFrame)` carries the
-idle-worker and dead-end checks live, off `ElementRegistry.auditFrame()` directly, rather than only
-against a hand-declared `Surface` fixture — including one finding a hand-declared `Surface` could
-never even produce, since `Employment.Working`'s own constructor refuses to let an under-resourced,
-non-`Ambient` element exist in the first place. `Teleport` stays exclusively static: it names a
-surface's whole set of *possible* entry places, not something one running snapshot could ever show
-more than one of at once. `Form` (`conveyance-core`) is the new composite primitive: a group of
-`FormField`s conveyed as one element rather than N unrelated ones, reporting `percentComplete` and
-gating a submit act's `Gate` on `isComplete` — the honest reading of "a plain field almost never
-appears alone" (a real GLEE-audit finding, not a guess). `conveyance-compose`'s `rememberFormState`
-wraps a `rememberSaveable` value directly, so "form recovery" is exactly what already recovers a
-saveable value across a configuration change or process death, not a second bespoke mechanism.
+```kotlin
+ActEmphasis.Heroic
+ActEmphasis.Primary
+ActEmphasis.Secondary
+ActEmphasis.Supporting
+```
 
-**Not built by this framework, deliberately:** platform autofill. `FormField.kind` names a closed
-vocabulary (`Name`, `Email`, `Phone`, ...) precisely so a host *can* map it onto its own platform's
-autofill API, but wiring a specific platform's autofill semantics is a host's job, not something a
-cross-platform primitive can honestly claim to do uniformly across Android, desktop, and whatever
-comes after — the framework earned that caution the hard way once already this cycle, tripping over
-a Compose API that looked cross-platform and silently wasn't.
+In Compose, `ActScope` exposes the token through `act.emphasis` and the convenience property `emphasis`.
 
-**Not yet built:**
-- **Publishing.** No Maven Central coordinates yet — `publishToMavenLocal` or `includeBuild` only.
-- **iOS / web targets.** `conveyance-compose` currently builds for Android and desktop JVM only.
-- **"First Move"** — the manifesto's zero-data onboarding behavior (§5.6, a `Rehearsal` state) is
-  specified but has no code yet.
-- **The platform-boundary compiler plugin.** The spec calls for two more audits — no platform
-  Toast/Snackbar/Dialog construction, no literal animation duration in product code — enforced by a
-  Kotlin compiler plugin. That plugin doesn't exist; today nothing stops a call straight past the
-  binding into a platform API.
+```kotlin
+Offer(publish) {
+    val treatment = MyTheme.actTreatment(emphasis)
+    PublishControl(treatment)
+}
+```
+
+Conveyance deliberately does not define `Heroic = huge yellow button` or any other universal appearance. Compose already has theming and token machinery. Your theme decides how semantic emphasis becomes shape, typography, color, motion, space, haptics, sound, or surrounding response.
+
+`Heroic` is the token for an intentionally engineered hero moment.
+
+---
+
+## 5. Put working elements to work
+
+A working element must do at least four distinct jobs:
+
+```kotlin
+Employment.Working(
+    Job.Invite,
+    Job.Report,
+    Job.Progress,
+    Job.Interrupt,
+)
+```
+
+Do not pad the set to satisfy the constructor. Reimagine the object until the jobs are real.
+
+If an element is intentionally non-operational, say so:
+
+```kotlin
+Employment.Ambient
+```
+
+That is a semantic opt-out, not an enforcement bypass.
+
+---
+
+## 6. Let Conscience look at the whole surface
+
+The live Compose registry can produce an `AuditFrame` containing element geometry, observed jobs, offered Acts, Gates, consequences, reversibility, and Act emphasis.
+
+Conscience uses that evidence relationally.
+
+If one element only does two jobs, it may produce:
+
+```text
+[Warning] IdleWorker at invoice
+Found: invoice.send is doing 2 jobs
+Try: Reimagine it until it honestly does four jobs. Enrich interface objects.
+Examples, ideas, and opt-out: https://github.com/HereLiesAz/Conveyance/blob/main/docs/RULES-AND-OPTOUTS.md#employment
+```
+
+If several nearby under-employed elements collectively describe one richer object, `ConsolidationAdvisor` can recommend combining them instead of issuing repetitive individual warnings.
+
+When the pattern matches a component the SDK already ships, the recommendation can name the replacement directly—for example `Offer`, `Form`, `Collection`, or `Places`.
+
+Conscience can also reason about semantic emphasis. If every visible offered Act is Heroic, it can report `HeroicSaturation`: not because a quota was exceeded, but because the token has lost contrast on that surface.
+
+---
+
+## 7. Core constructions to know
+
+### `Offer`
+
+One Act lifecycle, one continuous identity.
+
+### `Form`
+
+A group of related fields and completion behavior treated as a coherent form rather than independent validation fragments.
+
+### `Collection`
+
+A repeating set of identified Subjects with creation and recovery behavior.
+
+### `Places`
+
+Continuity between a Place and the Element it came from, plus Return.
+
+### `Gate`
+
+A resolvable blocker that knows where resolution lives.
+
+### `Employment.Ambient`
+
+The explicit non-working opt-out from the four-job rule.
+
+---
+
+## 8. Reversible destruction
+
+Ordinary destruction requires an inverse:
+
+```kotlin
+val restore = Act.create(
+    id = "document.restore",
+    subject = document,
+    into = collection,
+)
+
+val delete = Act.destroy(
+    id = "document.delete",
+    subject = document,
+    target = collection,
+    inverse = restore,
+)
+```
+
+If reality genuinely provides no inverse, use the named exception:
+
+```kotlin
+Act.destroyIrreversibly(
+    id = "submission.finalise",
+    subject = submission,
+    target = authority,
+)
+```
+
+Do not weaken ordinary destruction just because an exception exists.
+
+---
+
+## 9. Continue from here
+
+- [Manifesto](../README.md) — the authored philosophy.
+- [Framework spec](CONVEYANCE-FRAMEWORK.md) — the semantic model and architecture.
+- [Rules and opt-outs](RULES-AND-OPTOUTS.md) — the reference linked by linter findings.
+- [Core README](../conveyance-core/README.md) — model-focused module guide.
+- [Compose README](../conveyance-compose/README.md) — binding-focused module guide.
+- [`convey`](https://github.com/HereLiesAz/convey) — a separate implementation of the manifesto.
+- [`convey-web`](https://github.com/HereLiesAz/convey-web) — a separate web implementation.
+
+The important habit is simple: when you find yourself adding an explanation, a detached status object, or another one-purpose control, ask whether the interface could demonstrate the relationship instead.
