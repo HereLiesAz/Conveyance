@@ -3,10 +3,14 @@ package com.hereliesaz.conveyance
 /**
  * What a channel is allowed to say.
  *
- * Every meaning is claimed by exactly one channel, and every channel carries exactly one meaning.
- * Anything left over is not decorated — it goes plain. The pay-off is that nothing on screen varies
- * without saying something, so everything that varies is information, which is what lets an
- * interface be read without labels.
+ * A channel is useful when its variation is deliberate and learnable. Conveyance does not require
+ * every product to assign the same meaning to a visual property, and it does not reserve colour for
+ * hierarchy. A product may use colour for stable identity, grouping, rank, state, or another coherent
+ * grammar as long as that grammar stays consistent and does not carry critical meaning by colour
+ * alone.
+ *
+ * The meanings below are the reference vocabulary used by the framework and reference binding. They
+ * are not a mandate that every product flatten its visual language into the same palette.
  */
 enum class Meaning {
     /** Where a thing came from and where it belongs. */
@@ -18,8 +22,8 @@ enum class Meaning {
     /** Settled, engaged, or pending. */
     State,
 
-    /** One primary per surface, secondary alternatives, tertiary ambient. */
-    SemanticRank,
+    /** Stable product-defined identity or grouping expressed through colour. */
+    VisualIdentity,
 
     /** How live, recent or urgent. */
     Heat,
@@ -36,30 +40,33 @@ enum class Meaning {
     /** What belongs with what. */
     Relatedness,
 
-    /** The nine verbs, and no borrowed signatures. */
+    /** The motion grammar used by the product. */
     MotionGrammar,
 
     /** How much this cost, felt rather than seen. */
     ConsequenceMagnitude,
 
-    /** Reserved for the product's one to three keystones. */
+    /** Reserved for deliberately scarce expressive moments. */
     KeystoneOnly,
 }
 
 /**
- * The channel assignment. This table is the product's entire visual vocabulary.
+ * The reference channel assignment.
  *
- * Two entries are unusual enough to be worth defending. **Elevation carries reversibility**: once it
- * is consistent, a person knows at a glance which things they can back out of, and shadow stops
- * being lighting and becomes a safety map. **Opacity is transition-only**: half-opacity is the
- * universal signal for "disabled", which is the construct this framework does not have, so there is
- * no purgatory of ghosted controls to be tested by tapping.
+ * This is a useful default vocabulary, not a universal aesthetic constitution. In particular,
+ * **Hue carries product-defined visual identity**, not semantic rank. A product may therefore use a
+ * broad identity palette — for roles, subjects, workstreams, people, collections, or other stable
+ * concepts — while hierarchy is conveyed through the product's composition, type, size, placement,
+ * emphasis, and interaction grammar.
+ *
+ * Critical state or safety information must remain legible without colour, so hue may reinforce a
+ * distinction but must not be its only carrier.
  */
 enum class Channel(val carries: Meaning) {
     Position(Meaning.OriginAndRelation),
     Size(Meaning.MomentaryImportance),
     Shape(Meaning.State),
-    Hue(Meaning.SemanticRank),
+    Hue(Meaning.VisualIdentity),
     Chroma(Meaning.Heat),
     Elevation(Meaning.Reversibility),
     Opacity(Meaning.TransitionOnly),
@@ -70,18 +77,16 @@ enum class Channel(val carries: Meaning) {
     Sound(Meaning.KeystoneOnly);
 
     companion object {
-        /** The channel that owns a meaning. Total, by construction. */
+        /** The reference channel that carries a framework meaning. */
         fun carrying(meaning: Meaning): Channel = entries.first { it.carries == meaning }
     }
 }
 
 /**
- * The haptic channel has two voices and no more.
+ * The reference haptic vocabulary.
  *
- * Distinguishing "you did a thing that took effect" from "the world you are operating in is now a
- * different world" is the only distinction a person can reliably feel, so it is the only one made.
- * Nothing fires per drag frame; a cycler speaks once, when it commits, not on each step through its
- * options.
+ * Products may extend this where the hardware and interaction genuinely support another learnable
+ * distinction. The important rule is semantic consistency, not an arbitrary global count.
  */
 enum class HapticVoice {
     /** An act took effect. */
@@ -90,6 +95,6 @@ enum class HapticVoice {
     /** The rules in force just changed. */
     ModeChange;
 
-    /** Intensity is [Weight], because the hand should be told the cost, not the event. */
+    /** Intensity follows consequence weight in the reference binding. */
     fun intensity(weight: Weight): Weight = weight
 }
