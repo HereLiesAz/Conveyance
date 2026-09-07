@@ -75,30 +75,51 @@ object Conscience {
      * The static model cannot contain an under-employed Working element because Employment.Working
      * enforces the four-job creative constraint at construction. A live frame can still expose a
      * custom-rendered element that bypassed that declaration, so the auditor keeps watch there.
+     *
+     * This audit reasons across the whole surface before issuing findings. If several idle workers
+     * are spatially and behaviourally related, it recommends one consolidation rather than ticketing
+     * each fragment independently. When their combined jobs match a shipped SDK primitive, the
+     * recommendation names that composable directly.
      */
     private fun idleWorkers(frame: AuditFrame): List<Finding> {
         val underEmployed = frame.elements.filter { !it.ambient && it.jobs.size < 4 }
         if (underEmployed.isEmpty()) return emptyList()
 
-        val because = if (underEmployed.size == 1) {
-            val element = underEmployed.single()
-            "${element.id.value} is doing ${element.jobs.size} jobs"
-        } else {
-            underEmployed.joinToString(
-                prefix = "${underEmployed.size} working elements are doing fewer than four jobs: ",
-            ) { "${it.id.value} (${it.jobs.size})" }
-        }
+        val suggestions = ConsolidationAdvisor.suggest(frame)
+        val covered = suggestions.flatMapTo(mutableSetOf()) { it.elements }
 
-        return listOf(
+        val findings = suggestions.map { suggestion ->
+            val because = suggestion.elements.joinToString(
+                prefix = "related under-employed elements ",
+                separator = ", ",
+            ) { id ->
+                val element = frame.elements.first { it.id == id }
+                "${id.value} (${element.jobs.size})"
+            }
+
             Finding(
                 audit = Audit.IdleWorker,
                 severity = Severity.Warning,
                 where = frame.surface,
                 because = because,
+                instead = suggestion.message(),
+                guide = employmentGuide,
+            )
+        }.toMutableList()
+
+        val leftovers = underEmployed.filter { it.id !in covered }
+        leftovers.forEach { element ->
+            findings += Finding(
+                audit = Audit.IdleWorker,
+                severity = Severity.Warning,
+                where = frame.surface,
+                because = "${element.id.value} is doing ${element.jobs.size} jobs",
                 instead = "Reimagine it until it honestly does four jobs. Enrich interface objects.",
                 guide = employmentGuide,
-            ),
-        )
+            )
+        }
+
+        return findings
     }
 
     /**
