@@ -22,6 +22,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.animation.core.Animatable
 import androidx.compose.ui.graphics.graphicsLayer
 import com.hereliesaz.conveyance.Act
+import com.hereliesaz.conveyance.ActEmphasis
 import com.hereliesaz.conveyance.ActId
 import com.hereliesaz.conveyance.ActState
 import com.hereliesaz.conveyance.AuditElement
@@ -35,19 +36,6 @@ import com.hereliesaz.conveyance.Weight
 
 /**
  * Where a named element is, and whether the person can currently see it.
- *
- * [bounds] is deliberately **unclipped**, and reflects any scaling applied to the element or its
- * ancestors: both corners are mapped through the transform, so the rect is always coherent.
- *
- * Unclipped: it is where the element actually is, even when it has
- * scrolled out of view. Clipped bounds collapse to zero the moment an element leaves the viewport,
- * and an escort aimed at a zero rect travels to the window's top-left corner instead of to the field
- * the person forgot to fill in. Since a gate is very often below the fold, that is the common case
- * rather than the edge case.
- *
- * [visible] carries the other half of the answer. An escort to something off-screen has to bring it
- * into view first and articulate second; without this flag it would articulate something nobody is
- * looking at.
  */
 @Immutable
 data class Placement(
@@ -58,44 +46,18 @@ data class Placement(
 /**
  * Where every named element currently is.
  *
- * This registry is what turns the core's addresses into geometry, and it is the load-bearing piece
- * of the whole binding. A consequence names the element that changes; a gate names the element where
- * it is resolved; a place names the element it grows out of. None of that means anything on screen
- * until something can answer "and where is that, right now".
- *
- * Placements are held in observable state, so a motion that begins while the world is still settling
- * picks up the corrected position rather than animating toward where a thing used to be.
+ * The registry also resolves screen-relative Act emphasis. Acts declare their intended level, but
+ * a screen may present at most one Heroic act. If two or more visible acts claim Heroic, every
+ * visible act resolves one rung lower for that screen.
  */
 @Stable
 class ElementRegistry {
 
-    /**
-     * Everyone currently claiming each address, oldest first.
-     *
-     * One address, more than one claimant, is not a mistake to be forbidden — it is what a place
-     * transition *is*. While a detail place is growing out of a thumbnail, the photograph exists
-     * twice: small underneath, large on top. Both are the same subject and must answer to the same
-     * name, or a Send from the detail would fly out of a thumbnail hidden behind it.
-     *
-     * So an address is tenanted rather than owned. The newest claimant answers for it, and when
-     * that claimant leaves the answer reverts to whoever was there before instead of vanishing.
-     * That single rule is what makes Return land correctly: the way out resolves the origin at the
-     * moment of return, and by then the tenancy has already handed the name back to the tray.
-     */
     private val tenancy = mutableStateMapOf<ElementId, List<Tenant>>()
 
-    /**
-     * One claimant's hold on an address, and everything it knows about itself.
-     *
-     * Kept together rather than as parallel maps because a claim is a single fact — this element,
-     * here, drawable like this — and splitting it across four maps is how the halves get out of
-     * step when one of them is handed back and the others are not.
-     */
     private class Tenant(val owner: Any) {
         var placement: Placement? by mutableStateOf(null)
         var employment: Employment? by mutableStateOf(null)
-
-        /** How to draw this element somewhere else when a verb carries it across the window. */
         var token: (@Composable () -> Unit)? = null
 
         @OptIn(ExperimentalFoundationApi::class)
@@ -163,8 +125,26 @@ class ElementRegistry {
     }
 
     /**
-     * What an element is actually doing, worked out rather than asked for.
+     * Resolve an Act's declared emphasis against the other visible Acts on this screen.
+     *
+     * This follows the document-outline model: Heroic is the page title; Primary, Secondary and
+     * Tertiary are progressively lower headings. Two visible title claims invalidate the unique
+     * title slot, so every level drops once. Supporting is the floor.
      */
+    fun resolvedEmphasis(act: Act): ActEmphasis {
+        val heroic = currentOffers.values
+            .asSequence()
+            .filter { (candidate, at) -> candidate.emphasis == ActEmphasis.Heroic && visible(at) }
+            .map { (candidate, _) -> candidate.id }
+            .toMutableSet()
+
+        // During an Offer's first composition its DisposableEffect may not have registered yet.
+        // Include the Act being resolved so the rule is correct on that very first frame too.
+        if (act.emphasis == ActEmphasis.Heroic) heroic += act.id
+
+        return act.emphasis.resolve(heroic.size)
+    }
+
     fun jobsOf(id: ElementId): Set<Job> = buildSet {
         if (currentOffers.values.any { it.second == id }) add(Job.Invite)
         if (gateFlags.containsKey(id)) {
@@ -314,19 +294,19 @@ fun Modifier.element(
             scaleY = 1f + lift * 0.12f
         }
         .onGloballyPositioned { coordinates ->
-        val size = coordinates.size
-        registry.place(
-            id,
-            claim,
-            Placement(
-                bounds = Rect(
-                    coordinates.localToRoot(Offset.Zero),
-                    coordinates.localToRoot(Offset(size.width.toFloat(), size.height.toFloat())),
+            val size = coordinates.size
+            registry.place(
+                id,
+                claim,
+                Placement(
+                    bounds = Rect(
+                        coordinates.localToRoot(Offset.Zero),
+                        coordinates.localToRoot(Offset(size.width.toFloat(), size.height.toFloat())),
+                    ),
+                    visible = !coordinates.boundsInRoot().isEmpty,
                 ),
-                visible = !coordinates.boundsInRoot().isEmpty,
-            ),
-        )
-    }
+            )
+        }
 }
 
 fun subjectElement(subject: SubjectId): ElementId = ElementId("subject:${subject.value}")
