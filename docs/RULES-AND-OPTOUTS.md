@@ -144,20 +144,45 @@ Examples include legal submissions, physical effects, or external operations the
 
 ## Act emphasis
 
-### Rule — expressive importance is semantic, not decorative
+### Rule — the Act hierarchy has one title
 
-Every Act carries an `ActEmphasis` token:
+Every Act declares a functional emphasis level:
 
 ```kotlin
 ActEmphasis.Heroic
 ActEmphasis.Primary
 ActEmphasis.Secondary
+ActEmphasis.Tertiary
 ActEmphasis.Supporting
 ```
 
-The token says **how much expressive attention this consequence is allowed to command**. It does not say what that attention looks like.
+This is an **Act hierarchy**, not Employment and not UI state. It says how much functional prominence an Act deserves relative to the other Acts on the current screen.
 
-A Compose theme may map Heroic onto stronger shape transformation, typography, space, color, motion, haptics, sound, surrounding response, or something entirely different. A restrained banking product and an H2G2 maximalist product can therefore share the same semantic Act model without sharing an aesthetic.
+The closest analogy is an HTML document outline:
+
+```text
+Heroic      ≈ title
+Primary     ≈ h1
+Secondary   ≈ h2
+Tertiary    ≈ h3
+Supporting  ≈ lower-order action
+```
+
+A screen may present **at most one Heroic Act**.
+
+If zero or one visible Act claims Heroic, every Act keeps its declared level.
+
+If two or more visible Acts claim Heroic, the screen resolves the entire hierarchy one rung lower:
+
+```text
+Heroic      → Primary
+Primary     → Secondary
+Secondary   → Tertiary
+Tertiary    → Supporting
+Supporting  → Supporting
+```
+
+That demotion is not punishment and it does not mutate the Acts. It is a pure consequence of there being no unique title. Two things cannot both occupy the single highest place in the outline, so neither is rendered as the hero moment and every lower relationship shifts with them.
 
 ```kotlin
 val publish = Act.send(
@@ -168,15 +193,22 @@ val publish = Act.send(
 )
 ```
 
-`Heroic` is where the product deliberately engineers a hero moment: not simply "make this loud", but spend more of the design language on an interaction important enough to become unusually legible and memorable.
+In Compose:
 
-There is no numeric Heroic budget. Two may be right. Ten may be right. Conscience instead looks for relational evidence that the token has stopped conveying anything. If every visible offered act is Heroic, none is being allowed to recede, so `HeroicSaturation` asks the developer to reconsider the contrast.
+```kotlin
+act.emphasis             // declared functional level
+scope.resolvedEmphasis() // level after current-screen hierarchy is resolved
+```
 
-### Opt-out — use the quieter token that actually describes the act
+A theme may map those levels onto whatever combination of typography, shape, motion, space, colour, haptics, sound, or surrounding response belongs to that product. Conveyance defines the hierarchy, not the costume.
 
-There is no separate suppression switch. An act that is not a hero moment is `Primary`, `Secondary`, or `Supporting` according to its role.
+### Opt-out — choose the level that actually describes the Act
 
-If a product intentionally wants every visible act at maximum expressive intensity, it may keep them Heroic; the finding is advisory. The opt-out is the design decision itself, not an arbitrary global quota exemption.
+There is no `allowTwoHeroes` switch because that would make Heroic stop meaning "the hero moment."
+
+If two Acts genuinely have equal importance on the same screen, declare them both `Primary`. If one is the hero, declare one `Heroic` and the other at the appropriate lower level.
+
+Conscience reports competing Heroic declarations and points here; the runtime derives the demoted presentation until the declarations are resolved.
 
 ---
 
@@ -254,7 +286,7 @@ save.success  → Confirm
 
 three separate IdleWorker warnings are less useful than recognizing one fragmented action lifecycle.
 
-The runtime registry already knows element jobs, offered acts, gates, geometry, subjects, consequences, and emphasis. `ConsolidationAdvisor` can combine that evidence and compare it with a capability catalog of SDK constructions.
+The runtime registry already knows element jobs, offered acts, gates, geometry, subjects, consequences, and declared Act emphasis. `ConsolidationAdvisor` can combine that evidence and compare it with a capability catalog of SDK constructions.
 
 The intended architecture is:
 
