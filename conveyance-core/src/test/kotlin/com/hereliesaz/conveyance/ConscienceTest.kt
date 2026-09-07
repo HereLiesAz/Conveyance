@@ -85,35 +85,37 @@ class ConscienceTest {
     }
 
     @Test
-    fun `lint finding links to examples and opt-out instead of printing them`() {
+    fun `idle worker lint uses the compact four line format`() {
         val frame = AuditFrame(
             surface = "invoice",
             census = Census(0, 0, 0, 0, 0, 0, emptyList(), emptyList(), emptyList()),
             elements = listOf(auditElement(send, jobs = setOf(Job.Invite, Job.Report))),
         )
 
-        val finding = Conscience.audit(frame).single { it.audit == Audit.IdleWorker }
-        val log = finding.toString()
+        val log = Conscience.audit(frame).single { it.audit == Audit.IdleWorker }.toString()
 
-        assertTrue(log.contains("Rule:"), log)
-        assertTrue(log.contains("Why:"), log)
-        assertTrue(log.contains("Examples and opt-out:"), log)
-        assertTrue(log.contains("RULES-AND-OPTOUTS.md#employment"), log)
-        assertFalse(log.contains("Opt-out:"), log)
-        assertFalse(log.contains("Examples:"), log)
+        assertEquals(
+            "[Warning] IdleWorker at invoice\n" +
+                "Found: invoice.send is doing 2 jobs\n" +
+                "Try: Reimagine it until it honestly does four jobs. Enrich interface objects.\n" +
+                "Examples, ideas, and opt-out: https://github.com/HereLiesAz/Conveyance/blob/main/docs/RULES-AND-OPTOUTS.md#employment",
+            log,
+        )
     }
 
     @Test
-    fun `gate lint finding links directly to its rule documentation`() {
+    fun `gate lint stays compact and links to examples ideas and opt-out`() {
         val gate = Gate("recipient", livesAt = ElementId("nowhere")) { false }
-        val finding = Conscience.audit(
+        val log = Conscience.audit(
             Surface("s", elements = listOf(element(send)), gates = listOf(gate)),
-        ).single()
+        ).single().toString()
 
-        val log = finding.toString()
-        assertTrue(log.contains("Rule:"), log)
-        assertTrue(log.contains("Examples and opt-out:"), log)
+        assertTrue(log.contains("Found:"), log)
+        assertTrue(log.contains("Try:"), log)
+        assertTrue(log.contains("Examples, ideas, and opt-out:"), log)
         assertTrue(log.contains("RULES-AND-OPTOUTS.md#gates"), log)
+        assertFalse(log.contains("Rule:"), log)
+        assertFalse(log.contains("Why:"), log)
     }
 
     @Test
