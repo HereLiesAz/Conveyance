@@ -61,7 +61,7 @@ class CensusTest {
     }
 
     @Test
-    fun `act emphasis carries through to the live audit element`() = runComposeUiTest {
+    fun `act semantics carry through to the live audit element`() = runComposeUiTest {
         val registry = ElementRegistry()
         val heroic = Act.send(
             "photo.send",
@@ -76,13 +76,16 @@ class CensusTest {
                 Column {
                     Offer(heroic, element = ElementId("hero.control")) { Box(Modifier.size(40.dp)) }
                     Offer(supporting, element = ElementId("support.control")) { Box(Modifier.size(40.dp)) }
+                    Box(Modifier.size(40.dp).element(tray))
                 }
             }
         }
         waitForIdle()
 
         val elements = registry.auditFrame("gallery").elements.associateBy { it.id }
-        assertEquals(ActEmphasis.Heroic, elements.getValue(ElementId("hero.control")).emphasis)
+        val hero = elements.getValue(ElementId("hero.control"))
+        assertEquals(ActEmphasis.Heroic, hero.emphasis)
+        assertEquals(tray, hero.target)
         assertEquals(ActEmphasis.Supporting, elements.getValue(ElementId("support.control")).emphasis)
     }
 
