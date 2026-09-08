@@ -47,7 +47,8 @@ fun AuditElement.behavioralRoles(
  *
  * Core knows only the behavior a shipped SDK primitive absorbs; it does not depend on Compose.
  * [absorbs] remains useful evidence and compatibility vocabulary, while [roles] is the semantic
- * matching layer used by the standard recipes.
+ * matching layer used by the standard recipes. [maxOfferedActs] constrains recipes whose identity
+ * depends on one Act lifecycle rather than merely a convenient collection of nearby behavior.
  */
 data class ComposableRecipe(
     val name: String,
@@ -56,6 +57,7 @@ data class ComposableRecipe(
     val maxFragments: Int = 4,
     val docsAnchor: String,
     val roles: Set<BehavioralRole> = emptySet(),
+    val maxOfferedActs: Int? = null,
 )
 
 /** The standard replacement vocabulary shipped by the Conveyance SDK. */
@@ -70,6 +72,7 @@ object ConveyanceRecipes {
             BehavioralRole.CompletionReporter,
             BehavioralRole.Interruptible,
         ),
+        maxOfferedActs = 1,
     )
 
     val Form = ComposableRecipe(
@@ -137,12 +140,12 @@ data class ConsolidationSuggestion(
  *
  * The pipeline is intentionally three-stage:
  *
- * observed facts -> behavioral roles -> SDK construction
+ * observed facts -> behavioral roles and relations -> SDK construction
  *
  * Candidates still need spatial relationship so unrelated controls are not combined merely because
  * their job sets happen to complement one another. A role-based recipe match wins over a raw-job
- * fallback. Relations such as destinations are derived from the Act graph itself; future relations
- * such as "reports the same Act" should likewise be added only when the runtime can state them.
+ * fallback. Relations already present in the graph also constrain matches; for example, an `Offer`
+ * recommendation cannot absorb two distinct offered Acts into one lifecycle.
  */
 object ConsolidationAdvisor {
     fun suggest(
@@ -166,8 +169,12 @@ object ConsolidationAdvisor {
             val roles = group.flatMapTo(mutableSetOf()) {
                 it.behavioralRoles(frame.gateAddresses, targets)
             }
+            val offeredActs = group.mapNotNullTo(mutableSetOf()) { it.act }
             val recipe = recipes
                 .filter { group.size in it.minFragments..it.maxFragments }
+                .filter { candidate ->
+                    candidate.maxOfferedActs == null || offeredActs.size <= candidate.maxOfferedActs
+                }
                 .filter { candidate ->
                     if (candidate.roles.isNotEmpty()) {
                         roles.containsAll(candidate.roles)
