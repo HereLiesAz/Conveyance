@@ -4,6 +4,7 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.VectorConverter
 import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
@@ -128,38 +129,17 @@ fun Offer(
 
     var state by remember(act.id) { mutableStateOf<ActState>(act.state()) }
 
-    // The coroutine actually running Act.engage's suspending body right now, if any -- what
-    // ActScope.interrupt() cancels. Held per-act like `state` itself, and left to complete
-    // normally (never cleared to null on its own) since a fresh engage() always overwrites it
-    // with a new Job before this one could be read again.
     var activeJob by remember(act.id) { mutableStateOf<Job?>(null) }
-
-    // This call site's identity, which is what the registry tenants an ActId to -- the same
-    // pattern Modifier.element uses for ElementId. Two Offers may legitimately answer for the
-    // same act at once (a list row and the detail place growing out of it, mid-transition), and
-    // telling them apart is what stops one of them leaving the composition from wiping out a
-    // still-mounted sibling's registration.
     val claim = remember(act.id) { Any() }
 
-    // Registering the act against its element is what lets the surface be counted: how much is on
-    // screen, against how much can be done there.
     DisposableEffect(registry, act.id, element) {
         registry.offer(act, element, claim)
-        // A gate's address is doing a job -- it is where a person is carried when something is
-        // missing -- and nobody should have to write that down.
         act.requires.forEach { registry.markGate(it.livesAt) }
         onDispose { registry.withdraw(act.id, claim) }
     }
 
-    // The Refuse signature: resist at the point of contact, leaning toward the gate, before the
-    // escort carries the person over. Without this the refusal is silent and the escort looks like
-    // the screen moving on its own.
     val resist = remember(act.id) { Animatable(Offset.Zero, Offset.VectorConverter) }
 
-    // While at rest, track the world: a gate satisfied elsewhere unblocks this control with no
-    // notification, no refresh, and nothing for the person to dismiss -- whether that satisfaction
-    // was written through Compose snapshot state or through a plain var this act's gate happens to
-    // read. rememberLive is what makes the second case not depend on luck.
     val live by rememberLive(act.id) { act.state() }
     val atRest = state is ActState.Ready || state is ActState.Blocked
     LaunchedEffect(atRest, live) {
@@ -209,7 +189,9 @@ fun Offer(
             }
             .element(element, token = { ActScope.pinned(act, ActState.Ready).content() }),
     ) {
-        scope.content()
+        CompositionLocalProvider(LocalActLifecycle provides act.id) {
+            scope.content()
+        }
     }
 }
 
