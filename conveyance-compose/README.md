@@ -51,6 +51,28 @@ Refused
 
 The application does not need a separate spinner, snackbar, or detached success object just to report the lifecycle of this Act.
 
+### Lifecycle evidence is inferred
+
+`Offer` also establishes a semantic lifecycle scope for its rendered content. A named Element composed inside that scope is known to belong to that Act lifecycle without an extra `forAct = ...` declaration.
+
+```kotlin
+Offer(save) {
+    Box(
+        Modifier.element(saveProgress),
+    )
+}
+```
+
+The live `AuditFrame` can therefore record:
+
+```text
+saveProgress.lifecycleAct == save.id
+```
+
+That relationship is evidence, not a naming convention. An arbitrary nearby progress element outside the `Offer` scope is **not** guessed to belong to Save merely because its ID contains `save` or because it performs `Job.Progress`.
+
+Nested `Offer`s remain unambiguous: an Element may be compositionally inside a parent lifecycle while offering another Act of its own. Its own `act` identity remains the authoritative identity for the Act it offers.
+
 ### Act emphasis in Compose
 
 The core Act declares functional emphasis:
@@ -120,7 +142,9 @@ It knows:
 - which Elements are composed;
 - current bounds and visibility;
 - which Act is offered at which Element;
+- which named Elements are rendered inside which Act lifecycle;
 - which Elements resolve Gates;
+- which Elements are actual consequence destinations;
 - which Elements carry travelling identity tokens;
 - declared Employment where the framework cannot infer it.
 
@@ -144,6 +168,7 @@ captures the semantic truth of a running surface:
 
 - geometry;
 - offered Acts;
+- Act lifecycle membership where Compose can prove it;
 - consequence verbs and targets;
 - reversibility;
 - Gates;
@@ -169,14 +194,27 @@ success badge: 1 job
 
 becoming three unrelated warnings, the advisor can recognize a fragmented action lifecycle and recommend one richer construction.
 
-When a cluster matches a known SDK recipe, the recommendation can name it directly:
+For `Offer`, compatible jobs are no longer enough. The runtime must also have evidence that the lifecycle fragments belong to the same Act:
 
 ```text
-Action source + progress + completion
+Action source for Save
++ progress reporter inside Save's lifecycle
++ completion reporter inside Save's lifecycle
 → Offer
 ```
 
-The intended catalog grows from actual SDK capability, not from names like `Button` or `Spinner` alone.
+But:
+
+```text
+Save action source
++ unrelated nearby progress
++ unrelated nearby completion
+↛ Offer
+```
+
+Conscience does not invent a relationship merely because the geometry and job set look convenient.
+
+When a cluster matches a known SDK recipe, the recommendation can name it directly. The catalog grows from actual SDK capability and observable relations, not from names like `Button` or `Spinner` alone.
 
 ---
 
