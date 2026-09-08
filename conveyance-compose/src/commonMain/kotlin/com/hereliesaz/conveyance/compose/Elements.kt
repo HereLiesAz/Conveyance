@@ -34,9 +34,7 @@ import com.hereliesaz.conveyance.Job
 import com.hereliesaz.conveyance.SubjectId
 import com.hereliesaz.conveyance.Weight
 
-/**
- * Where a named element is, and whether the person can currently see it.
- */
+/** Where a named element is, and whether the person can currently see it. */
 @Immutable
 data class Placement(
     val bounds: Rect,
@@ -46,9 +44,9 @@ data class Placement(
 /**
  * Where every named element currently is.
  *
- * The registry also resolves screen-relative Act emphasis. Acts declare their intended level, but
- * a screen may present at most one Heroic act. If two or more visible acts claim Heroic, every
- * visible act resolves one rung lower for that screen.
+ * The registry resolves relationships the model already contains instead of making application code
+ * restate them. That includes screen-relative Act emphasis and the fact that an Element targeted by
+ * a live Act is doing the job [Job.Receive].
  */
 @Stable
 class ElementRegistry {
@@ -145,8 +143,10 @@ class ElementRegistry {
         return act.emphasis.resolve(heroic.size)
     }
 
+    /** What this Element is actually doing, deriving every job the live semantic graph can prove. */
     fun jobsOf(id: ElementId): Set<Job> = buildSet {
         if (currentOffers.values.any { it.second == id }) add(Job.Invite)
+        if (currentOffers.values.any { (act, _) -> act.consequence.target == id }) add(Job.Receive)
         if (gateFlags.containsKey(id)) {
             add(Job.Invite)
             add(Job.Locate)
