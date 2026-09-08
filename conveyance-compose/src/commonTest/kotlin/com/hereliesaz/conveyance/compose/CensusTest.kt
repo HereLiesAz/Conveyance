@@ -20,6 +20,7 @@ import com.hereliesaz.conveyance.SubjectId
 import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 @OptIn(ExperimentalTestApi::class)
@@ -59,6 +60,32 @@ class CensusTest {
         assertContains(registry.jobsOf(tray), Job.Receive)
         assertEquals(1, registry.census().acts)
         assertEquals(1, registry.census().inviting)
+    }
+
+    @Test
+    fun `named descendants of Offer inherit its lifecycle relation`() = runComposeUiTest {
+        val registry = ElementRegistry()
+        val send = Act.send("photo.send", subject, to = tray)
+        val progress = ElementId("progress.fragment")
+        val unrelated = ElementId("outside.fragment")
+
+        setContent {
+            host(registry) {
+                Column {
+                    Offer(send) {
+                        Box(Modifier.size(40.dp).element(progress))
+                    }
+                    Box(Modifier.size(40.dp).element(unrelated))
+                    Box(Modifier.size(40.dp).element(tray))
+                }
+            }
+        }
+        waitForIdle()
+
+        val elements = registry.auditFrame("gallery").elements.associateBy { it.id }
+        assertEquals(send.id, elements.getValue(progress).lifecycleAct)
+        assertNull(elements.getValue(unrelated).lifecycleAct)
+        assertNull(elements.getValue(send.elementId).lifecycleAct)
     }
 
     @Test
