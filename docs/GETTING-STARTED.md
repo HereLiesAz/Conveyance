@@ -56,7 +56,7 @@ The Act already tells Conveyance:
 - what blocks it;
 - whether it can be reversed;
 - how broad its consequence is;
-- how much expressive emphasis the product intends.
+- how much functional emphasis the product intends for this Act.
 
 From that the framework can derive state, verb, weight, motion grammar, routing evidence, and audit evidence.
 
@@ -105,29 +105,58 @@ Choose **Mara**, then Send again. The same offered element passes through the Ac
 
 ---
 
-## 4. Use Act emphasis as a semantic token
+## 4. Use Act emphasis as a functional hierarchy
 
-Every Act has one of four emphasis levels:
+Every Act declares one emphasis level:
 
 ```kotlin
 ActEmphasis.Heroic
 ActEmphasis.Primary
 ActEmphasis.Secondary
+ActEmphasis.Tertiary
 ActEmphasis.Supporting
 ```
 
-In Compose, `ActScope` exposes the token through `act.emphasis` and the convenience property `emphasis`.
+Think of the visible Acts on a screen like an HTML outline:
+
+```text
+Heroic     ≈ page title
+Primary    ≈ h1
+Secondary  ≈ h2
+Tertiary   ≈ h3
+Supporting ≈ lower-level action
+```
+
+This hierarchy belongs to Acts: what they do for the interaction. It is not Employment and it is not UI state.
+
+An Act keeps the level it declares:
+
+```kotlin
+act.emphasis
+```
+
+Compose resolves that declaration against the other visible Acts:
 
 ```kotlin
 Offer(publish) {
-    val treatment = MyTheme.actTreatment(emphasis)
+    val treatment = MyTheme.actTreatment(resolvedEmphasis())
     PublishControl(treatment)
 }
 ```
 
-Conveyance deliberately does not define `Heroic = huge yellow button` or any other universal appearance. Compose already has theming and token machinery. Your theme decides how semantic emphasis becomes shape, typography, color, motion, space, haptics, sound, or surrounding response.
+A screen may present at most one Heroic Act. If two or more visible Acts claim Heroic, there is no unique title. The entire visible Act outline resolves one level lower:
 
-`Heroic` is the token for an intentionally engineered hero moment.
+```text
+Heroic     → Primary
+Primary    → Secondary
+Secondary  → Tertiary
+Tertiary   → Supporting
+Supporting → Supporting
+```
+
+Conscience reports this as `HeroOfTheHill` so the developer can choose the Act that actually owns the hill.
+
+Conveyance does not define `Heroic = huge yellow button` or any other universal appearance. Compose already has theming and token machinery. Your theme decides how resolved Act emphasis becomes shape, typography, color, motion, space, haptics, sound, or surrounding response.
 
 ---
 
@@ -158,7 +187,7 @@ That is a semantic opt-out, not an enforcement bypass.
 
 ## 6. Let Conscience look at the whole surface
 
-The live Compose registry can produce an `AuditFrame` containing element geometry, observed jobs, offered Acts, Gates, consequences, reversibility, and Act emphasis.
+The live Compose registry can produce an `AuditFrame` containing element geometry, observed jobs, offered Acts, Gates, consequences, reversibility, and declared Act emphasis.
 
 Conscience uses that evidence relationally.
 
@@ -175,7 +204,7 @@ If several nearby under-employed elements collectively describe one richer objec
 
 When the pattern matches a component the SDK already ships, the recommendation can name the replacement directly—for example `Offer`, `Form`, `Collection`, or `Places`.
 
-Conscience can also reason about semantic emphasis. If every visible offered Act is Heroic, it can report `HeroicSaturation`: not because a quota was exceeded, but because the token has lost contrast on that surface.
+If two or more visible Acts claim Heroic, Conscience reports `HeroOfTheHill`. The Acts themselves are not mutated; Compose simply resolves the screen's functional hierarchy one rung lower until one Act owns the Heroic slot.
 
 ---
 
