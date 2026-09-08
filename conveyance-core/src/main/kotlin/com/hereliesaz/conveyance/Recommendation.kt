@@ -36,7 +36,7 @@ fun AuditElement.behavioralRoles(
     if (Job.Report in jobs) add(BehavioralRole.StatusReporter)
     if (Job.Identify in jobs) add(BehavioralRole.IdentityCarrier)
     if (id in gateAddresses) add(BehavioralRole.GateResolver)
-    if (id in targets) add(BehavioralRole.Destination)
+    if (Job.Receive in jobs || id in targets) add(BehavioralRole.Destination)
     if (Job.Locate in jobs) add(BehavioralRole.Locator)
     if (Job.Navigate in jobs || verb == Verb.Enter || verb == Verb.Reveal) add(BehavioralRole.Navigator)
     if (Job.Group in jobs) add(BehavioralRole.GroupContainer)
