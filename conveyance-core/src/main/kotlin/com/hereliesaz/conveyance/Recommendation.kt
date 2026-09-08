@@ -47,8 +47,8 @@ fun AuditElement.behavioralRoles(
  *
  * Core knows only the behavior a shipped SDK primitive absorbs; it does not depend on Compose.
  * [absorbs] remains useful evidence and compatibility vocabulary, while [roles] is the semantic
- * matching layer used by the standard recipes. [maxOfferedActs] constrains recipes whose identity
- * depends on one Act lifecycle rather than merely a convenient collection of nearby behavior.
+ * matching layer used by the standard recipes. Relational constraints are explicit as well: some
+ * constructions are not just a bag of behaviors, but behaviors that must belong to one identity.
  */
 data class ComposableRecipe(
     val name: String,
@@ -58,6 +58,7 @@ data class ComposableRecipe(
     val docsAnchor: String,
     val roles: Set<BehavioralRole> = emptySet(),
     val maxOfferedActs: Int? = null,
+    val requiresSharedLifecycle: Boolean = false,
 ) {
     /** Direct documentation for the SDK construction the recommendation names. */
     val docsUrl: String
@@ -77,6 +78,7 @@ object ConveyanceRecipes {
             BehavioralRole.Interruptible,
         ),
         maxOfferedActs = 1,
+        requiresSharedLifecycle = true,
     )
 
     val Form = ComposableRecipe(
@@ -148,10 +150,12 @@ data class ConsolidationSuggestion(
  *
  * Candidates still need spatial relationship so unrelated controls are not combined merely because
  * their job sets happen to complement one another. A role-based recipe match wins over a raw-job
- * fallback. Relations already present in the graph also constrain matches; for example, an `Offer`
- * recommendation cannot absorb two distinct offered Acts into one lifecycle.
+ * fallback. Relations already present in the graph constrain matches too: an `Offer` recommendation
+ * requires its lifecycle fragments to be proven members of the same Act lifecycle.
  */
 object ConsolidationAdvisor {
+    private val lifecycleJobs = setOf(Job.Progress, Job.Confirm, Job.Report, Job.Interrupt)
+
     fun suggest(
         frame: AuditFrame,
         recipes: List<ComposableRecipe> = ConveyanceRecipes.all,
@@ -178,6 +182,9 @@ object ConsolidationAdvisor {
                 .filter { group.size in it.minFragments..it.maxFragments }
                 .filter { candidate ->
                     candidate.maxOfferedActs == null || offeredActs.size <= candidate.maxOfferedActs
+                }
+                .filter { candidate ->
+                    !candidate.requiresSharedLifecycle || sharesOneLifecycle(group)
                 }
                 .filter { candidate ->
                     if (candidate.roles.isNotEmpty()) {
@@ -210,6 +217,16 @@ object ConsolidationAdvisor {
                 }
             }
         }
+    }
+
+    private fun sharesOneLifecycle(elements: List<AuditElement>): Boolean {
+        val offeredActs = elements.mapNotNullTo(mutableSetOf()) { it.act }
+        if (offeredActs.size != 1) return false
+        val lifecycle = offeredActs.single()
+
+        return elements
+            .filter { element -> element.jobs.any { it in lifecycleJobs } }
+            .all { element -> element.act == lifecycle || element.lifecycleAct == lifecycle }
     }
 
     private fun spatiallyRelated(elements: List<AuditElement>): Boolean {
