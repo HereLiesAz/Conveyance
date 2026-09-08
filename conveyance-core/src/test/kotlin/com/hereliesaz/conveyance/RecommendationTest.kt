@@ -2,6 +2,7 @@ package com.hereliesaz.conveyance
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class RecommendationTest {
@@ -109,6 +110,37 @@ class RecommendationTest {
         assertTrue(BehavioralRole.ProgressReporter in suggestion.combinedRoles)
         assertTrue(BehavioralRole.CompletionReporter in suggestion.combinedRoles)
         assertTrue(suggestion.message().contains("Conveyance Offer"))
+    }
+
+    @Test
+    fun `Offer never absorbs two distinct offered Acts into one lifecycle`() {
+        val firstAct = element(
+            id = "first.source",
+            jobs = setOf(Job.Invite, Job.Progress),
+            left = 0f,
+            act = ActId("first"),
+        )
+        val secondAct = element(
+            id = "second.source",
+            jobs = setOf(Job.Interrupt),
+            left = 24f,
+            act = ActId("second"),
+        )
+        val completion = element(
+            id = "completion",
+            jobs = setOf(Job.Confirm),
+            left = 48f,
+        )
+        val frame = AuditFrame(
+            surface = "editor",
+            census = Census(0, 0, 0, 0, 0, 0, emptyList(), emptyList(), emptyList()),
+            elements = listOf(firstAct, secondAct, completion),
+        )
+
+        val suggestion = ConsolidationAdvisor.suggest(frame).single()
+
+        assertNull(suggestion.replacement)
+        assertTrue(suggestion.message().startsWith("Combine"))
     }
 
     @Test
