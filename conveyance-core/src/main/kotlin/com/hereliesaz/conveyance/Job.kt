@@ -7,6 +7,10 @@ package com.hereliesaz.conveyance
  * real jobs. The point is not tidiness or austerity. The constraint forces the designer to rethink
  * one-purpose chrome, combine responsibilities, and invent richer elements that teach more of the
  * interface through use.
+ *
+ * Some jobs are declared only when the framework cannot see them. Others are derived from the live
+ * semantic graph. In particular, an Element targeted by an Act is genuinely doing the job [Receive]
+ * and should get credit for it without making the developer repeat that fact.
  */
 enum class Job {
     /** Offers an act. */
@@ -41,6 +45,9 @@ enum class Job {
 
     /** Stops what it started. */
     Interrupt,
+
+    /** Receives the visible consequence of an Act. Derived from the Act graph when observable. */
+    Receive,
 }
 
 /** Why an element is on screen at all. */
