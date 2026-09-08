@@ -12,6 +12,7 @@ class RecommendationTest {
         left: Float,
         act: ActId? = null,
         verb: Verb? = null,
+        target: ElementId? = null,
     ) = AuditElement(
         id = ElementId(id),
         left = left,
@@ -21,6 +22,7 @@ class RecommendationTest {
         visible = true,
         act = act,
         verb = verb,
+        target = target,
         jobs = jobs,
     )
 
@@ -52,6 +54,28 @@ class RecommendationTest {
 
         assertTrue(BehavioralRole.GateResolver in roles)
         assertTrue(BehavioralRole.Locator in roles)
+    }
+
+    @Test
+    fun `consequence target derives destination role from the graph`() {
+        val destinationId = ElementId("wherever")
+        val source = element(
+            id = "source.with.no.naming.clue",
+            jobs = setOf(Job.Invite),
+            left = 0f,
+            act = ActId("move"),
+            target = destinationId,
+        )
+        val destination = element(
+            id = destinationId.value,
+            jobs = setOf(Job.Identify),
+            left = 24f,
+        )
+        val targets = listOf(source, destination).mapNotNullTo(mutableSetOf()) { it.target }
+
+        val roles = destination.behavioralRoles(targets = targets)
+
+        assertTrue(BehavioralRole.Destination in roles)
     }
 
     @Test
