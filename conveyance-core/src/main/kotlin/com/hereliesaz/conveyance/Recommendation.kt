@@ -58,7 +58,11 @@ data class ComposableRecipe(
     val docsAnchor: String,
     val roles: Set<BehavioralRole> = emptySet(),
     val maxOfferedActs: Int? = null,
-)
+) {
+    /** Direct documentation for the SDK construction the recommendation names. */
+    val docsUrl: String
+        get() = "https://github.com/HereLiesAz/Conveyance/blob/main/conveyance-compose/README.md#$docsAnchor"
+}
 
 /** The standard replacement vocabulary shipped by the Conveyance SDK. */
 object ConveyanceRecipes {
@@ -128,7 +132,7 @@ data class ConsolidationSuggestion(
             combinedJobs.joinToString()
         }
         "Replace ${elements.joinToString { it.value }} with a single Conveyance ${replacement.name}; " +
-            "together they already behave as $behavior."
+            "together they already behave as $behavior. ${replacement.docsUrl}"
     } else {
         "Combine ${elements.joinToString { it.value }} into one richer interface object; together they already do " +
             "${combinedJobs.size} jobs: ${combinedJobs.joinToString()}."
