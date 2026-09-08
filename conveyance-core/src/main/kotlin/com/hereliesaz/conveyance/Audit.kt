@@ -5,9 +5,9 @@ package com.hereliesaz.conveyance
  *
  * Some of Conveyance's most important questions are relational rather than structural: can a person
  * tell what an act will do before taking it, are several under-employed fragments really one missing
- * object, is expressive emphasis concentrated where it teaches something, and does a rendered
- * hierarchy agree with the product's declared intent? [AuditFrame] is the semantic half of that
- * evidence. A visual evaluator may see only pixels; Conscience gets the truth afterwards.
+ * object, does the visible Act outline have one hero of the hill, and does a rendered hierarchy agree
+ * with the product's declared intent? [AuditFrame] is the semantic half of that evidence. A visual
+ * evaluator may see only pixels; Conscience gets the truth afterwards.
  */
 data class AuditFrame(
     val surface: String,
@@ -28,8 +28,10 @@ data class AuditElement(
     /** Present when this element offers an act. Absent means it does nothing when touched. */
     val act: ActId? = null,
     val verb: Verb? = null,
-    /** What the act will change, and where. The thing a person should be able to predict. */
+    /** What the act will change, rendered for human-readable audit output. */
     val consequence: String? = null,
+    /** The actual semantic destination of the offered Act, preserved for relational analysis. */
+    val target: ElementId? = null,
     val weight: Weight? = null,
     /** Whether the act can be taken back. A person deserves to know this before acting. */
     val reversible: Boolean = false,
@@ -37,11 +39,11 @@ data class AuditElement(
     val blocked: Boolean = false,
     val jobs: Set<Job> = emptySet(),
     /**
-     * The semantic expressive importance of the offered act.
+     * The functional emphasis declared by the offered Act.
      *
-     * This is not a style measurement. The binding decides how [ActEmphasis] manifests; Conscience
-     * keeps the token so it can reason about relationships such as every visible act being Heroic,
-     * or a pivotal act being marked Supporting while surrounding incidental acts dominate.
+     * This is not a style measurement, Employment, or UI state. The binding can resolve the declared
+     * level against other visible Acts; Conscience keeps the declaration so conflicts such as two
+     * visible Heroic Acts can be explained without mutating either Act.
      */
     val emphasis: ActEmphasis? = null,
     /**
