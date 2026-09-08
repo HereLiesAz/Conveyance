@@ -41,7 +41,7 @@ class CensusTest {
     }
 
     @Test
-    fun `an element that offers an act is known to invite, undeclared`() = runComposeUiTest {
+    fun `offering and receiving are derived from the live Act graph`() = runComposeUiTest {
         val registry = ElementRegistry()
         val send = Act.send("photo.send", subject, to = tray)
 
@@ -56,6 +56,7 @@ class CensusTest {
         waitForIdle()
 
         assertContains(registry.jobsOf(send.elementId), Job.Invite)
+        assertContains(registry.jobsOf(tray), Job.Receive)
         assertEquals(1, registry.census().acts)
         assertEquals(1, registry.census().inviting)
     }
@@ -87,6 +88,7 @@ class CensusTest {
         assertEquals(ActEmphasis.Heroic, hero.emphasis)
         assertEquals(tray, hero.target)
         assertEquals(ActEmphasis.Supporting, elements.getValue(ElementId("support.control")).emphasis)
+        assertContains(elements.getValue(tray).jobs, Job.Receive)
     }
 
     @Test
@@ -143,7 +145,6 @@ class CensusTest {
         assertEquals(ActEmphasis.Supporting, registry.resolvedEmphasis(tertiary))
         assertEquals(ActEmphasis.Supporting, registry.resolvedEmphasis(supporting))
 
-        // Declarations remain facts about the Acts themselves.
         assertEquals(ActEmphasis.Heroic, firstHero.emphasis)
         assertEquals(ActEmphasis.Primary, primary.emphasis)
     }
