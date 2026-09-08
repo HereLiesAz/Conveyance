@@ -27,6 +27,14 @@ data class AuditElement(
     val visible: Boolean,
     /** Present when this element offers an act. Absent means it does nothing when touched. */
     val act: ActId? = null,
+    /**
+     * The Act lifecycle this element is rendered inside, when the binding can prove that relation.
+     *
+     * This is intentionally distinct from [act]: a progress or completion fragment may report an
+     * Act without itself offering that Act. Bindings should leave this null rather than guess when
+     * lifecycle membership cannot be observed directly.
+     */
+    val lifecycleAct: ActId? = null,
     val verb: Verb? = null,
     /** What the act will change, rendered for human-readable audit output. */
     val consequence: String? = null,
