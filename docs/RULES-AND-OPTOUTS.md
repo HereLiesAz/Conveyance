@@ -295,14 +295,14 @@ save.spinner  → Progress
 save.success  → Confirm
 ```
 
-three separate IdleWorker warnings are less useful than recognizing one fragmented action lifecycle.
+three separate IdleWorker warnings are less useful than recognizing one fragmented action lifecycle—but only when the framework can establish that all three fragments really belong to Save.
 
-The runtime registry already knows element jobs, offered Acts, Gates, geometry, consequence targets, reversibility, and declared Act emphasis. `ConsolidationAdvisor` turns that evidence into behavioral roles and compares the result with an SDK-owned recipe catalog.
+The runtime registry already knows element jobs, offered Acts, Gates, geometry, consequence targets, reversibility, declared Act emphasis, and now **Act lifecycle membership** for named Elements composed inside an `Offer` scope. `ConsolidationAdvisor` turns that evidence into behavioral roles and compares the result with an SDK-owned recipe catalog.
 
 The current architecture is:
 
 ```text
-observed jobs + semantic graph facts
+observed jobs + semantic graph facts + proven composition relations
         ↓
 BehavioralRole + known relations
         ↓
@@ -311,23 +311,33 @@ available Conveyance construction
 
 Current roles include `ActionSource`, `ProgressReporter`, `CompletionReporter`, `Interruptible`, `StatusReporter`, `IdentityCarrier`, `GateResolver`, `Destination`, `Locator`, `Navigator`, and `GroupContainer`.
 
-Examples:
+For an `Offer` recommendation, the relation matters as much as the roles:
 
 ```text
-ActionSource + ProgressReporter + CompletionReporter + Interruptible
-→ one action lifecycle
+ActionSource(save)
++ ProgressReporter(lifecycleAct = save)
++ CompletionReporter(lifecycleAct = save)
++ Interruptible(save)
+→ one proven action lifecycle
 → Offer
-
-repeating IdentityCarrier subjects + collection behavior
-→ managed collection
-→ Collection
 ```
 
-Recipes can also carry relational constraints. `Offer`, for example, will not collapse a cluster containing two distinct offered Acts into one lifecycle even when the union of their jobs happens to look right.
+The superficially similar case does **not** qualify:
 
-Conveyance derives `Destination` from actual consequence target addresses, not from names such as `result`, `output`, or `container`.
+```text
+ActionSource(save)
++ nearby ProgressReporter(unknown lifecycle)
++ nearby CompletionReporter(unknown lifecycle)
+↛ Offer
+```
 
-There is still an intentional boundary: the runtime does not yet claim that an arbitrary detached progress reporter is observing a particular Act unless it has evidence for that relationship. The linter should become smarter by learning more truth, not by becoming more confident at guessing.
+Likewise, two distinct offered Acts are never collapsed into one `Offer` lifecycle merely because their combined jobs happen to fill the recipe.
+
+Lifecycle membership is inferred from composition where Compose can actually observe it: a named Element rendered inside an `Offer`'s `ActScope` carries that Act's lifecycle identity into `AuditFrame`. The developer does not write `forAct = save` simply to restate a relationship the composition already proves.
+
+There is still an intentional boundary. A detached reporter outside that scope may in reality observe Save through application state, but Conveyance does not claim that relation unless it has evidence. The linter should become smarter by learning more truth, not by becoming more confident at guessing.
+
+Conveyance also derives `Destination` from actual consequence target addresses, not from names such as `result`, `output`, or `container`.
 
 The catalog belongs to the SDK, not to a pile of linter folklore, so recommendations evolve with the components Conveyance actually ships.
 
