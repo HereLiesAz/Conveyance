@@ -87,6 +87,65 @@ class CensusTest {
     }
 
     @Test
+    fun `one visible hero keeps the declared Act hierarchy`() = runComposeUiTest {
+        val registry = ElementRegistry()
+        val heroic = Act.send("hero", subject, tray, emphasis = ActEmphasis.Heroic)
+        val primary = Act.send("primary", subject, tray, emphasis = ActEmphasis.Primary)
+        val secondary = Act.send("secondary", subject, tray, emphasis = ActEmphasis.Secondary)
+
+        setContent {
+            host(registry) {
+                Column {
+                    Offer(heroic, element = ElementId("hero")) { Box(Modifier.size(40.dp)) }
+                    Offer(primary, element = ElementId("primary")) { Box(Modifier.size(40.dp)) }
+                    Offer(secondary, element = ElementId("secondary")) { Box(Modifier.size(40.dp)) }
+                }
+            }
+        }
+        waitForIdle()
+
+        assertEquals(ActEmphasis.Heroic, registry.resolvedEmphasis(heroic))
+        assertEquals(ActEmphasis.Primary, registry.resolvedEmphasis(primary))
+        assertEquals(ActEmphasis.Secondary, registry.resolvedEmphasis(secondary))
+    }
+
+    @Test
+    fun `competing visible heroes demote the whole Act outline one rung`() = runComposeUiTest {
+        val registry = ElementRegistry()
+        val firstHero = Act.send("hero.one", subject, tray, emphasis = ActEmphasis.Heroic)
+        val secondHero = Act.send("hero.two", subject, tray, emphasis = ActEmphasis.Heroic)
+        val primary = Act.send("primary", subject, tray, emphasis = ActEmphasis.Primary)
+        val secondary = Act.send("secondary", subject, tray, emphasis = ActEmphasis.Secondary)
+        val tertiary = Act.send("tertiary", subject, tray, emphasis = ActEmphasis.Tertiary)
+        val supporting = Act.send("supporting", subject, tray, emphasis = ActEmphasis.Supporting)
+
+        setContent {
+            host(registry) {
+                Column {
+                    Offer(firstHero, element = ElementId("hero.one")) { Box(Modifier.size(40.dp)) }
+                    Offer(secondHero, element = ElementId("hero.two")) { Box(Modifier.size(40.dp)) }
+                    Offer(primary, element = ElementId("primary")) { Box(Modifier.size(40.dp)) }
+                    Offer(secondary, element = ElementId("secondary")) { Box(Modifier.size(40.dp)) }
+                    Offer(tertiary, element = ElementId("tertiary")) { Box(Modifier.size(40.dp)) }
+                    Offer(supporting, element = ElementId("supporting")) { Box(Modifier.size(40.dp)) }
+                }
+            }
+        }
+        waitForIdle()
+
+        assertEquals(ActEmphasis.Primary, registry.resolvedEmphasis(firstHero))
+        assertEquals(ActEmphasis.Primary, registry.resolvedEmphasis(secondHero))
+        assertEquals(ActEmphasis.Secondary, registry.resolvedEmphasis(primary))
+        assertEquals(ActEmphasis.Tertiary, registry.resolvedEmphasis(secondary))
+        assertEquals(ActEmphasis.Supporting, registry.resolvedEmphasis(tertiary))
+        assertEquals(ActEmphasis.Supporting, registry.resolvedEmphasis(supporting))
+
+        // Declarations remain facts about the Acts themselves.
+        assertEquals(ActEmphasis.Heroic, firstHero.emphasis)
+        assertEquals(ActEmphasis.Primary, primary.emphasis)
+    }
+
+    @Test
     fun `a gate's address is known to be one, undeclared`() = runComposeUiTest {
         val registry = ElementRegistry()
         val send = Act.send(
