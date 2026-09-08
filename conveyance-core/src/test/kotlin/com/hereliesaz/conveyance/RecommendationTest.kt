@@ -12,6 +12,7 @@ class RecommendationTest {
         jobs: Set<Job>,
         left: Float,
         act: ActId? = null,
+        lifecycleAct: ActId? = null,
         verb: Verb? = null,
         target: ElementId? = null,
     ) = AuditElement(
@@ -22,6 +23,7 @@ class RecommendationTest {
         height = 20f,
         visible = true,
         act = act,
+        lifecycleAct = lifecycleAct,
         verb = verb,
         target = target,
         jobs = jobs,
@@ -80,22 +82,25 @@ class RecommendationTest {
     }
 
     @Test
-    fun `fragmented action lifecycle maps through roles to Offer`() {
+    fun `proven fragmented action lifecycle maps through roles to Offer`() {
+        val save = ActId("save")
         val source = element(
             id = "save.source",
             jobs = setOf(Job.Invite, Job.Interrupt),
             left = 0f,
-            act = ActId("save"),
+            act = save,
         )
         val progress = element(
             id = "save.progress",
             jobs = setOf(Job.Progress),
             left = 24f,
+            lifecycleAct = save,
         )
         val completion = element(
             id = "save.complete",
             jobs = setOf(Job.Confirm),
             left = 48f,
+            lifecycleAct = save,
         )
         val frame = AuditFrame(
             surface = "editor",
@@ -110,6 +115,36 @@ class RecommendationTest {
         assertTrue(BehavioralRole.ProgressReporter in suggestion.combinedRoles)
         assertTrue(BehavioralRole.CompletionReporter in suggestion.combinedRoles)
         assertTrue(suggestion.message().contains("Conveyance Offer"))
+    }
+
+    @Test
+    fun `nearby lifecycle shaped fragments are not guessed to belong to an Offer`() {
+        val source = element(
+            id = "save.source",
+            jobs = setOf(Job.Invite, Job.Interrupt),
+            left = 0f,
+            act = ActId("save"),
+        )
+        val progress = element(
+            id = "mystery.progress",
+            jobs = setOf(Job.Progress),
+            left = 24f,
+        )
+        val completion = element(
+            id = "mystery.complete",
+            jobs = setOf(Job.Confirm),
+            left = 48f,
+        )
+        val frame = AuditFrame(
+            surface = "editor",
+            census = Census(0, 0, 0, 0, 0, 0, emptyList(), emptyList(), emptyList()),
+            elements = listOf(source, progress, completion),
+        )
+
+        val suggestion = ConsolidationAdvisor.suggest(frame).single()
+
+        assertNull(suggestion.replacement)
+        assertTrue(suggestion.message().startsWith("Combine"))
     }
 
     @Test
