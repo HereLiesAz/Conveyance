@@ -45,8 +45,8 @@ data class Placement(
  * Where every named element currently is.
  *
  * The registry resolves relationships the model already contains instead of making application code
- * restate them. That includes screen-relative Act emphasis and the fact that an Element targeted by
- * a live Act is doing the job [Job.Receive].
+ * restate them. That includes screen-relative Act emphasis, consequence destinations, and lifecycle
+ * membership that Compose can prove from an Element being rendered inside an [ActScope].
  */
 @Stable
 class ElementRegistry {
@@ -56,6 +56,7 @@ class ElementRegistry {
     private class Tenant(val owner: Any) {
         var placement: Placement? by mutableStateOf(null)
         var employment: Employment? by mutableStateOf(null)
+        var lifecycleAct: ActId? by mutableStateOf(null)
         var token: (@Composable () -> Unit)? = null
 
         @OptIn(ExperimentalFoundationApi::class)
@@ -111,6 +112,10 @@ class ElementRegistry {
 
     internal fun employ(id: ElementId, owner: Any, employment: Employment) {
         claim(id, owner).employment = employment
+    }
+
+    internal fun attachLifecycle(id: ElementId, owner: Any, act: ActId) {
+        claim(id, owner).lifecycleAct = act
     }
 
     internal fun offer(act: Act, at: ElementId, owner: Any) {
@@ -212,6 +217,7 @@ class ElementRegistry {
                 height = placement.bounds.height,
                 visible = placement.visible,
                 act = act?.id,
+                lifecycleAct = tenant(id)?.lifecycleAct,
                 verb = act?.verb,
                 consequence = act?.consequence?.let { "${act.verb} -> ${it.target}" },
                 target = act?.consequence?.target,
@@ -262,6 +268,9 @@ private val NoRegistry = ElementRegistry()
 
 val LocalElements = staticCompositionLocalOf { NoRegistry }
 
+/** The Act whose rendered lifecycle currently contains this composition, when there is one. */
+internal val LocalActLifecycle = staticCompositionLocalOf<ActId?> { null }
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun Modifier.element(
@@ -270,12 +279,14 @@ fun Modifier.element(
     employment: Employment? = null,
 ): Modifier {
     val registry = LocalElements.current
+    val lifecycleAct = LocalActLifecycle.current
     val requester = remember(id) { BringIntoViewRequester() }
     val claim = remember(id) { Any() }
-    DisposableEffect(registry, id, token, employment) {
+    DisposableEffect(registry, id, token, employment, lifecycleAct) {
         registry.attach(id, claim, requester)
         if (token != null) registry.attachToken(id, claim, token)
         if (employment != null) registry.employ(id, claim, employment)
+        if (lifecycleAct != null) registry.attachLifecycle(id, claim, lifecycleAct)
         onDispose { registry.forget(id, claim) }
     }
 
