@@ -67,7 +67,7 @@ An Act knows:
 - what conditions block it;
 - whether it can be reversed;
 - how broad its scope is;
-- how much expressive emphasis it deserves.
+- what functional emphasis it claims relative to other Acts.
 
 From those facts the framework can derive more:
 
@@ -76,7 +76,8 @@ From those facts the framework can derive more:
 - physical weight;
 - whether the Act is currently blocked;
 - where a blocked person can be escorted;
-- what a live audit should expect from the rendered surface.
+- what a live audit should expect from the rendered surface;
+- what emphasis the current screen can actually present.
 
 An Act is not itself a visual component. The Compose binding's `Offer` is where an Act is made available to a person.
 
@@ -131,16 +132,17 @@ Why an Element is present.
 
 ### ActEmphasis
 
-How much expressive attention an Act is allowed to command:
+The functional hierarchy of Acts on a screen:
 
 ```kotlin
 ActEmphasis.Heroic
 ActEmphasis.Primary
 ActEmphasis.Secondary
+ActEmphasis.Tertiary
 ActEmphasis.Supporting
 ```
 
-This is a semantic token. It is not a color, shape, size, or animation preset.
+This is semantic information about an Act's role in the interaction. It is not Employment, UI state, color, shape, size, or an animation preset.
 
 ---
 
@@ -170,7 +172,7 @@ Offer(save) {
 }
 ```
 
-`ActScope` exposes the Act and state. Compose code can use the Act's semantic emphasis through `scope.act.emphasis` or `scope.emphasis` and resolve it through the product's existing theme.
+The Act keeps its own declaration in `act.emphasis`. Compose can ask `resolvedEmphasis()` for the level the current visible Act hierarchy can actually present.
 
 There is no need for Conveyance to invent a second styling-token framework on top of Compose.
 
@@ -226,6 +228,8 @@ and
 ```text
 this object is intentionally not trying to work
 ```
+
+Employment answers why an Element is present. Act emphasis answers what an Act does for the interaction. Neither derives from the other.
 
 ---
 
@@ -395,25 +399,45 @@ A sharp object among rounded ones may communicate risk, fracture, interruption, 
 
 ## 11. Act emphasis and engineering the hero moment
 
-`ActEmphasis` replaces the old binary keystone idea.
+`ActEmphasis` replaces the old binary keystone idea with a functional outline:
 
-```kotlin
-val publish = Act.send(
-    id = "release.publish",
-    subject = release,
-    to = store,
-    emphasis = ActEmphasis.Heroic,
-)
+```text
+Heroic     title-level Act
+Primary    leading Act
+Secondary  next level
+Tertiary   next level
+Supporting lower-level Act
 ```
 
-The semantic levels are:
+The HTML analogy is useful: Heroic is the page title, then Primary, Secondary, and Tertiary descend like headings.
 
-- `Heroic` — maximum expressive license; a deliberately engineered hero moment;
-- `Primary` — a leading Act;
-- `Secondary` — important but not leading;
-- `Supporting` — useful without asking to dominate.
+This hierarchy describes **Acts**, not the Employment of the Elements that happen to render them and not the current state of those Elements.
 
-The framework does **not** decide that Heroic means "big yellow button." Compose already has theming and token machinery. The product decides how the semantic emphasis resolves into its visual and sensory language.
+### Hero of the hill
+
+A screen can present **at most one** Heroic Act.
+
+With zero or one visible Heroic declaration, every Act keeps its declared level.
+
+If two or more visible Acts claim Heroic, there is no unique title. The visible Act outline resolves one rung lower:
+
+```text
+Heroic     → Primary
+Primary    → Secondary
+Secondary  → Tertiary
+Tertiary   → Supporting
+Supporting → Supporting
+```
+
+The declarations themselves are not changed. `act.emphasis` remains what the developer said; Compose derives the presented level with `resolvedEmphasis()`.
+
+Conscience reports the conflict as `HeroOfTheHill` and asks the developer to decide which Act actually owns the Heroic slot.
+
+This is not a general scarcity budget. It is a structural property of the top level: a title is only a title when it is singular.
+
+### Engineering the hero moment
+
+The framework does **not** decide that Heroic means "big yellow button." Compose already has theming and token machinery. The product decides how the resolved functional hierarchy becomes its visual and sensory language.
 
 A Heroic Act may be allowed to coordinate more channels at once:
 
@@ -427,16 +451,6 @@ A Heroic Act may be allowed to coordinate more channels at once:
 - a longer or more memorable consequence path.
 
 Those are possibilities, not requirements.
-
-### Why Heroic is relational
-
-There is no one-to-three quota.
-
-A fixed number would confuse scarcity with meaning. The useful question is whether the token still produces contrast in the actual surface.
-
-Conscience can therefore report `HeroicSaturation` when **every visible offered Act is Heroic**. That is evidence that nothing is being permitted to recede, so the token may no longer be conveying emphasis.
-
-The finding is advisory. A product may intentionally choose maximum intensity everywhere, but it should be an explicit decision rather than an accidental result of sprinkling a boolean through the codebase.
 
 ---
 
@@ -455,7 +469,7 @@ The Compose registry already knows, live:
 - which Gates resolve there;
 - consequence verbs and targets;
 - reversibility;
-- Act emphasis;
+- declared Act emphasis;
 - Ambient declarations.
 
 That gives Conscience enough evidence to reason about the surface as a system.
@@ -497,55 +511,52 @@ and, because the SDK already has a construction for that lifecycle:
 replace them with one Offer
 ```
 
-`ConsolidationAdvisor` is the beginning of that recommendation layer.
+`ConsolidationAdvisor` is the recommendation layer for this kind of finding.
 
-### Capability mapping
+### Behavioral mapping
 
-The recommendation engine should not become a pile of hand-written name checks.
+The recommendation engine does not map raw job sets directly to component names.
 
-Its architecture is:
+Its current architecture is:
 
 ```text
-observed element capabilities
+observed facts and jobs
         ↓
-behavioral pattern
+BehavioralRole
         ↓
-SDK construction that satisfies the pattern
+SDK construction
 ```
 
-Examples of behavioral categories include:
+The current behavioral vocabulary includes:
 
 ```text
 ActionSource
 ProgressReporter
 CompletionReporter
+Interruptible
+StatusReporter
 IdentityCarrier
 GateResolver
+Locator
 Navigator
 GroupContainer
-CollectionHost
-Destination
 ```
 
-A future recipe might say:
+For example:
 
 ```text
 ActionSource
-+ ProgressReporter for the same Act
-+ CompletionReporter for the same Act
++ ProgressReporter
++ CompletionReporter
++ Interruptible
 → Offer
 ```
 
-or:
+The SDK-owned recipes currently describe `Offer`, `Form`, `Collection`, and `Places` through these roles. Raw-job matching remains as a compatibility fallback for custom recipes that have not adopted behavioral roles yet.
 
-```text
-repeating IdentityCarrier Subjects
-+ Create destination
-+ destruction/recovery behavior
-→ Collection
-```
+The next useful evidence is relationship-specific: for example, whether a progress reporter and completion reporter are actually reporting the **same Act**. That should be added only when the registry can state it, not guessed from names or proximity.
 
-The capability catalog should be owned by the SDK so it stays synchronized with the composables Conveyance actually offers.
+The capability catalog belongs to the SDK so it stays synchronized with the constructions Conveyance actually offers.
 
 ---
 
@@ -573,7 +584,7 @@ Hosts `Place` continuity and Return.
 
 ### Element registry
 
-Maps semantic Element addresses to current geometry and derives live evidence for routing and audits.
+Maps semantic Element addresses to current geometry, derives live evidence for routing and audits, and resolves visible Act emphasis against the screen's Heroic claims.
 
 ### Stage / motion
 
@@ -591,7 +602,6 @@ Conveyance does not require:
 - color to mean rank;
 - one primary Element per surface;
 - one root Place per product;
-- a fixed number of Heroic Acts;
 - only consequence motion and no decorative/personality motion;
 - one visual aesthetic;
 - quietness, cleanliness, or orderly composition;
@@ -599,7 +609,9 @@ Conveyance does not require:
 - uniform corner radii;
 - minimal visual density for its own sake.
 
-Those restrictions may be useful inside a particular product's design system. They are not general consequences of the manifesto.
+It **does** define one Heroic Act per visible screen as the top of the Act hierarchy. That is a functional outline rule, not a visual-style rule and not an Employment rule.
+
+Other restrictions may be useful inside a particular product's design system. They are not general consequences of the manifesto.
 
 A framework rule earns its place when it creates generative pressure toward a more self-explanatory interface—not when it merely makes the design easier to classify.
 
@@ -630,6 +642,7 @@ ActEmphasis
 ActState
 AuditElement
 AuditFrame
+BehavioralRole
 Channel
 Consequence
 DeclaredElement
@@ -654,10 +667,11 @@ Weight
 ## Appendix B — Act emphasis
 
 ```text
-Heroic      engineer the strongest expressive moment
+Heroic      title-level Act; at most one visible per screen
 Primary     leading Act
-Secondary   important but not leading
-Supporting  useful without dominating
+Secondary   next level
+Tertiary    next level
+Supporting  lower-level Act; demotion floor
 ```
 
 ## Appendix C — Employment jobs
