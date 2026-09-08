@@ -3,11 +3,45 @@ package com.hereliesaz.conveyance
 import kotlin.math.hypot
 
 /**
+ * A behavioral role inferred from what an element actually does on the live surface.
+ *
+ * These are deliberately not component classes and not Employment categories. They are the middle
+ * vocabulary between raw observations (`Job`, offered Act, Gate address) and an SDK construction.
+ * That keeps the recommendation engine from becoming a lookup table of visual object names.
+ */
+enum class BehavioralRole {
+    ActionSource,
+    ProgressReporter,
+    CompletionReporter,
+    Interruptible,
+    StatusReporter,
+    IdentityCarrier,
+    GateResolver,
+    Locator,
+    Navigator,
+    GroupContainer,
+}
+
+/** Infer behavioral roles from facts already present in an [AuditFrame]. */
+fun AuditElement.behavioralRoles(gateAddresses: Set<ElementId> = emptySet()): Set<BehavioralRole> = buildSet {
+    if (act != null || Job.Invite in jobs) add(BehavioralRole.ActionSource)
+    if (Job.Progress in jobs) add(BehavioralRole.ProgressReporter)
+    if (Job.Confirm in jobs) add(BehavioralRole.CompletionReporter)
+    if (Job.Interrupt in jobs) add(BehavioralRole.Interruptible)
+    if (Job.Report in jobs) add(BehavioralRole.StatusReporter)
+    if (Job.Identify in jobs) add(BehavioralRole.IdentityCarrier)
+    if (id in gateAddresses) add(BehavioralRole.GateResolver)
+    if (Job.Locate in jobs) add(BehavioralRole.Locator)
+    if (Job.Navigate in jobs || verb == Verb.Enter || verb == Verb.Reveal) add(BehavioralRole.Navigator)
+    if (Job.Group in jobs) add(BehavioralRole.GroupContainer)
+}
+
+/**
  * A composable-shaped replacement the linter knows how to recommend.
  *
- * This is metadata, not a rendering dependency: core can reason about the behaviour a shipped SDK
- * primitive absorbs without depending on Compose itself. The names intentionally match the public
- * composables offered by conveyance-compose.
+ * Core knows only the behavior a shipped SDK primitive absorbs; it does not depend on Compose.
+ * [absorbs] remains useful evidence and compatibility vocabulary, while [roles] is the semantic
+ * matching layer used by the standard recipes.
  */
 data class ComposableRecipe(
     val name: String,
@@ -15,6 +49,7 @@ data class ComposableRecipe(
     val minFragments: Int = 2,
     val maxFragments: Int = 4,
     val docsAnchor: String,
+    val roles: Set<BehavioralRole> = emptySet(),
 )
 
 /** The standard replacement vocabulary shipped by the Conveyance SDK. */
@@ -23,24 +58,48 @@ object ConveyanceRecipes {
         name = "Offer",
         absorbs = setOf(Job.Invite, Job.Progress, Job.Confirm, Job.Interrupt),
         docsAnchor = "offer",
+        roles = setOf(
+            BehavioralRole.ActionSource,
+            BehavioralRole.ProgressReporter,
+            BehavioralRole.CompletionReporter,
+            BehavioralRole.Interruptible,
+        ),
     )
 
     val Form = ComposableRecipe(
         name = "Form",
         absorbs = setOf(Job.Group, Job.Report, Job.Progress, Job.Confirm),
         docsAnchor = "form",
+        roles = setOf(
+            BehavioralRole.GroupContainer,
+            BehavioralRole.StatusReporter,
+            BehavioralRole.ProgressReporter,
+            BehavioralRole.CompletionReporter,
+        ),
     )
 
     val Collection = ComposableRecipe(
         name = "Collection",
         absorbs = setOf(Job.Group, Job.Identify, Job.Locate, Job.Report),
         docsAnchor = "collection",
+        roles = setOf(
+            BehavioralRole.GroupContainer,
+            BehavioralRole.IdentityCarrier,
+            BehavioralRole.Locator,
+            BehavioralRole.StatusReporter,
+        ),
     )
 
     val Places = ComposableRecipe(
         name = "Places",
         absorbs = setOf(Job.Locate, Job.Navigate, Job.Group, Job.Identify),
         docsAnchor = "places",
+        roles = setOf(
+            BehavioralRole.Navigator,
+            BehavioralRole.Locator,
+            BehavioralRole.GroupContainer,
+            BehavioralRole.IdentityCarrier,
+        ),
     )
 
     val all: List<ComposableRecipe> = listOf(Offer, Form, Collection, Places)
@@ -51,10 +110,16 @@ data class ConsolidationSuggestion(
     val elements: List<ElementId>,
     val combinedJobs: Set<Job>,
     val replacement: ComposableRecipe? = null,
+    val combinedRoles: Set<BehavioralRole> = emptySet(),
 ) {
     fun message(): String = if (replacement != null) {
+        val behavior = if (combinedRoles.isNotEmpty()) {
+            combinedRoles.joinToString()
+        } else {
+            combinedJobs.joinToString()
+        }
         "Replace ${elements.joinToString { it.value }} with a single Conveyance ${replacement.name}; " +
-            "together they already describe ${combinedJobs.joinToString()}."
+            "together they already behave as $behavior."
     } else {
         "Combine ${elements.joinToString { it.value }} into one richer interface object; together they already do " +
             "${combinedJobs.size} jobs: ${combinedJobs.joinToString()}."
@@ -64,9 +129,14 @@ data class ConsolidationSuggestion(
 /**
  * Looks across the whole surface instead of ticketing each under-employed element in isolation.
  *
- * Candidates must be spatially related and collectively reach the four-job threshold. Exact SDK
- * recipe matches win over generic consolidation, then smaller/tighter clusters win so advice stays
- * local and actionable.
+ * The pipeline is intentionally three-stage:
+ *
+ * observed facts -> behavioral roles -> SDK construction
+ *
+ * Candidates still need spatial relationship so unrelated controls are not combined merely because
+ * their job sets happen to complement one another. A role-based recipe match wins over a raw-job
+ * fallback. This is the first step toward richer relations such as "reports the same Act" once the
+ * runtime exposes that evidence explicitly.
  */
 object ConsolidationAdvisor {
     fun suggest(
@@ -86,10 +156,26 @@ object ConsolidationAdvisor {
 
         val suggestions = groups.map { group ->
             val jobs = group.flatMapTo(mutableSetOf()) { it.jobs }
+            val roles = group.flatMapTo(mutableSetOf()) { it.behavioralRoles(frame.gateAddresses) }
             val recipe = recipes
-                .filter { group.size in it.minFragments..it.maxFragments && jobs.containsAll(it.absorbs) }
-                .maxByOrNull { it.absorbs.size }
-            ConsolidationSuggestion(group.map { it.id }, jobs, recipe)
+                .filter { group.size in it.minFragments..it.maxFragments }
+                .filter { candidate ->
+                    if (candidate.roles.isNotEmpty()) {
+                        roles.containsAll(candidate.roles)
+                    } else {
+                        jobs.containsAll(candidate.absorbs)
+                    }
+                }
+                .maxWithOrNull(
+                    compareBy<ComposableRecipe> { it.roles.size }
+                        .thenBy { it.absorbs.size },
+                )
+            ConsolidationSuggestion(
+                elements = group.map { it.id },
+                combinedJobs = jobs,
+                replacement = recipe,
+                combinedRoles = roles,
+            )
         }.sortedWith(
             compareByDescending<ConsolidationSuggestion> { it.replacement != null }
                 .thenBy { it.elements.size },
