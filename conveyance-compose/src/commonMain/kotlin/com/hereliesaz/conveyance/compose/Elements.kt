@@ -214,6 +214,7 @@ class ElementRegistry {
                 act = act?.id,
                 verb = act?.verb,
                 consequence = act?.consequence?.let { "${act.verb} -> ${it.target}" },
+                target = act?.consequence?.target,
                 weight = act?.weight,
                 reversible = act?.reversible == true,
                 blocked = act?.state() is ActState.Blocked,
