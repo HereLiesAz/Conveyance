@@ -32,7 +32,7 @@ An Act carries facts the framework can reason from:
 - scope;
 - Gates;
 - inverse where one exists;
-- semantic expressive emphasis.
+- functional emphasis.
 
 The framework derives:
 
@@ -48,18 +48,35 @@ The rule is simple: if the model already knows the answer, do not make the devel
 
 ## Act emphasis
 
-Every Act has an `ActEmphasis` token:
+Every Act declares an `ActEmphasis` token:
 
 ```text
 Heroic
 Primary
 Secondary
+Tertiary
 Supporting
 ```
 
-This token does not prescribe appearance. It says how much expressive attention the consequence is allowed to command. A binding or product theme decides how that meaning becomes shape, typography, color, motion, space, haptics, sound, or surrounding response.
+This is an **Act hierarchy**. It describes how important the Act's function is relative to the other Acts on the screen. It is not Employment, element rank, or UI state.
 
-There is no keystone boolean and no product-level keystone quota.
+The hierarchy is analogous to a document outline: Heroic is the title-level Act, then Primary, Secondary, Tertiary, and Supporting descend through the outline.
+
+A screen may present at most one Heroic Act. If two or more visible Acts claim Heroic, the declarations remain intact but the presented hierarchy resolves one rung lower:
+
+```text
+Heroic     → Primary
+Primary    → Secondary
+Secondary  → Tertiary
+Tertiary   → Supporting
+Supporting → Supporting
+```
+
+Conscience reports that conflict as `HeroOfTheHill`.
+
+The token does not prescribe appearance. A binding or product theme decides how resolved emphasis becomes shape, typography, color, motion, space, haptics, sound, or surrounding response.
+
+There is no keystone boolean and no product-level keystone list.
 
 ---
 
@@ -148,6 +165,8 @@ Employment.Ambient
 
 `Ambient` is a semantic opt-out: it says the thing is not trying to be a working element.
 
+Employment answers **why an element is here**. Act emphasis answers **what an Act does for the interaction**. Neither is derived from the other.
+
 ---
 
 ## Channels
@@ -174,7 +193,7 @@ Current live reasoning includes:
 - dynamic consolidation of related under-employed fragments;
 - direct SDK replacement suggestions when a cluster matches a known construction;
 - dead Gate resolvers;
-- Heroic saturation when every visible offered Act claims maximum expressive emphasis.
+- `HeroOfTheHill` when two or more visible Acts claim the single Heroic slot.
 
 The important shift is relational: Conscience should prefer "these three fragments are really one missing object" over three independent warnings whenever it has enough evidence.
 
@@ -193,7 +212,7 @@ Some rules do not need a linter because the type system can state them completel
 | Truly irreversible destruction is explicit | `Act.destroyIrreversibly(...)` |
 | Chrome does not narrate obvious mechanics | `Label` constructor |
 
-Rules whose correctness depends on relationships belong in Conscience instead of being forced into arbitrary constructor quotas.
+Rules whose correctness depends on relationships belong in Conscience rather than arbitrary constructor counts.
 
 ---
 
