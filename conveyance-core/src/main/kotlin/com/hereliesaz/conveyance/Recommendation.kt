@@ -6,8 +6,9 @@ import kotlin.math.hypot
  * A behavioral role inferred from what an element actually does on the live surface.
  *
  * These are deliberately not component classes and not Employment categories. They are the middle
- * vocabulary between raw observations (`Job`, offered Act, Gate address) and an SDK construction.
- * That keeps the recommendation engine from becoming a lookup table of visual object names.
+ * vocabulary between raw observations (`Job`, offered Act, Gate address, consequence target) and an
+ * SDK construction. That keeps the recommendation engine from becoming a lookup table of visual
+ * object names.
  */
 enum class BehavioralRole {
     ActionSource,
@@ -17,13 +18,17 @@ enum class BehavioralRole {
     StatusReporter,
     IdentityCarrier,
     GateResolver,
+    Destination,
     Locator,
     Navigator,
     GroupContainer,
 }
 
 /** Infer behavioral roles from facts already present in an [AuditFrame]. */
-fun AuditElement.behavioralRoles(gateAddresses: Set<ElementId> = emptySet()): Set<BehavioralRole> = buildSet {
+fun AuditElement.behavioralRoles(
+    gateAddresses: Set<ElementId> = emptySet(),
+    targets: Set<ElementId> = emptySet(),
+): Set<BehavioralRole> = buildSet {
     if (act != null || Job.Invite in jobs) add(BehavioralRole.ActionSource)
     if (Job.Progress in jobs) add(BehavioralRole.ProgressReporter)
     if (Job.Confirm in jobs) add(BehavioralRole.CompletionReporter)
@@ -31,6 +36,7 @@ fun AuditElement.behavioralRoles(gateAddresses: Set<ElementId> = emptySet()): Se
     if (Job.Report in jobs) add(BehavioralRole.StatusReporter)
     if (Job.Identify in jobs) add(BehavioralRole.IdentityCarrier)
     if (id in gateAddresses) add(BehavioralRole.GateResolver)
+    if (id in targets) add(BehavioralRole.Destination)
     if (Job.Locate in jobs) add(BehavioralRole.Locator)
     if (Job.Navigate in jobs || verb == Verb.Enter || verb == Verb.Reveal) add(BehavioralRole.Navigator)
     if (Job.Group in jobs) add(BehavioralRole.GroupContainer)
@@ -135,8 +141,8 @@ data class ConsolidationSuggestion(
  *
  * Candidates still need spatial relationship so unrelated controls are not combined merely because
  * their job sets happen to complement one another. A role-based recipe match wins over a raw-job
- * fallback. This is the first step toward richer relations such as "reports the same Act" once the
- * runtime exposes that evidence explicitly.
+ * fallback. Relations such as destinations are derived from the Act graph itself; future relations
+ * such as "reports the same Act" should likewise be added only when the runtime can state them.
  */
 object ConsolidationAdvisor {
     fun suggest(
@@ -146,6 +152,7 @@ object ConsolidationAdvisor {
         val candidates = frame.elements.filter { !it.ambient && it.jobs.isNotEmpty() && it.jobs.size < 4 }
         if (candidates.size < 2) return emptyList()
 
+        val targets = frame.elements.mapNotNullTo(mutableSetOf()) { it.target }
         val groups = mutableListOf<List<AuditElement>>()
         for (size in 2..minOf(4, candidates.size)) {
             combinations(candidates, size).forEach { group ->
@@ -156,7 +163,9 @@ object ConsolidationAdvisor {
 
         val suggestions = groups.map { group ->
             val jobs = group.flatMapTo(mutableSetOf()) { it.jobs }
-            val roles = group.flatMapTo(mutableSetOf()) { it.behavioralRoles(frame.gateAddresses) }
+            val roles = group.flatMapTo(mutableSetOf()) {
+                it.behavioralRoles(frame.gateAddresses, targets)
+            }
             val recipe = recipes
                 .filter { group.size in it.minFragments..it.maxFragments }
                 .filter { candidate ->
