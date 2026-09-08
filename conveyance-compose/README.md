@@ -53,27 +53,44 @@ The application does not need a separate spinner, snackbar, or detached success 
 
 ### Act emphasis in Compose
 
-The core Act carries semantic expressive importance:
+The core Act declares functional emphasis:
 
 ```kotlin
 ActEmphasis.Heroic
 ActEmphasis.Primary
 ActEmphasis.Secondary
+ActEmphasis.Tertiary
 ActEmphasis.Supporting
 ```
 
-Inside `Offer`, use `act.emphasis` or the `ActScope.emphasis` convenience property.
+This hierarchy belongs to Acts, not Employment and not UI state.
+
+`act.emphasis` is the Act's own declaration. `resolvedEmphasis()` is the level the current screen can actually present:
 
 ```kotlin
 Offer(publish) {
-    val treatment = MyTheme.actTreatment(emphasis)
+    val treatment = MyTheme.actTreatment(resolvedEmphasis())
     PublishControl(treatment)
 }
 ```
 
-Conveyance intentionally does not create a parallel styling system. Compose already has themes, CompositionLocals, design tokens, and product-specific component tokens. Conveyance supplies the semantic token; the product's theme decides how that token becomes shape, type, color, motion, space, haptics, sound, or surrounding response.
+Think of the visible Acts as a document outline: Heroic is the title-level Act, then Primary, Secondary, Tertiary, and Supporting. A screen may present at most one Heroic Act.
 
-A Heroic Act is therefore not a special Conveyance component. It is an Act whose theme is allowed to engineer a hero moment.
+If two or more visible Acts claim Heroic, the declarations are not mutated. The registry simply resolves every visible Act one rung lower:
+
+```text
+Heroic     → Primary
+Primary    → Secondary
+Secondary  → Tertiary
+Tertiary   → Supporting
+Supporting → Supporting
+```
+
+Conscience names that conflict `HeroOfTheHill`.
+
+Conveyance intentionally does not create a parallel styling system. Compose already has themes, CompositionLocals, design tokens, and product-specific component tokens. Conveyance supplies the functional hierarchy; the product's theme decides how a resolved level becomes shape, type, color, motion, space, haptics, sound, or surrounding response.
+
+A Heroic Act is therefore not a special Conveyance component. It is the single title-level Act whose theme is allowed to engineer the screen's hero moment.
 
 ---
 
@@ -107,7 +124,7 @@ It knows:
 - which Elements carry travelling identity tokens;
 - declared Employment where the framework cannot infer it.
 
-From those facts it derives observed jobs and live audit evidence.
+From those facts it derives observed jobs, live audit evidence, and screen-relative Act emphasis.
 
 ### Census
 
@@ -131,7 +148,7 @@ captures the semantic truth of a running surface:
 - reversibility;
 - Gates;
 - jobs;
-- Act emphasis;
+- declared Act emphasis;
 - Ambient declarations.
 
 That frame is what lets Conscience reason about relationships instead of only source declarations.
@@ -226,6 +243,8 @@ Modifier.element(
 
 `Ambient` is the explicit opt-out for intentionally non-operational composition.
 
+Employment answers why an Element is here. Act emphasis answers what an Act does for the interaction. The screen-relative emphasis resolver never changes Employment.
+
 ---
 
 ## Suppression
@@ -245,7 +264,7 @@ It does not suppress the semantic Gate, disable the Act, or turn off Conveyance.
 - one corner-radius system;
 - one density;
 - one amount of visual chaos;
-- one interpretation of Heroic;
+- one visual treatment for Heroic;
 - monochrome hierarchy;
 - hue-as-rank;
 - a ban on decorative/personality motion.
