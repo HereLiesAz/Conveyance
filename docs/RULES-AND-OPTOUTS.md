@@ -33,6 +33,17 @@ Employment.Working(
 )
 ```
 
+The declaration is not the only source of jobs. Anything the live semantic graph can prove should be credited automatically rather than making the developer repeat it. Today the Compose registry derives, among others:
+
+- `Invite` when an Element actually offers an Act;
+- `Identify` when it carries a travelling identity token;
+- Gate-related `Invite` / `Locate` when it is a Gate resolver;
+- `Receive` when an Act's consequence actually targets that Element.
+
+`Job.Receive` is important because "this is where the consequence lands" is real work. An Element is defined by what it does, not by what somebody remembered to write in its Employment declaration.
+
+The framework does **not** automatically credit jobs such as `Progress`, `Confirm`, or `Interrupt` merely because an Act exists. Those only count when the rendered object actually does them. Otherwise the four-job constraint could satisfy itself without provoking any design work.
+
 Conscience reasons across the whole surface before complaining about isolated IdleWorkers. If three nearby two-job objects collectively describe one richer object, the useful finding is not three tickets. It is a consolidation suggestion. If that pattern matches something the SDK already offers, Conscience can name the replacement directly—for example `Offer`, `Form`, `Collection`, or `Places`.
 
 ### Opt-out — `Employment.Ambient`
@@ -286,31 +297,39 @@ save.success  → Confirm
 
 three separate IdleWorker warnings are less useful than recognizing one fragmented action lifecycle.
 
-The runtime registry already knows element jobs, offered acts, gates, geometry, subjects, consequences, and declared Act emphasis. `ConsolidationAdvisor` can combine that evidence and compare it with a capability catalog of SDK constructions.
+The runtime registry already knows element jobs, offered Acts, Gates, geometry, consequence targets, reversibility, and declared Act emphasis. `ConsolidationAdvisor` turns that evidence into behavioral roles and compares the result with an SDK-owned recipe catalog.
 
-The intended architecture is:
+The current architecture is:
 
 ```text
-observed capabilities
+observed jobs + semantic graph facts
         ↓
-behavioral pattern
+BehavioralRole + known relations
         ↓
 available Conveyance construction
 ```
 
+Current roles include `ActionSource`, `ProgressReporter`, `CompletionReporter`, `Interruptible`, `StatusReporter`, `IdentityCarrier`, `GateResolver`, `Destination`, `Locator`, `Navigator`, and `GroupContainer`.
+
 Examples:
 
 ```text
-Action source + progress reporter + completion reporter
+ActionSource + ProgressReporter + CompletionReporter + Interruptible
 → one action lifecycle
 → Offer
 
-repeating identified subjects + create destination + destruction/recovery behavior
+repeating IdentityCarrier subjects + collection behavior
 → managed collection
 → Collection
 ```
 
-The catalog belongs to the SDK, not to a pile of linter folklore, so recommendations can evolve with the components Conveyance actually ships.
+Recipes can also carry relational constraints. `Offer`, for example, will not collapse a cluster containing two distinct offered Acts into one lifecycle even when the union of their jobs happens to look right.
+
+Conveyance derives `Destination` from actual consequence target addresses, not from names such as `result`, `output`, or `container`.
+
+There is still an intentional boundary: the runtime does not yet claim that an arbitrary detached progress reporter is observing a particular Act unless it has evidence for that relationship. The linter should become smarter by learning more truth, not by becoming more confident at guessing.
+
+The catalog belongs to the SDK, not to a pile of linter folklore, so recommendations evolve with the components Conveyance actually ships.
 
 ---
 
