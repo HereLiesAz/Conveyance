@@ -3,9 +3,14 @@ package com.hereliesaz.conveyance
 /**
  * What an element is for.
  *
- * Resourceful minimalism is unenforceable as advice and trivial to enforce as arithmetic, so jobs
- * are enumerable and elements declare them. An element that cannot name four is standing around
- * watching one guy dig.
+ * Resourceful minimalism is deliberately generative here: a working element must do at least four
+ * real jobs. The point is not tidiness or austerity. The constraint forces the designer to rethink
+ * one-purpose chrome, combine responsibilities, and invent richer elements that teach more of the
+ * interface through use.
+ *
+ * Some jobs are declared only when the framework cannot see them. Others are derived from the live
+ * semantic graph. In particular, an Element targeted by an Act is genuinely doing the job [Receive]
+ * and should get credit for it without making the developer repeat that fact.
  */
 enum class Job {
     /** Offers an act. */
@@ -40,32 +45,28 @@ enum class Job {
 
     /** Stops what it started. */
     Interrupt,
+
+    /** Receives the visible consequence of an Act. Derived from the Act graph when observable. */
+    Receive,
 }
 
 /** Why an element is on screen at all. */
 sealed interface Employment {
 
     /**
-     * Doing real work. Four jobs is the minimum. For an inviting element, three of the four
-     * cost nothing to justify -- [Job.Invite] is the declaration itself, [Job.Progress] is true
-     * the moment it exists (Offer renders every act's states, Yielding included, from the same
-     * pixels), and [Job.Interrupt] is owed for the same reason Law 4 already names it. But
-     * nothing here is inferred: the type does not add jobs on an element's behalf, because a
-     * claimed job with no code standing behind it is exactly the failure this law exists to
-     * catch, not a shortcut around declaring it. A developer who has internalised that the first
-     * three are close to automatic still has to write all four down -- what that buys is one
-     * real job of friction, not zero.
+     * Doing real work. Four distinct jobs is the minimum.
      *
-     * The count is checked at construction rather than by a later audit, because an unemployed
-     * element that reaches an audit has already been designed, reviewed and probably shipped.
+     * This is a creative constraint, not an organizational quota. If an element cannot honestly do
+     * four jobs, the intended response is to reimagine the element: merge it, transform it, let it
+     * carry state or identity, make it the place a consequence lands, or otherwise give it a richer
+     * role in the interface.
      */
     class Working(val jobs: Set<Job>) : Employment {
         constructor(vararg jobs: Job) : this(jobs.toSet())
 
         init {
             require(jobs.size >= 4) {
-                "An element with ${jobs.size} job(s) is standing around. " +
-                    "Merge it with its neighbour, or delete it: $jobs"
+                "A working element needs at least four distinct jobs. Reimagine it rather than padding the declaration: $jobs"
             }
         }
 
@@ -73,10 +74,11 @@ sealed interface Employment {
     }
 
     /**
-     * Deliberately doing nothing: a ground, a rule, a field of space.
+     * Deliberately not operational: ground, texture, breathing room, ornament, atmosphere, or another
+     * intentionally non-working part of the composition.
      *
-     * Budgeted per surface, because an exemption that is not counted quietly becomes the norm and
-     * then the whole rule was decorative.
+     * Ambient is not a loophole for weak controls; it means the thing is not pretending to be a
+     * working element in the first place.
      */
     data object Ambient : Employment
 }

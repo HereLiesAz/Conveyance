@@ -6,46 +6,41 @@ import kotlin.test.assertFailsWith
 
 class ChannelTest {
 
-    /**
-     * Channel Economy, as a test rather than as advice. If a meaning has two channels the product
-     * says the same thing twice; if a channel has two meanings a person cannot tell which is being
-     * said. Either way the interface stops being readable without labels.
-     */
     @Test
-    fun `every channel carries exactly one meaning and every meaning has exactly one channel`() {
+    fun `reference channels remain internally coherent`() {
         val assigned = Channel.entries.map { it.carries }
-        assertEquals(assigned.size, assigned.toSet().size, "Two channels claim the same meaning.")
-        assertEquals(Meaning.entries.toSet(), assigned.toSet(), "A meaning has no channel, or a channel invents one.")
+        assertEquals(assigned.size, assigned.toSet().size)
         Meaning.entries.forEach { assertEquals(it, Channel.carrying(it).carries) }
     }
 
     @Test
-    fun `elevation means reversibility and opacity is never a resting state`() {
-        assertEquals(Channel.Elevation, Channel.carrying(Meaning.Reversibility))
-        assertEquals(Meaning.TransitionOnly, Channel.Opacity.carries)
+    fun `hue is available for stable visual identity`() {
+        assertEquals(Channel.Hue, Channel.carrying(Meaning.VisualIdentity))
     }
 
     @Test
-    fun `the haptic channel has two voices and intensity follows weight`() {
-        assertEquals(2, HapticVoice.entries.size)
+    fun `reference haptic intensity follows weight`() {
         assertEquals(Weight.Heavy, HapticVoice.Commit.intensity(Weight.Heavy))
     }
 
     @Test
-    fun `an element with fewer than four jobs cannot be constructed`() {
+    fun `working elements need four distinct jobs`() {
         assertFailsWith<IllegalArgumentException> { Employment.Working(Job.Report) }
-        assertFailsWith<IllegalArgumentException> { Employment.Working() }
-        // Three, even three real ones including Invite, is still a job short: nothing here is
-        // inferred on the developer's behalf, however close to automatic Progress and Interrupt
-        // are for an inviting element.
-        assertFailsWith<IllegalArgumentException> { Employment.Working(Job.Invite, Job.Progress, Job.Interrupt) }
+        assertFailsWith<IllegalArgumentException> {
+            Employment.Working(Job.Invite, Job.Progress, Job.Interrupt)
+        }
 
         val employed = Employment.Working(Job.Invite, Job.Progress, Job.Interrupt, Job.Report)
-        assertEquals(setOf(Job.Invite, Job.Progress, Job.Interrupt, Job.Report), employed.jobs)
+        assertEquals(
+            setOf(Job.Invite, Job.Progress, Job.Interrupt, Job.Report),
+            employed.jobs,
+        )
     }
 
     @Test
-    fun `duplicate jobs do not count toward employment`() {
-        assertFailsWith<IllegalArgumentException> { Employment.Working(Job.Invite, Job.Invite) }
+    fun `duplicate declarations do not fake the four-job constraint`() {
+        assertFailsWith<IllegalArgumentException> {
+            Employment.Working(Job.Invite, Job.Invite, Job.Invite, Job.Invite)
+        }
     }
 }

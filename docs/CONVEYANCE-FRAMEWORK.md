@@ -1,859 +1,709 @@
-# Conveyance
+# Conveyance framework
 
 **A UI/UX framework in which the interface teaches its own rules.**
 
-Status: design specification, v0.1. Platform-neutral. Reference binding: Jetpack Compose.
+This document describes the SDK. The [manifesto](../README.md) is the source of the philosophy and remains the source of truth when implementation language drifts away from it.
+
+The framework exists to make three ideas practical:
+
+- **Conveyance:** teach by example rather than by instruction.
+- **Resourceful minimalism:** put present elements to work instead of surrounding useful things with scaffolding.
+- **Compassionate design:** assume competence, preserve agency, and make consequences understandable before and after action.
+
+The SDK is not a visual style guide. It does not prescribe one palette, one density, one shape language, one amount of motion, or one aesthetic temperament. A quiet banking app and an exuberant H2G2 interface can both convey well.
+
+What Conveyance does prescribe is a way of making relationships visible enough that people can learn the product by using it.
 
 ---
 
-## 0. What this is, and the one rule that generates the rest
+## 1. The framework must convey to the developer too
 
-The manifesto says three things:
+The API is also an interface.
 
-1. **Conveyance** — the design teaches by example, never by instruction.
-2. **Resourceful minimalism** — if a thing is on screen, it works, and it works at more than one job.
-3. **Compassionate design** — dignity, empowerment, security; give people the benefit of the doubt.
+If a developer must continually repeat facts that the model already knows, those parameters are labels. Labels drift. If a developer must memorize exceptions scattered across a manual, the SDK has reproduced the same construction-zone problem it criticizes in applications.
 
-A *style guide* would restate those as advice and hope. A *framework* has to make them structural: the compliant thing must be the easy thing, and the non-compliant thing must be hard to say. Everything below is derived from that requirement.
+Two working principles follow:
 
-There is one rule the whole framework hangs from:
+> **Derive what can be derived. Ask only for facts the framework cannot know.**
 
-> **The Two-Sided Rule.** Conveyance applies to the developer as much as the user. If a developer needs a manual to use this framework, the framework is a construction zone. The API is a user interface. It must convey.
+and
 
-This is not a slogan; it is a constraint with teeth, and it shows up throughout as concrete API decisions. It has a second half, which took longer to arrive at:
+> **Put a rule beside the semantic opt-out that says what the exception is instead.**
 
-> **The framework does the heavy lifting.** Anything the framework can work out for itself, it must. Asking a developer for something the model already contains is a defect in the framework, not a feature of the API.
+For example:
 
-Every parameter is a question, every question has to be answered on every call, and an answer typed once is a **label** — it goes stale the moment the thing it describes changes, and then the framework is reasoning about the label instead of the thing. Worse, a required answer with a floor invites everyone to clear the floor and stop thinking, which is how a parameter becomes a formality.
+- the developer states an Act's consequence; the motion signature is derived;
+- a Gate names where it can be resolved; the Escort route is derived;
+- the registry observes which element offers which Act; `Invite` is derived;
+- an element with `Employment.Ambient` is not a weak working element—it explicitly says it is not operational;
+- `Act.destroy(...)` requires an inverse; `Act.destroyIrreversibly(...)` names the real exception instead of weakening ordinary destruction.
 
-Three places this rule was applied after the fact, each replacing something the API used to ask for:
-
-| Was asked for | Now derived from |
-|---|---|
-| How a control should animate | The consequence's verb and the two elements' positions (§0, Part III) |
-| What an element is for | Backing an act, being a gate's address, carrying a travelling token (§7.1) |
-| How long an undo lasts | The weight of what was destroyed (§5.3) |
-
-When you find yourself adding a parameter, the question to ask first is not "what should its default be" but "why does the framework not already know this". The vocabulary is small enough to fit on one page (Appendix A) because a vocabulary you have to look up is a tooltip.
-
-### The design premise
-
-Conventional UI toolkits model **state** and render **appearance**. You say *what things look like*, and separately, elsewhere, you write what happens. The gap between those two is exactly where instruction has to be inserted to patch things up — the tooltip, the empty-state paragraph, the "Are you sure?", the snackbar that reports on something that already happened somewhere off-screen.
-
-Conveyance models **affordance** and renders **consequence**. You declare what a person can do, what stops them, and what will visibly change when they do it. Appearance is derived. There is no gap to patch, so there is nothing to explain.
-
-That inversion is the whole framework. The rest is bookkeeping.
+The full rule/opt-out pairs live in [Rules and their opt-outs](RULES-AND-OPTOUTS.md).
 
 ---
 
-# Part I — The Rules, and the Mechanisms
+## 2. Model actions and consequences, not buttons and callbacks
 
-## The rules are Twain's
+Conventional UI code often declares appearance and behavior separately. A rectangle is styled in one place; a callback changes state elsewhere; loading, success, failure, warning, and navigation are reported by still more surfaces.
 
-The manifesto now carries [Twain's eighteen rules recounted as design mandates](../README.md#twains-rules-which-were-design-mandates-all-along), and those are the framework's rules. They are better than the ones this document originally opened with: older, sharper, memorable — and not borrowed from an unrelated field. Print was the only interface of that sort in 1895, so Twain was writing about the medium he had, at the stage it was at. The rules are native to this problem, not imported into it.
+Conveyance closes that gap by giving the action a semantic model.
 
-This part is not a second set of rules. It is the small number of **mechanisms** by which a Compose application can be made to obey them without anyone remembering to. The relationship is one-way — the rules judge, the mechanisms enforce:
-
-| Twain | Enforced by |
-|---|---|
-| The reader can tell beforehand what each will do | The grammar (Law 3), and the Prediction Test (§9.3) |
-| The episodes shall be necessary parts, and help develop it | Employment (Law 4) |
-| Alive, except corpses — and tell the corpses apart | Gates and the Escort (Law 5, §2.2) |
-| When they talk it shall be for a reason, and stop | The Instruction audit (§6.1) |
-| Use the right word, not its second cousin | The Absent Vocabulary (Part VIII) |
-| Eschew surplusage | Employment, Channel Economy, the Keystone budget |
-| Not omit necessary details | The Necessary Detail audit (§7, audit 11) |
-| Avoid slovenliness of form; use good grammar | Channel Economy (Part IV), the grammar (Part III) |
-| Say what you propose to say, not merely come near it | One Element (Law 1), Continuity (Law 2) |
-| A composable can have too many syllables | The syllable count (§7.3) |
-
-Two of those rows are new, and they are new because the rules found holes the mechanisms did not have. They are marked where they appear.
-
-## The Five Laws
-
-
-Every mechanism in this document is an enforcement of one of these. They are ordered by how much they cost to violate.
-
-### Law 1 — One Element
-
-**An action's invitation, its progress, its result, and its failure are the same pixels.**
-
-Not a button plus a spinner plus a toast plus a red banner. One element, four states, continuous identity throughout. The user learns the mapping *action → this thing → outcome* because it never breaks. Every separate feedback surface you add is a second construction worker standing next to the hole.
-
-*Consequence for the API:* an `Act` is a single declaration carrying all four states. There is no way to declare a control without declaring what it looks like while working and what it looks like when it fails.
-
-### Law 2 — Continuity
-
-**Nothing appears from nowhere and nothing goes nowhere.**
-
-If tapping a row opens a detail view, the row *becomes* the detail view. If a menu opens from a button, the button *is* the menu, expanded. Continuity is not decoration — it is the entire mechanism by which a person builds a mental map of a system they have never seen. Cross-fades and teleports destroy that map and then require a breadcrumb trail to rebuild it in words.
-
-*Consequence for the API:* a destination cannot be declared without naming the element it grows out of. There is no `navigate(route)`. There is `Enter(place, from = element)`.
-
-### Law 3 — Grammar
-
-**Each kind of change has exactly one motion signature, used everywhere and used for nothing else.**
-
-Not "motion should feel alive." A grammar: eight verbs, eight signatures, applied with total consistency across the entire product. After three encounters a person can predict the behavior of a control they have never touched, because they have learned the world's physics rather than a list of features. That predictive competence *is* the feeling of "it just clicks."
-
-Consistency is load-bearing. A motion signature reused for decoration is a lie in the language and does more damage than no motion at all.
-
-*Consequence for the API:* you cannot specify a duration or an easing curve. Those words are not in the vocabulary. You specify a verb and a weight; the framework owns the rest.
-
-### Law 4 — Employment
-
-**Every element does at least four jobs. Elements with fewer get merged; elements with none get deleted.**
-
-This is resourceful minimalism made checkable. Jobs are enumerable (§4.3), and an element that cannot name four of them is standing around watching one guy dig. Four, not three, because three of the four are nearly free for an element that offers an act: `Invite` is the declaration itself, `Progress` is true the moment it exists (Offer renders every act's states, Yielding included, from the same pixels — there is no path through the type system that skips it), and `Interrupt` is owed for the same reason Law 4 already names it. None of those should cost a developer real thought once that's understood — which is exactly why the count can't stop at three: a three-job minimum would be satisfiable by reflex, without the developer ever deciding anything.
-
-*Consequence for the API:* `Employment.Working` requires all four written down explicitly — nothing is inferred on the developer's behalf, because a job the type system credits without seeing the code behind it is exactly the failure this law exists to catch. The fourth is the one that actually costs a decision, and it's the only one this law is checking for; the Idle Worker audit fails the build on unemployment.
-
-### Law 5 — Benefit of the Doubt
-
-**Never warn where you can reverse. Never instruct where you can demonstrate. Never block where you can escort.**
-
-*Corrected by Twain.* This law originally banned the disabled state outright. That was an overreach. Twain permits corpses and asks only that the reader be able to tell them from the living — which is the better rule, because sometimes a control genuinely is dead and dressing it as live is its own lie. The correct division:
-
-- **Gated** — alive, waiting on a condition that has an address. Escort. Never grey out.
-- **Dead** — genuinely inoperative, and honest about it. Permitted, and required to be unmistakable: not a translucent version of a live control, which is the ambiguity the ban was aimed at in the first place.
-
-What remains banned is the *illegible* corpse — the greyed rectangle that might be broken, might be loading, might be a label.
-
-The three most common patronizing constructs — the confirmation dialog, the tooltip, the greyed-out control — each have a compassionate mechanical replacement (the Ghost, the Tell, the Escort). All three are in the framework; none of the originals are.
-
-*Consequence for the API:* a destructive act will not compile without an inverse. There is no tooltip primitive. There is no `enabled: Boolean` — there is `requires(gate)`, and a gate knows where it lives.
-
----
-
-# Part II — The Lexicon
-
-Six nouns. That is the entire semantic model.
-
-```
-Subject       a thing in the product that a person cares about (a document, a track, a friend)
-Place         somewhere a person can be
-Act           something a person can do
-Gate          a condition that stands between a person and an Act
-Consequence   what visibly changes when an Act completes
-Keystone      an Act designated as the emotional core of the product
-```
-
-### 2.1 Act
-
-```
-Act {
-  identity     : Id                     // stable across time and place
-  subject      : Subject?               // what it acts on
-  requires     : List<Gate>             // what must be true first
-  consequence  : Consequence            // REQUIRED — what changes, and where
-  inverse      : Act?                   // REQUIRED if consequence is destructive
-  weight       : derived                // from consequence magnitude, not chosen
-}
-```
-
-An `Act` renders itself through five states, in the same location, as the same element:
-
-```
-Ready      → Blocked(gate)     the world is not ready; the element leans toward what is missing
-Ready      → Yielding(extent)  the system is working; the element itself deforms under load
-Yielding   → Settled(result)   done; the element carries the result rather than announcing it
-Yielding   → Refused(reason)   failed; the element holds the reason and the retry, in place
-```
-
-Three things about this shape are deliberate and are where most of the philosophy lives:
-
-**`consequence` is required and must name a target.** You cannot declare an action whose result is invisible or unlocated. If you cannot say what changes and where, you have a hidden consequence, which is the root cause of every toast ever written. Naming the target is also what lets the framework animate from the control to the outcome for free — Continuity falls out of a field you were forced to fill in.
-
-**`inverse` is required for destruction, and there is no confirmation primitive.** The framework will not ask "Are you sure?" on your behalf because it cannot. Reversibility is the only offered safety mechanism, which means the cheap patronizing option is unavailable and the respectful one is the default path.
-
-**`weight` is derived, never chosen.** Weight is the inertia of the element's motion, and it is computed from the magnitude of the consequence. Deleting a character is light. Deleting an account is heavy — slow to start, slow to stop, resistant. The user *feels the stakes in their thumb* before they read anything. This is the security pillar of compassionate design, implemented as physics. It is not available as a styling knob, because a designer choosing weight for aesthetic reasons would be lying to a person's hands.
-
-### 2.2 Gate
-
-```
-Gate {
-  satisfied    : Boolean
-  livesAt      : Element        // REQUIRED — where the person goes to satisfy it
-}
-```
-
-There is no disabled state in this framework. A greyed-out control is a sign nailed to a post: it announces a rule and abandons you. A `Blocked` Act is a live element that knows where its own precondition lives, and pressing it **escorts you there** (§5.2).
-
-`livesAt` is required for the same reason `consequence` is: if you cannot name the place where the blocker can be resolved, you have built a dead end, and the person will need a paragraph to get out of it.
-
-### 2.3 Place
-
-```
-Place {
-  identity     : Id
-  origin       : Element        // REQUIRED — the element this place grows out of
-  subject      : Subject?
-}
-```
-
-`Place.Root` exists for genuine entry points and is budgeted (default: 1). Everything else has an antecedent. A place with many possible origins declares the morph per origin, or accepts a single canonical one; either way there is no teleport.
-
-### 2.4 Consequence
-
-Consequence is not free text. It is one of six classes, each bound to a motion signature in Part III:
-
-```
-Reveal(target)          more of what is already here becomes visible
-Enter(place)            the person goes somewhere
-Create(subject, into)   a new thing exists, in a named collection
-Destroy(subject)        a thing ceases (requires inverse)
-Alter(subject, field)   a thing changes in place
-Send(subject, to)       a thing leaves the person's control
-```
-
-Choosing the class is the only expressive decision. Everything visual follows from it. This is the mechanism that keeps a product's grammar consistent across a team of twelve people and four years — nobody is choosing animations, they are choosing verbs.
-
-### 2.5 Keystone
-
-An Act marked `Keystone` receives the expressive motion budget: the extra articulation, the overshoot, the sound, the haptic, the moment. Between one and three per product, enforced.
-
-The scarcity is the point. The manifesto's "hero moment" fails the instant it is applied generously — an app where everything sings is an app where nothing is emphasized, which is an app that has spent its most expensive channel on decoration. The Keystone budget is resourceful minimalism applied to delight itself.
-
----
-
-# Part III — The Motion Grammar
-
-Eight verbs. Each has exactly one signature. Each signature means only its verb.
-
-| Verb | Occurs when | Signature | What it teaches |
-|---|---|---|---|
-| **Reveal** | `Reveal` | The container grows from the edge the person touched. Nothing translates. Nothing else moves. | "This was always here. You are in the same place." |
-| **Enter** | `Enter` | The touched element expands to become the new place. Its content is the new content, morphing. | "That thing and this screen are the same thing." |
-| **Return** | back | The place contracts back into the element it came from, which is still where it was. | "You did not lose your place. It is here." |
-| **Create** | `Create` | The subject precipitates *out of the creating control*, then travels to and settles into its position in the collection. | "New things come from here and live there." |
-| **Destroy** | `Destroy` | The subject collapses in place, leaving a Ghost (§5.3) that can be pulled back. | "It is gone, and gone is not final." |
-| **Alter** | `Alter` | Only the changed property moves. The subject does not translate, lift, or flash. | "That, and only that, is different now." |
-| **Send** | `Send` | The subject travels toward the on-screen representation of its destination and diminishes into it. | "It went *there*, to *them*." |
-| **Refuse** | blocked | The element resists at the point of contact, then escorts toward its gate (§5.2). | "Not yet — and here is why, and it is over there." |
-
-Plus one non-verb, always available:
-
-| **Yield** | working | The engaged element itself deforms under load — compresses, stretches, fills, thickens. Never a separate spinner. | "*This* is what is busy, and it is what you touched." |
-
-### 3.1 Exclusivity
-
-A signature may be used for its verb and for nothing else. A decorative flourish that borrows the `Send` signature is a false statement in the language; the audit flags it (§7.9). This is stricter than it sounds and it is the single highest-value rule in the framework, because a grammar with exceptions is not a grammar and cannot be learned without being taught.
-
-### 3.2 Physics, not timing
-
-One spring family, three weights, derived from consequence magnitude:
-
-```
-Light    responsive, slight overshoot     chips, toggles, selections, Alter on trivia
-Medium   crisp, settles clean             cards, sheets, Create, Send
-Heavy    high inertia, no overshoot       Places, Destroy, anything with a real cost
-```
-
-Weight is inertia, and inertia reads as consequence. A heavy element is slow to start under the finger and slow to stop — it *feels* like it matters, and it gives the hand a beat in which to change its mind. That beat is the confirmation dialog, replaced by physics, without the interruption or the insult.
-
-**Durations and easing curves are not in the API.** There is no `animationSpec` parameter to pass. This is not a limitation the framework apologizes for; it is the mechanism that makes an entire product internally consistent by construction rather than by review.
-
-### 3.3 The reduced register
-
-Motion carries meaning here, so "disable animations" cannot mean "disable meaning." Every verb has a reduced expression that preserves **continuity and location** while removing **traversal**:
-
-- `Enter` still morphs, instantly — the new place appears at the origin element's bounds and expands to fill in one frame.
-- `Create` still precipitates at the control's position, then is instantly at its collection position — the intermediate flight is dropped, the endpoints are kept.
-- `Destroy` still leaves the Ghost.
-- `Yield` still deforms the engaged element, statically.
-
-What is removed is duration, not identity. This is a hard requirement of the design, not an accessibility afterthought: if the reduced register loses the grammar, the grammar was carried by ornament rather than by structure.
-
----
-
-# Part IV — Channel Economy
-
-Resourceful minimalism applied to the design vocabulary itself.
-
-A visual channel is a dimension you can vary: position, size, shape, hue, chroma, elevation, opacity, type scale, density, motion, haptics, sound. Conventional design systems assign meaning to a few and spend the rest on brand. Conveyance assigns **exactly one global meaning to every channel**, and anything unassigned goes unused — plain, flat, quiet — rather than being decorated.
-
-The result: nothing on screen varies without saying something, so everything that varies is information. That is what makes an interface readable without labels.
-
-### 4.1 The assignment
-
-| Channel | Carries | Never carries |
-|---|---|---|
-| Position | Relationship and origin — where a thing came from and belongs | Balance, rhythm |
-| Size | Current importance in this moment, not permanent rank | Brand presence |
-| Shape / radius | State — settled shapes at rest, articulated shapes when engaged | Brand personality |
-| Hue | Semantic rank — one primary per surface, secondary alternatives, tertiary ambient | Category, decoration, mood |
-| Chroma | Heat — how live, recent, or urgent this is | Brand saturation |
-| Elevation | **Reversibility.** Things that float can be dismissed; things that are flush cannot | Depth aesthetics, hierarchy |
-| Opacity | Transition only. Never a resting state | Disabled, de-emphasis |
-| Type scale | Reading order | Emphasis, personality |
-| Density | Relatedness — proximity is grouping and nothing else | Fitting more in |
-| Motion | The grammar (Part III) | Delight, polish |
-| Haptics | Consequence magnitude — the tactile echo of weight | Confirmation of taps |
-| Sound | Keystones only | Everything else |
-| Decoration (underline / weight-or-hue shift) | **This text is an Act.** Reserved exclusively for text a person can act on | Emphasis, brand voice, style |
-
-Two of these are worth dwelling on because they are unusual and they pay off enormously:
-
-**Elevation means reversibility.** Once it is consistent, a person knows at a glance and without ever being told which things they can back out of. Shadows stop being lighting and become a safety map. The security pillar, delivered in a channel most systems spend on taste.
-
-**Opacity is never a resting state.** Half-opacity is the universal signal for "disabled," which is the construct this framework does not have. A thing is present and live, or it is not there. There is no purgatory of ghosted controls that a person has to test by tapping.
-
-### 4.2 Text as an Act
-
-Text is not exempt from Law 3 just because it reads instead of clicks. Whenever a span of text **is** an Act — a link, a tappable term, an inline action — rather than merely describing one, that span carries the Decoration channel: it is persistently, visibly distinguished from the static text around it, the same way `Elevation` marks reversibility whether or not a person ever needed to know it was there. Plain text never borrows Decoration for emphasis; the moment it did, the signal would stop meaning "you can act on this" and Law 5's ban on illegible corpses would apply to every sentence on the page.
-
-This is one signal doing one job in two registers, not two separate mechanisms: Decoration is the *persistent* half — always present, costing nothing to notice — and the Tell (§5.1) is the *taught* half, since Tell already applies to "an element that has never been operated," text Acts included. Neither half is optional cover for the other — a Tell that fires once and leaves no lasting mark would make every link invisible again the second time the page loads. Where a text Act's Tell needs a motion at all, it draws from the kinetic-typography vocabulary already in the framework (`ConveyVerb`'s classification of the Act's own words, the same engine `ConveyKineticText`/`ConveyKineticSentence` use) rather than a separate, invented gesture — one motion grammar for text, not two. A Tell that recurs (rather than firing once per §5.1's ordinary budget) is available where a surface calls for it, but recurrence is a choice made per surface, never a default — continuous motion is exactly the kind of decoration Law 3 already warns a reused signature becomes a lie in the language.
-
-**Text animation is offered, never assumed.** The kinetic-typography engine is not reserved for short kinetic phrases or interactive Acts — any text, `Body`-level `DESIGN` paragraphs included, may be animated through it. This is deliberately a menu, not a rule: resourceful minimalism (Law 4's whole premise) means motion earns its place on a given surface the same way any element does, and static `Body` text that has nothing to teach or signal is not a gap to be filled. The framework's job is to make every one of those options actually Conveyance-adherent when a developer reaches for one, not to reach for one on their behalf.
-
-### 4.3 The Job enum
-
-Employment (Law 4) needs jobs to be countable. Every element declares from:
-
-```
-Invite     offers an act              Report     shows current state
-Locate     tells you where you are    Identify   distinguishes one subject from another
-Group      binds things together      Separate   marks a boundary
-Progress   shows work happening       Confirm    shows work completed
-Warn       shows risk                 Navigate   moves you
-Interrupt  stops what it started
-```
-
-Four minimum, declared explicitly, every time. `Invite`, `Progress` and `Interrupt` travel together in spirit for an element that offers an act — an offered act always yields on its way to settling and always owes a way to stop it, so neither should cost a developer real thought — but the type never infers them: a job the construction credits without the code behind it existing is the exact failure this law exists to catch, not a shortcut past declaring it. What that leaves is one real, non-reflexive job an inviting element still has to decide on, which is what the requirement is actually checking for. Below four means "merge this with its neighbor." Zero means "delete it." An element that honestly can't carry four may be declared `Ambient` instead — deliberately exempt rather than padded to fit — and the exemption is budgeted per surface so it cannot quietly become the norm.
-
----
-
-# Part V — The Named Behaviors
-
-These are the framework's replacements for the constructs it refuses to ship. Each one is a single mechanism doing what two or three conventional constructs did badly.
-
-### 5.1 The Tell
-
-*Replaces: coach marks, tooltips, onboarding overlays, "swipe to continue" hints.*
-
-An element that has never been operated performs, once, an abbreviated version of its own interaction. The drawer eases out twelve units and settles back. The card lifts a fraction and drops. The dial rotates a few degrees and returns.
-
-Not an arrow pointing at it. Not a caption. The element does a half-rep of the thing it wants you to do, the way a poker player's hands give them away before they act. It is over in a third of a second, it never repeats after the person has done the thing once, and it teaches the gesture rather than describing it.
-
-Budget: at most one Tell per surface per session, on the surface's most consequential unpracticed act. Elements track their own practice count; there is no separate onboarding state machine to maintain, and no onboarding flow to skip.
-
-### 5.2 The Escort
-
-*Replaces: disabled states, validation error summaries, "please complete all required fields."*
-
-Pressing a `Blocked` act does not do nothing, and does not show a message. The element resists at the point of contact — the `Refuse` signature — and then **carries the person to the gate**: it travels to, scrolls to, or opens the place where the unmet condition lives, and the gate element receives focus already articulated.
-
-Three conventional constructs collapse into one mechanism: the disabled control, the error text, and the "jump to first error" affordance. And the emotional register changes completely. A greyed-out button says *you failed to read the rules*. An escort says *come on, it's this way*. Same information, opposite treatment of the person's dignity.
-
-### 5.3 The Ghost
-
-*Replaces: confirmation dialogs, undo snackbars, trash/archive round-trips.*
-
-A destroyed subject collapses in place and leaves a Ghost — a compressed residue occupying the space the subject held, in the position it held, for a window proportional to the act's weight. Pulling the Ghost restores the subject. Letting it be lets it go.
-
-The undo is **where the thing was**, not in a bar at the bottom of the screen that steals the space and then leaves. There is no modal interruption before the fact, and no orphaned report after it. The reversal is located in the world, which is where a person's hand already is.
-
-This is why `inverse` is a required field for destructive acts. The Ghost is not a courtesy the framework offers; it is the only destruction mechanism the framework has.
-
-### 5.4 The Migration
-
-*Replaces: empty-state illustrations and their explanatory paragraphs.*
-
-An empty collection does not display a message about being empty. It displays **its creation control, at full size, in the center of the space the collection will occupy.** When the first subject is created, that control performs `Create` — and then travels to the corner position where it will live from now on, and shrinks into it.
-
-In one motion, with no words, a person learns: what this space is for, how to fill it, and where the button will be for the rest of their life with this product. One element, four jobs (Invite, Locate, Navigate, Identify), zero instructions. This is the framework's canonical demonstration of what resourceful minimalism actually buys you.
-
-### 5.5 The Yield
-
-*Replaces: spinners, progress bars, loading skeletons, "please wait."*
-
-The engaged element deforms under load. A button being pressed into service compresses and fills. A list being fetched thickens its own rows. A field being validated tightens.
-
-Progress is never a separate object, because a separate object severs the link between what you touched and what is happening — which is precisely the link the person is trying to learn. Indeterminate work deforms rhythmically; determinate work deforms proportionally. Same channel, same element, no vocabulary to learn.
-
-### 5.6 The First Move
-
-*Replaces: tutorials, product tours, sample-data-with-a-dismiss-button.*
-
-The product's initial state is **arranged** so that the most sensible available action is the one that teaches the core loop. Not gated, not forced, not narrated — arranged, the way Mega Man X puts you in a corridor where the only thing to do is the thing that teaches you the thing.
-
-Framework support is a `Rehearsal` state: a declared arrangement of the product at zero data that is *composed*, not empty, and that dissolves into ordinary use the moment the person acts. It is the single highest-effort thing in this framework and the only place where a real budget of design time is justified before launch, because a first minute that clicks buys a permanent trust that no amount of later polish recovers.
-
----
-
-# Part VI — Teaching Without Instruction
-
-The framework's position on text, stated precisely, because "no text" is a slogan and slogans get products into trouble.
-
-### 6.1 Text is not banned. Instruction is.
-
-```
-ALLOWED     names of subjects            "Invoices"          nouns identify
-            names of acts                "Send"              verbs invite
-            values                       "$412.00"           data is data
-            user-generated content       anything            not yours to police
-ABSENT      sentences describing the UI  "Tap here to..."    the UI describes itself
-            explanations of state        "Your file is..."   the element shows it
-            warnings before the fact     "Are you sure?"     reverse instead
-            reports after the fact       "Saved!"            the element settled
-            help text, tooltips, hints, empty-state copy, feature tours
-```
-
-The operational test, and the one the audit implements: **user-facing strings in chrome are nouns or verbs, not sentences.** Four words is the practical threshold. If you need a fifth, you have a design problem you are papering over, and the paper is the tell.
-
-### 6.2 The accessibility layer is exactly the opposite, and this is not a contradiction
-
-A person using a screen reader cannot perceive a morph, a Ghost, or an Escort. For them, the framework's entire pedagogical apparatus is invisible. **Text is removed from the visual surface, and is mandatory in the semantic layer.**
-
-So the `Act` model — which already knows its identity, its consequence, its gate, and its inverse — generates the accessibility tree automatically and richly:
-
-- The consequence class becomes the action description.
-- The gate's identity becomes the reason a blocked act is unavailable, plus a direct move to it (the Escort has a non-visual form: focus travel).
-- The Ghost becomes an announced, focusable undo affordance in the collection's position.
-- Yield becomes a live region tied to the engaged element.
-- Continuity becomes focus continuity: focus lands on the morphed element, never at the top of a new screen.
-
-This is a real advantage of modelling affordance rather than appearance, and it is worth stating plainly: **because the framework knows what every act means, it can describe every act in words — it simply declines to write those words on the screen.** A conventional toolkit knows only that there is a rectangle, which is why its accessibility labels are always someone's afterthought.
-
-The same structure serves automated testing (stable identities, declared consequences) and any surface that genuinely requires prose, such as search-indexable web content.
-
-### 6.3 Novices and experts want opposite things
-
-Conveyance optimizes for the person who has never seen this before. The person who has seen it four thousand times wants speed, not pedagogy, and will come to experience the Tell as a stutter and the heavy weights as molasses.
-
-The framework's answer is **practice-decay**: elements track their own operation count. Tells stop. Weight is permitted to lighten toward its floor on high-frequency acts. Keystone articulation shortens. The world's grammar never changes — a `Send` is always a `Send` — but its ceremony attenuates with familiarity, in the same way a skilled musician's motions get smaller.
-
-Practice-decay is per-element and automatic. There is no "expert mode" toggle, because a toggle is a preference someone has to be told about.
-
----
-
-# Part VII — The Conscience
-
-The framework's verification layer: static audits at build time, runtime assertions in debug. This is what makes it a framework rather than a manifesto with a component library attached.
-
-| # | Audit | Fails when | Enforces |
-|---|---|---|---|
-| 1 | **Idle Worker** | An element declares fewer than four jobs and is not budgeted `Ambient` | Law 4 |
-| 2 | **Instruction** | A chrome string exceeds four words, contains terminal punctuation, or is imperative-with-object | Law 5, §6.1 |
-| 3 | **Teleport** | A `Place` has no `origin`, or a transition resolves to a cross-fade | Law 2 |
-| 4 | **Orphan Feedback** | A platform Toast, Snackbar, Dialog, Spinner, or ProgressBar is constructed | Law 1 |
-| 5 | **Duration** | A literal duration, easing curve, or animation spec appears in product code | Law 3 |
-| 6 | **Primary Contention** | More than one primary-rank element is live on a surface | §4.1 |
-| 7 | **Keystone Budget** | More or fewer than 1–3 Keystones, or expressive articulation outside one | §2.5 |
-| 8 | **Reversibility** | A destructive `Consequence` has no `inverse` | Law 5, §5.3 |
-| 9 | **Channel** | A channel varies without carrying its assigned meaning — decorative color, resting opacity, borrowed motion signature | Part IV, §3.1 |
-| 10 | **Dead End** | A `Gate` has no `livesAt`, or `livesAt` is unreachable from the blocked element | §2.2, §5.2 |
-| 11 | **Necessary Detail** | A consequence's magnitude, cost, or irreversibility is not represented anywhere the person can perceive before acting | Twain, *not omit necessary details* |
-
-**Audit 11 exists because this framework's most likely failure is its own.** Everything above pushes hard against text, against instruction, against explanation — and until Twain's list was applied, nothing anywhere in the design pushed back. A product can satisfy every other audit here while concealing something a person needed in order to decide. Surplusage and omission are a matched pair; guarding one edge and not the other is how minimalism becomes concealment with better taste.
-
-It is the least automatable check on the list and it is reported, never blocked, because no tool can tell which detail was necessary. What the tool can do is notice when an act with a Heavy weight or no inverse presents no perceivable signal of either, and say so.
-
-Audits 2, 6, 7 and 9 have since moved into the structural tier, in the Kotlin binding: chrome text is a `Label`, refused at construction if it reads as an instruction rather than a name; a `Surface` refuses a second primary; a `Product` refuses a keystone count outside 1–3; and a channel can only ever mean what it carries, because `DeclaredElement.channels` is a `Set<Channel>` rather than a map that could pair one against the wrong meaning. There is no longer anywhere to write the violation down, which is a stronger guarantee than a lint rule that merely flags one. Audits 3, 4, 5, 8 and 10 are structural for the same reason — consequences of required fields and of vocabulary that does not exist — though the platform-boundary checks among them (Orphan Feedback, Duration) mostly rather than always cannot be violated, since nothing stops a call straight past the binding into a platform API; closing that gap is what the compiler-plugin layer in Appendix C is for. Only audit 1, Idle Worker, remains a judgment call the tool can only flag, not decide; it reports and requires an explicit, reviewed waiver rather than blocking.
-
-**Surplusage, not surplus.** Twain's word is a legal term of art: matter that can be struck without affecting the validity of what remains. It is not a synonym for "extra" — it names extra *that carries nothing*, and by naming it that precisely it licenses the rest. So the audits that remain judgements (1, 11) do not block; they demand a reason. A waiver is accepted when it states what the element carries, and the stating is the whole cost. An absolute rule would have been "eschew surplus" — cruder, and not what he wrote.
-
-**The Conscience obeys the Two-Sided Rule.** It never lectures. A failure names the element, names the law, and offers the compliant construction as a diff — it escorts the developer to the fix, exactly as §5.2 escorts the user to the gate. A build error that explains a philosophy is a tooltip, and this framework does not ship tooltips.
-
----
-
-## 7.1 The Census — counting a surface against itself
-
-Twain's fourth rule — *the personages shall exhibit a sufficient excuse for being there* — is the only rule on his list that can be taken as a **continuous measurement**, without a person, while an application is simply being used. The framework already holds both halves and for a long time never asked them to compare notes: the registry knows every element on screen, and every offered act knows the element it is offered by.
-
-**The naive metric is wrong, and worth naming.** Elements divided by acts punishes any screen holding content, because content is not an affordance — a gallery of fifty photographs is not fifty times worse than a gallery of one. What does not scale with data, and therefore what is worth counting, is **chrome**: the elements that are the product talking rather than the product's subject matter. Content earns its place by being what the person came for. Chrome has to argue for itself.
-
-So the number is **chrome per act**, and it is reported rather than enforced, because no counter can tell which chrome could be struck without loss — that is precisely what surplusage means and precisely what only a person can judge.
-
-Two of the counts are not matters of taste at all:
-
-- **Unreachable acts** — offered, with nothing on screen to reach them by.
-- **Mute invitations** — an element that invites, attached to no act. A promise with nothing behind it.
-
-Both are defects.
-
-**What the census must not become is a form to fill in.** An earlier draft had every element declare its jobs, which fails the rule above twice over: it is a label that goes stale, and a two-job minimum invites everyone to type exactly two. So jobs are derived — an element backing an act invites; a gate's address is where a missing condition gets resolved, so it invites *and* locates; an element carrying a travelling token identifies something particular. Declaration survives only for what the framework genuinely cannot see, and an element the framework cannot account for counts as chrome, which is the honest answer: unaccounted for is exactly the state of a thing nobody has had to justify.
-
-## 7.2 The judge
-
-The audit needs a viewer that has never seen the product. That is a property of what it is **shown**, not of who made it — so the framework does not care which model answers, and pinning it to one vendor would have been a decision with no design behind it.
-
-**With nothing configured it uses a model running locally, with no key and no account.** An audit you have to buy before you can try is an audit most people never run, and a rule nobody runs is not a rule. A key from any major provider is used when one is present, because providing a key is a statement of intent.
-
-| Configured | Judge |
-|---|---|
-| `CONVEYANCE_JUDGE_URL` | that endpoint, with `CONVEYANCE_JUDGE_MODEL` and an optional key |
-| `ANTHROPIC_API_KEY` | Claude, through its own SDK |
-| `OPENAI_API_KEY`, `GEMINI_API_KEY`, `XAI_API_KEY`, `GROQ_API_KEY`, `MISTRAL_API_KEY`, `DEEPSEEK_API_KEY`, `OPENROUTER_API_KEY` | that provider |
-| nothing | a local vision model, no key |
-
-Supporting "any provider" turned out to be one implementation and a base URL rather than eight integrations: almost everyone speaks the chat-completions shape, including a model running on your own machine. Anthropic is the exception and is reached through its real SDK, because using a compatibility shim to talk to something with a first-class client would be worse code chosen for symmetry.
-
-Two consequences worth stating, because both are places this could quietly stop meaning anything:
-
-**The report records which judge answered.** A verdict from a small local model and a verdict from a frontier one are not the same evidence, and filing them as though they were is how a measurement decays into a number.
-
-**An unreachable judge is not a clean audit.** "Nobody was there to look" and "somebody looked and found nothing wrong" are opposite results. The harness says which one happened and never reports the first as the second.
-
-## 7.3 Syllables
-
-A composable is a word, a screen is a sentence, a flow is a paragraph — and a word can have too many syllables. A monosyllabic composable that does the job is better than a polysyllabic one that does the same job, for the same reason it is in prose: it lands on more people with less effort.
-
-**What counts as a syllable is what a caller pronounces, not what the signature lists.** A parameter with a default is not something anyone says. `Act.send("invoice.send", invoice, recipientAvatar) { … }` is three syllables however long its declaration reads, and counting declarations instead would punish precisely the design that keeps call sites short.
-
-The rule is enforced by detekt's `LongParameterList` with `ignoreDefaultParameters`, at five for functions and six for constructors.
-
-**This project got it backwards first, which is worth recording.** The original configuration exempted `@Composable` from parameter limits entirely, with a comment reasoning that composables "legitimately take more parameters than plain functions." That is the identical excuse that produced the twenty-seven-parameter DSL functions this project's own review of AzNavRail complains about — written into a linter by the same hand that wrote the complaint. Composables are the thing the rule most needs to police, not the thing it should excuse.
-
-With the exemption removed and syllables counted correctly, one thing in this framework still fails: `Act`'s private constructor takes seven parameters with no defaults. It is reported and not fixed, because the reason can be stated — it is private, nobody pronounces it, and the six verb factories are the vocabulary. That is what a waiver is supposed to look like under §7: a stated reason, and the stating is the cost.
-
----
-
-# Part VIII — The Absent Vocabulary
-
-What a framework refuses to provide is a design decision equal in weight to what it provides. These do not exist in the API, and their platform equivalents are flagged on sight:
-
-```
-Toast · Snackbar          reports about elsewhere            → the element settles (Law 1)
-Dialog · AlertDialog      interruption before the fact       → weight, then the Ghost (§5.3)
-Spinner · ProgressBar     progress detached from cause       → Yield (§5.5)
-Tooltip · coach mark      instruction attached to a thing    → the Tell (§5.1)
-enabled: Boolean          a rule with no address             → requires(Gate) (§2.2)
-duration · easing         local timing decisions             → the grammar (§3.2)
-navigate(route)           teleportation                      → Enter(place, from) (Law 2)
-EmptyState(text)          a paragraph where a control goes   → the Migration (§5.4)
-onSuccess / onError toasts feedback in a different postcode  → Settled / Refused (§2.1)
-```
-
-Nine constructs removed. Every one of them exists in conventional toolkits to compensate for the same underlying flaw: appearance and behavior were modelled separately, so the connection between them has to be narrated after the fact. Model affordance instead and the narration has nothing to say.
-
-This list is also the framework's own resourceful minimalism. The API is small not because it is unfinished but because each remaining piece is doing several jobs.
-
----
-
-# Part IX — Applying This to Any App
-
-The framework is a **spec** (this document), a set of **bindings** (per platform), and the **Conscience** (a lint/CI tool). Adoption is incremental and does not require a rewrite.
-
-### 9.1 The five steps
-
-1. **Inventory the verbs.** Walk every screen and write down every action as one of the six `Consequence` classes. This alone typically finds the product's real problems: the actions nobody can classify are the ones users cannot predict either.
-2. **Assign the channels.** Fill in the Part IV table for your product, once. Then remove every variation that is not carrying its assigned meaning. This is the largest single visual change and it usually subtracts.
-3. **Collapse the feedback.** For each action, find its spinner, its toast, and its error banner, and fold all three back into the control. Delete the orphans. Law 1 first, because it is the most mechanical and produces the most immediate relief.
-4. **Wire continuity.** Give every destination an origin. Replace cross-fades with morphs. Focus follows the morph.
-5. **Name the Keystone.** Pick one. Spend the budget there and nowhere else.
-
-Steps 1–3 can be done on a live product a screen at a time. Step 4 is the one that needs coordination. Step 5 is a decision, not work.
-
-### 9.2 A worked example — "Send invoice"
-
-**Before.** A `Send` button. Pressing it opens a confirmation dialog. Confirming shows a modal spinner. On success, a green snackbar says "Invoice sent successfully." On failure, a red snackbar says "Something went wrong. Please try again." The recipient's name is in a field above. Six elements, four of them existing purely to report on the other two, and two text strings apologizing for the design.
-
-**After.**
-
-```
-Act(
-  identity    = "invoice.send",
-  subject     = invoice,
-  requires    = [ Gate(recipient != null, livesAt = recipientField) ],
-  consequence = Send(invoice, to = recipientAvatar),
-)
-```
-
-What the person experiences: with no recipient, the button resists and carries them to the recipient field, which articulates as they arrive. With a recipient, the press compresses the button and fills it as the work runs — and the invoice's card lifts, travels toward the recipient's avatar, and diminishes into it. The avatar takes on heat. The button settles. Nothing announces anything.
-
-Six elements became two, four strings became zero, and the person now knows — because they watched it — that this product sends things *to people*, and that the little avatar is where sent things go. The next time they meet an unfamiliar control that flies something toward an avatar, they will already know what it did.
-
-That transfer is conveyance. It is also the entire return on the framework: **the cost is paid once, in grammar; the benefit compounds across every feature you ever ship.**
-
-### 9.3 The Prediction Test
-
-Twain's eleventh rule — *so clearly defined that the reader can tell beforehand what each will do* — is the only rule on his list that is a procedure, and it is the acceptance test this framework spent its first draft without.
-
-Point at a control the person has never touched. Before they touch it, ask what it will do. Score three ways: **right**, **wrong**, **no idea**. Wrong is worse than no idea, because a wrong prediction means the interface actively misled them.
-
-Nothing in Part VII can perform this test, and that is the point of running it. Every audit checks structure — jobs declared, channels assigned, gates addressed — and a product can pass all of them while remaining unpredictable to a human being. This is the test that catches the unlabelled grey square that satisfies every structural rule and tells nobody anything.
-
-Run it on the three most consequential controls of every surface, on someone who has not seen the product. It takes about four minutes and it is worth more than the rest of Part VII put together.
-
-### 9.4 Grading an existing product
-
-Score 0–2 on each: One Element, Continuity, Grammar consistency, Employment, Reversibility, Instruction load, Channel discipline, Keystone discipline, and Necessary Detail. Eighteen points — and run the Prediction Test alongside, because a high score with poor prediction means the structure is right and the design still is not. Most shipping products score 3–6, and almost all of the recoverable ground is in Law 1 and Law 5, which are also the cheapest to fix.
-
----
-
-# Part X — Where This Is Hard
-
-Stated plainly, because a framework that only lists its strengths is doing a strip tease.
-
-**Discoverability of rare features.** Conveyance teaches what is in front of you. A feature used twice a year has no ambient teaching surface, and the Tell budget will never reach it. The honest answer is that such features belong in a deliberate, searchable index — a command surface — and that the framework should stop pretending everything can be conveyed. Some things are looked up. Making that surface excellent is better than sprinkling hints.
-
-**Density-first professional tools.** A trading terminal or a DAW is operated by experts at speed on a grid of thousands of live values. Continuity morphs cost time those users will not spend. Practice-decay (§6.3) handles part of it; the rest is a real limit. The grammar and Channel Economy survive at high density. The ceremony does not.
-
-**Text-first and indexed surfaces.** Marketing pages, documentation, anything that lives or dies by search: prose is the product. The framework applies to the application, not to the essay.
-
-**Cross-platform grammar drift.** A verb's signature must be recognizably the same on phone, desktop, and web, while respecting each platform's conventions. This is the hardest engineering problem in the framework, and the resolution is that **spatial relationships are normative and rendering details are not**: `Enter` must always grow from its origin, but how far and how fast is platform-owned.
-
-**Legacy integration.** A screen half-converted is worse than either extreme, because a grammar with holes teaches nothing and the user learns to distrust it. Convert by whole surfaces, never by individual controls.
-
-**The framework can be complied with and still be bad.** Every audit can pass on a product that is confusing, because the audits check structure and conveyance is ultimately about whether a person's prediction matches the world. The Conscience prevents the known failure modes; it does not manufacture insight. The test that matters has never changed and cannot be automated: **hand it to someone who has never seen it, say nothing, and watch.**
-
----
-
-# Part XI — The Design Block
-
-*Status: specification only. Not yet implemented in `convey` or `convey-web`. Written to be built against, not aspirational prose — treat any drift between this section and the eventual `ConveyDesign`/`convey-design` implementation as a bug in one of the two.*
-
-Everything so far governs *behavior*: what an element does when touched, when it appears, when it fails. This Part governs *composition* — what a block of text looks like before anyone touches anything. It exists because static typography is not exempt from Law 1's discipline just because nothing is animating: a page that a person reads once and never operates still teaches, by its shape, whether the product is considered or careless.
-
-### 11.1 The premise
-
-`DESIGN` is a container, the way `Title`, `Header 1`, `Header 2`, `Header 3`, and `Body` are semantic levels — each carrying a nominal size, weight, and alignment the way an HTML heading carries a default style. The difference is that nothing inside a `DESIGN` block keeps its nominal value unmodified. A solver adjusts kerning, leading, size, condensation, and weight across every line inside the block until the block's own outline — its silhouette, traced along the edges its lines actually occupy — reads as an intentionally composed geometric shape, not an accident of whatever the content happened to measure.
-
-**Balance over symmetry.** The target is not a mirrored, centered block. Some of the best compositions are meant to swoop — an elongated-comma silhouette, heavy at one end and trailing to a point at the other, is a legitimate, deliberately asymmetric target shape, not a failure to center. What the solver enforces is *balance*: an asymmetric arrangement that still reads as counterweighted, the way a Swiss-style layout holds together off-center because a consistent underlying system carries it. Symmetry is one possible balanced outcome, never the goal itself.
-
-The swoop is **emergent, not literal.** `DESIGN` never bends a baseline or sets text on a path. Every line stays straight and horizontal. The silhouette is a byproduct of stacking lines of differing width, alignment, and column placement — the same way a staircase reads as a diagonal without any single stair being anything but flat and level.
-
-### 11.2 Semantic levels and the modular scale
-
-`Title`, `Header 1`, `Header 2`, `Header 3`, `Body` (and any level a platform wants to add between or beyond these) are not five independently tuned presets. Each level's nominal size is `base × ratio^n`, where `ratio` is a single named modular-scale constant (in the tradition of Bringhurst's modular scale — a perfect fourth, a perfect fifth, the golden ratio, whatever the design system picks) and `n` is the level's distance from `Body` in the hierarchy. One constant produces the whole scale, the same way one interval produces a musical scale — there are no five hand-picked numbers to keep in sync.
-
-Weight and condensation follow the same hierarchy but are not required to follow the same ratio; a design system may choose to express hierarchy mostly through size, mostly through weight, or a blend, so long as the ordering is monotonic — a `Header 1` never reads lighter or smaller than a `Header 2` after the solver runs.
-
-### 11.3 Ink score
-
-The solver needs a computable proxy for "how much visual weight a line carries" in order to compare lines and levels against each other. This is not a rendering-accurate ink-coverage measurement — it is a ratio tool, good enough to compare two lines against each other, not to predict printed toner:
-
-```
-inkScore(block) = Σ_chars advanceWidth(char, wdth) × fontSize² × strokeWeightFactor(wght)
-strokeWeightFactor(wght) = wght / 400
-```
-
-`fontSize` is squared because visual mass scales roughly with area, not with linear height. `strokeWeightFactor` is normalized against 400 (a typeface's Regular weight) so a Regular-weight line has a factor of exactly 1.
-
-### 11.4 Two solve modes, one variable-priority order
-
-Every line inside a `DESIGN` block resolves under one of two modes, chosen per line by whether it participates in a column relationship (§11.5) with another line:
-
-- **Hierarchy-balance mode** — a freestanding line (no column relationship) solves toward an *ink-score share* of its semantic level: the ratio between its `inkScore` and the block's total `inkScore` should approximate the ratio implied by the modular scale (§11.2). This is the mode that makes a `Title` visually dominate a `Body` line even when the `Body` line has far more characters.
-- **Column-fill mode** — a line with a column relationship solves toward a *rendered-width target* instead: filling its assigned column, not matching an ink-score share.
-
-Both modes share one variable-priority order, and it does not change between them:
-
-```
-1. size            — the primary lever
-2. weight          — second
-3. condensation    — third
-4. tracking/kerning — last resort, fine-tune only
-```
-
-The solver exhausts each lever's reasonable range before touching the next. Tracking is never the first thing that moves — a block that visibly "just kerned tighter" to hit a target has failed the same way a paragraph that visibly justifies with huge gaps has failed. Size, weight, and condensation are expected to do the real work; tracking absorbs whatever's left over.
-
-### 11.5 Column inheritance
-
-A line's own **natural width** (its unforced, nominal rendered width) plus its alignment implicitly carves the block's full measure into columns. A left-aligned tagline whose natural width is `W`, inside a block of full width `F`, creates column 1 = `[0, W]` and column 2 = `[W, F]` — nothing renders in column 2 yet, but the grid now exists, and a later line can target it.
-
-**Column-targeting decision tree**, evaluated in order:
-
-1. **Explicit override always wins.** A developer-specified alignment or column target on a line is never second-guessed.
-2. **If the defining line is justified (full-width),** the inheriting line also targets full width — there is no leftover column to inherit, because there was no leftover.
-3. **If the defining line is left- or right-aligned** (one fitted column, one empty remainder), the inheriting line targets the *empty* column by default, resized in size/weight/condensation to fill it.
-4. **If the defining line is centered** (two symmetric side margins, no single empty column), the inheriting line either splits multi-part content across both side slots, or — for single-string content — centers itself the same way the defining line does.
-5. **If the target column is too narrow to hold the inheriting content reasonably even at minimum size,** apply the mirror-fallback rule (§11.6) instead of forcing an unreadable fit.
-
-### 11.6 The mirror-fallback rule
-
-This is one rule, applied self-similarly at both the line level (within a `DESIGN` block) and the block level (across a page — §11.7):
-
-> When a later element is meant to inherit the leftover space an earlier element carved out, but that leftover space cannot reasonably hold the later element's content even at minimum size/weight/condensation, the later element abandons the leftover-column target. Instead, it mirrors the earlier element's **entire shape**, reflected to the opposite edge of the shared measure.
-
-Within a block, this needs no title or hierarchy line to anchor to — it applies directly between any two lines. A two-line block where line 2's content doesn't fit line 1's leftover column doesn't force an unreadable fit; line 2 mirrors line 1's whole shape from the opposite side of the block's full width. A three-line block behaves the same way between whichever pair of lines the too-narrow case actually arises.
-
-### 11.7 Cross-block propagation
-
-`DESIGN` blocks on the same page or screen are not solved in isolation — the same relationship that holds between lines inside one block holds between blocks on one page, one level up:
-
-- **Width.** A block that does not span the full screen width sets a measure the same way a line's natural width does. The next block treats the *entire screen width* — not its own local content — as what it needs to balance against, and the column-inheritance tree in §11.5 applies one level up: block 1's alignment carves screen-width columns; block 2 inherits, fills, or (§11.6) mirrors.
-- **Height.** If a later block has fewer lines than an earlier one it relates to (two lines against three, say), its lines resize so its total height balances against — approaches, rather than exactly matches — the earlier block's total height, the same way a shorter line's size/weight/condensation is pushed to hold its ink-score share within a block.
-- **Three or more blocks.** The balancing is not a single pair repeated once; it is spread across every block on the page. The working model is that each block relates to the **accumulated shape** of every block before it — not to the immediately preceding block alone — so a third block's width and height targets already carry the balance struck between the first two. This keeps the mechanism self-similar (one rule, applied incrementally) rather than requiring a separate simultaneous-solve step across all blocks at once; a design system that finds the accumulated-shape model insufficient for a specific composition can still override any block explicitly (§11.5, rule 1, promoted to block level).
-
-### 11.8 Interactive text inside a `DESIGN` block
-
-A line (or a run within a line) that is itself an Act does not get a composition exemption. It solves for size/weight/condensation/tracking exactly like any other line, and separately carries the Decoration channel (§4.2) required of any interactive text, static and persistent, with the Tell (§5.1) teaching it once on first encounter. The solver never treats Decoration as a lever — it is not something size/weight/condensation/tracking are traded against, the same way `Elevation`'s reversibility signal is never sacrificed to hit a layout target elsewhere in the framework.
-
-### 11.9 What this does not do
-
-`DESIGN` does not lay out images, does not manage spacing between unrelated blocks, and does not choose a typeface — it operates entirely within the axes a variable font (or a family of discrete weights/widths, degraded gracefully) already exposes. It is a composition solver for text that has already been placed in blocks and given semantic levels, not a page-layout engine.
-
----
-
-# Part XII — The Body Block
-
-*Status: specification only. Not yet implemented in `convey` or `convey-web`. Written to be built against, not aspirational prose — treat any drift between this section and the eventual `ConveyBody`/`convey-body` implementation as a bug in one of the two.*
-
-Part XI governs headings — the small number of dominant, occasional lines a page uses to establish hierarchy. Most of what a person actually reads is not that: it is prose, run at length, in the roles conventional typesetting has always given it — a paragraph, a block quote, a caption. This Part is `DESIGN`'s sibling for that text, not its replacement: `CONVEY BODY` never touches what a paragraph *is* — its semantic role, its place in the accessibility tree, its place in the document — it only adds a layer of motion and weight on top of a role that was already there.
-
-### 12.1 The premise
-
-`CONVEY BODY` is a container, the way `DESIGN` is, but for the tier below heading hierarchy: `Paragraph`, `Quote`, and whatever other body-level role a platform needs (a caption, a list item's prose, and so on). Where `DESIGN` solves a static composition once, `CONVEY BODY` is continuously alive: the text inside it is classified, its weight is not fixed, and every line performs a mandatory entrance as it is scrolled into view. None of this is offered per line the way `DESIGN`'s `motion` field is (§4.2's "offered, never assumed" governs *interactive* text specifically) — inside a `CONVEY BODY` block, it applies to everything, uniformly, because prose read at length that sometimes moves and sometimes doesn't reads as broken in a way an occasional heading does not. The uniformity is the point: a person should never wonder why this paragraph got the treatment and the next one didn't.
-
-### 12.2 One classification, two outputs
-
-`CONVEY BODY` runs the same verb/noun classification already built for kinetic typography (`ConveyVerbLexicon`/`ConveyNounLexicon`, the WordNet+VerbNet engine `ConveyKineticSentence`/`ConveySvoScene` already drive from) once per block of text, and that single pass produces both of the next two sections' inputs. This is a direct instance of §4.2's rule that a text Act's motion "draws from the kinetic-typography vocabulary already in the framework rather than a separate, invented gesture" — extended here from Acts to body prose generally: one classification engine, reused, not a second one built to match.
-
-### 12.3 Emotive motion
-
-Each word or sentence's classification maps to an idle-motion profile the same way a verb class already reduces to one via the kinetic engine's own `toConveyLife()`-style conversion — the exact mechanism `ConveyKineticSentence` uses to give a sentence's words per-word idle motion from their verb classification today. `CONVEY BODY` is not inventing a new mapping; it is applying the existing one at paragraph scale instead of single-sentence scale.
-
-### 12.4 Fluid weight
-
-Where `DESIGN` fixes a nominal weight per semantic level (`Title` heavier than `Body`, monotonically), `CONVEY BODY` has no such fixed point — a `Paragraph`'s weight is a function of what the paragraph actually says, word by word, computed from the same classification pass as §12.3. A passage animate with intense, forceful verbs should read visibly heavier than one built from mild, stative ones, the same intuition `inkScore` (§11.3) already formalizes for comparing lines — here spent as a lever the solver actively varies, not just a ratio it measures.
-
-### 12.5 Mandatory scroll-linked entrance
-
-Every line inside a `CONVEY BODY` block performs an entrance transform as it is scrolled into view, keyed to its role's assigned **direction**: a `Paragraph` enters horizontally, a `Quote` enters vertically — each role gets one direction, applied consistently, the same discipline Law 3's motion grammar already requires of every other verb signature in the framework. The transform is driven by real, continuous scroll position, not fired once and forgotten: as the block's own scroll offset moves a line through the viewport, its translation resolves toward identity, the way `ConveyEnter`'s destination resolves toward its origin's bounds, except continuously re-evaluated against scroll rather than settled once at composition time.
-
-This is the Position channel (§4.1 — "relationship and origin, where a thing came from and belongs"), not a new channel: a `CONVEY BODY` line's position genuinely does carry where it came from, just resolved against a scroll timeline instead of a static layout pass.
-
-`CONVEY BODY` owns its own scroll container — it does not read an externally supplied scroll state — because the entrance transform needs authoritative, unshared knowledge of exactly where every line sits relative to the viewport at every frame. A platform without a native scroll-linked-animation primitive (Compose has none today) has to build one to implement this Part; that is real, new infrastructure, not a wrapper over something that already exists.
-
-### 12.6 What this does not do
-
-`CONVEY BODY` does not choose a paragraph's semantic role, does not manage inter-block spacing, and does not replace `DESIGN` for anything that belongs at heading scale — a page composes both, `DESIGN` for its headings and `CONVEY BODY` for everything read at length beneath them, the same way a real document has always used both a heading hierarchy and body copy without one subsuming the other.
-
----
-
-# Appendix A — The Whole Framework, One Page
-
-*If this page is not enough to use the framework, the framework has failed its own Two-Sided Rule.*
-
-```
-LAWS       1 One Element      invitation, progress, result, failure = same pixels
-           2 Continuity       nothing appears from nowhere; nothing goes nowhere
-           3 Grammar          one signature per verb, everywhere, for nothing else
-           4 Employment       four jobs minimum, declared explicitly; zero jobs, delete
-           5 Benefit          reverse not warn · demonstrate not instruct · escort not block
-
-NOUNS      Subject  Place  Act  Gate  Consequence  Keystone
-
-ACT        identity · subject · requires[Gate] · consequence! · inverse(if destructive)!
-STATES     Ready → Blocked(gate) | Yielding(extent) → Settled(result) | Refused(reason)
-
-VERBS      Reveal   grow from the touched edge, nothing translates
-           Enter    the element becomes the place
-           Return   the place becomes the element again, where it was
-           Create   precipitate from the control, travel to the collection
-           Destroy  collapse in place, leave a Ghost
-           Alter    only the changed property moves
-           Send     travel toward the destination, diminish into it
-           Refuse   resist, then escort to the gate
-           Yield    the engaged element deforms under load
-
-WEIGHT     Light / Medium / Heavy — derived from consequence, never chosen. No durations.
-
-CHANNELS   position=origin  size=momentary importance  shape=state  hue=rank
-           chroma=heat  elevation=REVERSIBILITY  opacity=transition only
-           type=reading order  density=relatedness  motion=grammar
-           haptics=magnitude  sound=Keystone only
-           decoration=THIS TEXT IS AN ACT (persistent; the Tell teaches it once, on top)
-
-BEHAVIORS  Tell       an unpracticed element does a half-rep of itself, once
-           Escort     a blocked act carries you to its gate
-           Ghost      a destroyed thing leaves a recoverable residue in its own place
-           Migration  the empty state is the creation control, which then moves home
-           Yield      progress is a deformation of what you touched
-           First Move the zero state is arranged to teach the loop
-
-DESIGN     Title/H1/H2/H3/Body on one modular-scale ratio · ink-score hierarchy-balance
-           or column-fill, size→weight→condensation→tracking · balance over symmetry ·
-           too-narrow leftover column → mirror the earlier element's whole shape
-
-CONVEY BODY  Paragraph/Quote, mandatory (not offered) · one verb/noun classification pass
-           drives both emotive motion (toConveyLife) and fluid weight · scroll-linked
-           entrance, direction by role: Paragraph horizontal, Quote vertical · owns its
-           own scroll container
-
-ABSENT     Toast · Dialog · Spinner · Tooltip · enabled: Boolean · duration
-           navigate(route) · EmptyState(text) · success & error callbacks-to-nowhere
-
-AUDITS     Idle Worker · Instruction · Teleport · Orphan Feedback · Duration
-           Primary Contention · Keystone Budget · Reversibility · Channel · Dead End
-           Necessary Detail
-
-TEST       point at a control they have never touched; ask what it will do before
-           they touch it. Right / wrong / no idea. Wrong is worse than no idea.
-
-TEXT       nouns and verbs on screen; full sentences in the accessibility tree; never both
-```
-
----
-
-# Appendix B — Reference Binding Sketch (Jetpack Compose)
-
-Illustrative, not final. Shown to demonstrate that the model survives contact with a real toolkit.
+The central noun is `Act`:
 
 ```kotlin
-// The only control constructor. There is no Button.
-@Composable
-fun Act(
-    identity: ActId,
-    consequence: Consequence,          // required, and names its target
-    requires: List<Gate> = emptyList(),
-    inverse: Act? = null,              // compile-checked against Consequence.Destroy
-    content: ActScope.() -> Unit,      // renders all five states; scope exposes state
+val publish = Act.send(
+    id = "release.publish",
+    subject = release,
+    to = store,
+    emphasis = ActEmphasis.Heroic,
 )
-
-// Places are entered, never navigated to.
-@Composable
-fun Place(identity: PlaceId, origin: ElementRef, content: @Composable () -> Unit)
-
-// Gates know where they live.
-fun Gate(satisfied: Boolean, livesAt: ElementRef): Gate
-
-// Collections know how to be empty.
-@Composable
-fun <T> Collection(items: List<T>, creator: Act, item: @Composable (T) -> Unit)
-// empty  → creator centered, full size          (the Migration)
-// filled → creator at its home position
 ```
 
-Notes on the binding:
+An Act knows:
 
-- `ActScope` exposes the current state, so a single lambda paints Ready, Blocked, Yielding, Settled and Refused. It is not possible to write a control that handles only one of them.
-- `ElementRef` is produced by a modifier, so origins and gate locations are real measured positions — Escort and Enter are geometry, not configuration.
-- The grammar lives in the runtime. Product code never names a spring.
-- The Conscience is a Kotlin compiler plugin plus a lint ruleset; audits 2, 3, 4, 5, 6, 7, 8, 9 and 10 are compile-time — 2, 6, 7 and 9 by construction (`Label`, `Surface`, `Product`, `DeclaredElement.channels`), the rest by the plugin — and 1 and 11 are lint.
+- its stable identity;
+- what consequence occurs;
+- where that consequence lands;
+- what conditions block it;
+- whether it can be reversed;
+- how broad its scope is;
+- what functional emphasis it claims relative to other Acts.
+
+From those facts the framework can derive more:
+
+- the consequence verb;
+- motion grammar;
+- physical weight;
+- whether the Act is currently blocked;
+- where a blocked person can be escorted;
+- what a live audit should expect from the rendered surface;
+- what emphasis the current screen can actually present.
+
+An Act is not itself a visual component. The Compose binding's `Offer` is where an Act is made available to a person.
 
 ---
 
-# Appendix C — Amendments after prior-art review
+## 3. The semantic vocabulary
 
-Everything above Appendix B was written before reading any existing implementation, so that the
-design would follow from the manifesto rather than from code. It was then measured against
-[AzNavRail](https://github.com/HereLiesAz/AzNavRail) — see
-[that repo's `docs/CONVEYANCE-REVIEW.md`](https://github.com/HereLiesAz/AzNavRail/blob/main/docs/CONVEYANCE-REVIEW.md)
-for the full comparison. Three things there were better than the spec, and are adopted here.
+The vocabulary is intentionally small.
 
-**C.1 — The Conscience reports in tiers, and says so.** Audits split into blocking errors and
-non-blocking warnings, with machine-readable output (SARIF, CI annotations) alongside the human
-report. The rationale is AzNavRail's and is better than the spec's original hand-wave:
-*conservative static analysis cannot see every dynamic case, but silence would be the more expensive
-lie.* A warning that cannot be proven is still worth emitting; it is not worth blocking on.
+### Subject
 
-**C.2 — Haptics carry kind as well as magnitude.** Part IV assigns haptics to consequence magnitude.
-Sharpen that to **two voices and no more**: `commit` — you did a thing that took effect — and
-`modeChange` — the world you are operating in is now a different world. Magnitude modulates each
-voice's intensity. Nothing fires per drag frame; a cycler speaks once, when it commits, not on each
-step through its options.
+A thing in the product that matters to a person: a document, photo, track, invoice, release, message, account, person, role, or workflow.
 
-**C.3 — "Per-element, never screen-blanking" generalises beyond progress.** Law 1 implies it, but
-state it operationally: any state that belongs to one element is rendered on that element, never
-promoted to a surface-wide or screen-wide treatment. A global loading overlay, a page-level error
-banner and a screen-blanking scrim are all the same mistake at different scales — the state is
-detached from the thing it is about, and the person has to be told which thing that was.
+### Element
 
-**C.4 — A note on what Yield is not.** Hiding an element's content and drawing an indicator in its
-place is a *swap*, not a Yield. The element stops being itself for the duration, which severs exactly
-the identity link the mechanism exists to preserve. The engaged element must **deform while remaining
-recognisably itself** — compress, fill, thicken — so that at every instant it is visibly the thing
-that was pressed.
+A named thing currently rendered in the interface. Elements give semantic facts physical addresses.
+
+### Act
+
+Something a person can do.
+
+### Consequence
+
+What visibly changes when an Act succeeds, and where.
+
+The core consequence classes are:
+
+```text
+Reveal   more of what is already here becomes visible
+Enter    the person goes into a Place
+Create   a new Subject exists in a named destination
+Destroy  a Subject ceases
+Alter    a Subject changes in place
+Send     a Subject leaves toward a destination
+```
+
+These classes are semantic. They are not animation names.
+
+### Gate
+
+A resolvable condition standing between a person and an Act. A Gate names `livesAt`, the Element where the condition can actually be addressed.
+
+### Place
+
+Somewhere a person can be. `Place.from(...)` has an antecedent; `Place.root(...)` names a genuine beginning.
+
+### Employment
+
+Why an Element is present.
+
+`Employment.Working` is operational and is required to do at least four distinct jobs. `Employment.Ambient` explicitly says the Element is not operational.
+
+### ActEmphasis
+
+The functional hierarchy of Acts on a screen:
+
+```kotlin
+ActEmphasis.Heroic
+ActEmphasis.Primary
+ActEmphasis.Secondary
+ActEmphasis.Tertiary
+ActEmphasis.Supporting
+```
+
+This is semantic information about an Act's role in the interaction. It is not Employment, UI state, color, shape, size, or an animation preset.
+
+---
+
+## 4. One element should carry an action through its life
+
+A common interface fragments one action into several unrelated objects:
+
+```text
+button → spinner → toast → error banner
+```
+
+That fragmentation makes the person repeatedly rediscover which object is talking about which action.
+
+Conveyance prefers continuous identity:
+
+```text
+Ready → Blocked / Yielding → Settled / Refused
+```
+
+The same offered thing can invite, work, report, fail, retry, interrupt, and carry consequence.
+
+This is the purpose of `Offer`:
+
+```kotlin
+Offer(save) {
+    // content renders this ActScope in its current state
+}
+```
+
+The Act keeps its own declaration in `act.emphasis`. Compose can ask `resolvedEmphasis()` for the level the current visible Act hierarchy can actually present.
+
+There is no need for Conveyance to invent a second styling-token framework on top of Compose.
+
+### The durable-process exception
+
+Sometimes an action creates a process that genuinely outlives the originating control: a build, deployment, render, sync, import, workflow, or job.
+
+That does not justify an unrelated global spinner. It means the process has become a Subject of its own and should receive stable identity. The handoff from action to process should be visible.
+
+---
+
+## 5. Employment is a creative constraint
+
+`Employment.Working` requires at least four distinct jobs.
+
+```kotlin
+Employment.Working(
+    Job.Invite,
+    Job.Report,
+    Job.Progress,
+    Job.Interrupt,
+)
+```
+
+The point is not tidy screens or fewer objects for their own sake. The point is to force one-purpose fragments to be reconsidered.
+
+If a thing only starts an action, perhaps it can also:
+
+- report the action's state;
+- become the place where success settles;
+- identify the Subject;
+- locate the person;
+- interrupt its own work;
+- group related information;
+- navigate;
+- absorb another nearby status object;
+- carry risk or confirmation through its own behavior.
+
+The wrong response to the four-job rule is to pad a declaration with imaginary jobs. The right response is to redesign the object.
+
+### Ambient is not a loophole
+
+`Employment.Ambient` is for things that are intentionally not operational: background, texture, atmosphere, illustration, breathing room, ornament, or other composition.
+
+The distinction matters because Conscience can tell the difference between:
+
+```text
+this working object accidentally does too little
+```
+
+and
+
+```text
+this object is intentionally not trying to work
+```
+
+Employment answers why an Element is present. Act emphasis answers what an Act does for the interaction. Neither derives from the other.
+
+---
+
+## 6. Continuity gives the person a map
+
+Navigation should preserve relationships where relationships exist.
+
+```kotlin
+val detail = Place.from(
+    id = "invoice.detail",
+    origin = invoiceRow,
+    subject = invoice,
+)
+```
+
+The origin tells the binding what the new Place is related to. A reference binding may render that relationship as growth, morphing, movement, shared identity, or another treatment.
+
+The rule is not "every navigation must use one animation." The rule is that the interface should not discard a useful relationship and then ask breadcrumbs or explanatory text to reconstruct it.
+
+### Real beginnings are roots
+
+```kotlin
+Place.root("home")
+```
+
+A root says there is no antecedent because this journey actually begins here. There is no universal one-root budget; applications, restored sessions, external entry, and deep links may produce several legitimate beginnings.
+
+---
+
+## 7. Gates are for resolvable blockers
+
+A Gate is a promise that the framework knows where the person can do something about a blocked condition.
+
+```kotlin
+val recipientChosen = Gate(
+    id = "recipient.chosen",
+    livesAt = recipientField,
+) { recipient != null }
+```
+
+When an Act is blocked, a binding can resist at the point of contact and escort toward the resolver instead of silently doing nothing or greying out the action.
+
+A condition with no available resolution is not a Gate. It may be status, content, environmental fact, policy, or another non-inviting state.
+
+That distinction is more useful than a universal ban on disabled-looking things. Conveyance cares that living and dead things are distinguishable and that resolvable blockers do not pretend to be dead ends.
+
+---
+
+## 8. Reversibility before confirmation
+
+Ordinary destruction requires an inverse:
+
+```kotlin
+val restore = Act.create(
+    id = "document.restore",
+    subject = document,
+    into = collection,
+)
+
+val delete = Act.destroy(
+    id = "document.delete",
+    subject = document,
+    target = collection,
+    inverse = restore,
+)
+```
+
+That pressure exists because undo, staging, recovery, and residue are usually more respectful than repeatedly asking a person whether they meant what they just chose.
+
+When reality genuinely provides no inverse, use the named exception:
+
+```kotlin
+Act.destroyIrreversibly(
+    id = "submission.finalise",
+    subject = submission,
+    target = authority,
+)
+```
+
+The API preserves the distinction rather than weakening `destroy` to accept `null` everywhere.
+
+---
+
+## 9. Motion is grammar when motion is speaking
+
+The reference binding derives a `Signature` from an Act's consequence.
+
+The useful claim is not that every product may contain only a fixed number of animations. The useful claim is:
+
+> When motion is teaching a consequence, repeated use should remain learnable and non-contradictory.
+
+If Send repeatedly teaches "this Subject travels there," reusing the same learned treatment later to mean "nothing moved; this is decoration" damages the grammar.
+
+But motion can have other jobs:
+
+- ambient life;
+- stable identity;
+- role personality;
+- simulation;
+- data visualization;
+- illustration;
+- atmosphere;
+- playful or expressive character.
+
+Those are not violations merely because they are not consequence grammar. They are saying something else.
+
+### Motion should survive interruption truthfully
+
+A canned animation that insists on finishing an obsolete state can lie.
+
+If a working Act fails halfway through, or a destination moves, or a person reverses direction, motion should be able to retarget toward the new truth rather than finish performing the old one first.
+
+This is one reason physics- and spring-oriented motion systems are useful: their value is not that they look "alive" by themselves, but that they can remain responsive to changing reality.
+
+---
+
+## 10. Visual channels are learned language, not assigned uniforms
+
+Conveyance has a reference `Channel` vocabulary for examples and analysis:
+
+```text
+Position
+Size
+Shape
+Hue
+Chroma
+Elevation
+Opacity
+TypeScale
+Density
+Motion
+Haptics
+Sound
+```
+
+The reference mapping gives these channels meanings, but the mapping is not a universal aesthetic constitution.
+
+A channel acquires meaning through repeated use inside a product.
+
+Hue may carry identity. Shape may carry state. Size may carry momentary importance. Another product may make a different coherent choice.
+
+The important distinction is between:
+
+```text
+consistent because the product has taught this relationship
+```
+
+and
+
+```text
+consistent because a framework demanded visual order for its own sake
+```
+
+Conveyance wants the first and has no use for the second.
+
+### Visual tension is allowed to work
+
+Irregularity, clash, density, asymmetry, frame-breaking motion, and maximalism are not inherently failures.
+
+A better question than "is this consistent?" is:
+
+> **Is the inconsistency doing useful work?**
+
+A sharp object among rounded ones may communicate risk, fracture, interruption, or simply product personality. If the contrast teaches something or belongs to an intentional design language, forcing it back into uniformity would reduce conveyance rather than improve it.
+
+---
+
+## 11. Act emphasis and engineering the hero moment
+
+`ActEmphasis` replaces the old binary keystone idea with a functional outline:
+
+```text
+Heroic     title-level Act
+Primary    leading Act
+Secondary  next level
+Tertiary   next level
+Supporting lower-level Act
+```
+
+The HTML analogy is useful: Heroic is the page title, then Primary, Secondary, and Tertiary descend like headings.
+
+This hierarchy describes **Acts**, not the Employment of the Elements that happen to render them and not the current state of those Elements.
+
+### Hero of the hill
+
+A screen can present **at most one** Heroic Act.
+
+With zero or one visible Heroic declaration, every Act keeps its declared level.
+
+If two or more visible Acts claim Heroic, there is no unique title. The visible Act outline resolves one rung lower:
+
+```text
+Heroic     → Primary
+Primary    → Secondary
+Secondary  → Tertiary
+Tertiary   → Supporting
+Supporting → Supporting
+```
+
+The declarations themselves are not changed. `act.emphasis` remains what the developer said; Compose derives the presented level with `resolvedEmphasis()`.
+
+Conscience reports the conflict as `HeroOfTheHill` and asks the developer to decide which Act actually owns the Heroic slot.
+
+This is not a general scarcity budget. It is a structural property of the top level: a title is only a title when it is singular.
+
+### Engineering the hero moment
+
+The framework does **not** decide that Heroic means "big yellow button." Compose already has theming and token machinery. The product decides how the resolved functional hierarchy becomes its visual and sensory language.
+
+A Heroic Act may be allowed to coordinate more channels at once:
+
+- stronger transformation;
+- more spatial response;
+- a more expressive type treatment;
+- surrounding elements moving or receding;
+- stronger haptic articulation;
+- sound;
+- richer identity transition;
+- a longer or more memorable consequence path.
+
+Those are possibilities, not requirements.
+
+---
+
+## 12. Conscience is a design critic with runtime evidence
+
+Conscience is the verification layer.
+
+A useful linter for Conveyance cannot stop at checking individual declarations because many design failures are relationships between individually valid objects.
+
+The Compose registry already knows, live:
+
+- which Elements are composed;
+- their geometry;
+- which Acts they offer;
+- which jobs they perform;
+- which Gates resolve there;
+- consequence verbs and targets;
+- reversibility;
+- declared Act emphasis;
+- Ambient declarations.
+
+That gives Conscience enough evidence to reason about the surface as a system.
+
+### Compact findings
+
+A lint finding should help without turning the build log into the manual:
+
+```text
+[Warning] IdleWorker at invoice
+Found: invoice.send is doing 2 jobs
+Try: Reimagine it until it honestly does four jobs. Enrich interface objects.
+Examples, ideas, and opt-out: https://github.com/HereLiesAz/Conveyance/blob/main/docs/RULES-AND-OPTOUTS.md#employment
+```
+
+The linked documentation contains the reasoning, examples, and semantic opt-out.
+
+### Prefer relational findings
+
+Suppose a surface contains:
+
+```text
+save.button   → Invite + Interrupt
+save.spinner  → Progress
+save.success  → Confirm
+```
+
+Three IdleWorker warnings are technically correct and practically unhelpful.
+
+The better diagnosis is:
+
+```text
+these are three fragments of one action lifecycle
+```
+
+and, because the SDK already has a construction for that lifecycle:
+
+```text
+replace them with one Offer
+```
+
+`ConsolidationAdvisor` is the recommendation layer for this kind of finding.
+
+### Behavioral mapping
+
+The recommendation engine does not map raw job sets directly to component names.
+
+Its current architecture is:
+
+```text
+observed facts and jobs
+        ↓
+BehavioralRole
+        ↓
+SDK construction
+```
+
+The current behavioral vocabulary includes:
+
+```text
+ActionSource
+ProgressReporter
+CompletionReporter
+Interruptible
+StatusReporter
+IdentityCarrier
+GateResolver
+Locator
+Navigator
+GroupContainer
+```
+
+For example:
+
+```text
+ActionSource
++ ProgressReporter
++ CompletionReporter
++ Interruptible
+→ Offer
+```
+
+The SDK-owned recipes currently describe `Offer`, `Form`, `Collection`, and `Places` through these roles. Raw-job matching remains as a compatibility fallback for custom recipes that have not adopted behavioral roles yet.
+
+The next useful evidence is relationship-specific: for example, whether a progress reporter and completion reporter are actually reporting the **same Act**. That should be added only when the registry can state it, not guessed from names or proximity.
+
+The capability catalog belongs to the SDK so it stays synchronized with the constructions Conveyance actually offers.
+
+---
+
+## 13. Compose binding
+
+The Compose module provides the physical machinery that turns semantic relationships into rendered behavior.
+
+Important primitives include:
+
+### `Offer`
+
+Offers an Act and keeps its lifecycle in one identity.
+
+### `Collection`
+
+Represents a collection of Subjects together with creation and recoverable removal behavior.
+
+### `Form`
+
+Coordinates related field/gate behavior as one form rather than a stack of unrelated controls and validation messages.
+
+### `Places`
+
+Hosts `Place` continuity and Return.
+
+### Element registry
+
+Maps semantic Element addresses to current geometry, derives live evidence for routing and audits, and resolves visible Act emphasis against the screen's Heroic claims.
+
+### Stage / motion
+
+Renders consequence travel and transformation using semantic signatures rather than application-supplied animation instructions.
+
+These composables are not a component catalog in the ordinary sense. They are examples of recurring **behavioral structures** that the binding knows enough about to convey on the application's behalf.
+
+---
+
+## 14. What Conveyance deliberately does not prescribe
+
+Conveyance does not require:
+
+- monochrome interfaces;
+- color to mean rank;
+- one primary Element per surface;
+- one root Place per product;
+- only consequence motion and no decorative/personality motion;
+- one visual aesthetic;
+- quietness, cleanliness, or orderly composition;
+- a particular Material component hierarchy;
+- uniform corner radii;
+- minimal visual density for its own sake.
+
+It **does** define one Heroic Act per visible screen as the top of the Act hierarchy. That is a functional outline rule, not a visual-style rule and not an Employment rule.
+
+Other restrictions may be useful inside a particular product's design system. They are not general consequences of the manifesto.
+
+A framework rule earns its place when it creates generative pressure toward a more self-explanatory interface—not when it merely makes the design easier to classify.
+
+---
+
+## 15. Rule design standard
+
+Before adding a new hard rule to Conveyance, ask:
+
+1. **What invention does this pressure provoke?**
+2. **Can the framework derive the answer instead of asking for another declaration?**
+3. **What legitimate case does not participate in this rule?**
+4. **Can that exception say what it is instead of merely suppressing enforcement?**
+5. **Can Conscience distinguish deliberate exception from accidental violation?**
+6. **Is this really a universal framework principle, or is it one product's taste?**
+
+A strong rule with a truthful exception is better than permissive mush.
+
+A strict-looking rule that only preserves order is worse than no rule at all.
+
+---
+
+## Appendix A — Core types
+
+```text
+Act
+ActEmphasis
+ActState
+AuditElement
+AuditFrame
+BehavioralRole
+Channel
+Consequence
+DeclaredElement
+ElementId
+Employment
+Finding
+Gate
+Job
+Label
+Meaning
+Outcome
+Place
+Product
+Refusal
+Scope
+SubjectId
+Surface
+Verb
+Weight
+```
+
+## Appendix B — Act emphasis
+
+```text
+Heroic      title-level Act; at most one visible per screen
+Primary     leading Act
+Secondary   next level
+Tertiary    next level
+Supporting  lower-level Act; demotion floor
+```
+
+## Appendix C — Employment jobs
+
+```text
+Invite
+Report
+Locate
+Identify
+Group
+Separate
+Progress
+Confirm
+Warn
+Navigate
+Interrupt
+```
+
+## Appendix D — Reference consequences
+
+```text
+Reveal
+Enter
+Create
+Destroy
+Alter
+Send
+```
+
+## Appendix E — Documentation relationship
+
+- [README / Manifesto](../README.md) — philosophy; authored source of truth.
+- [Framework](CONVEYANCE-FRAMEWORK.md) — semantic model and SDK architecture.
+- [Rules and opt-outs](RULES-AND-OPTOUTS.md) — compact rule-by-rule reference used by Conscience links.
+- [Getting started](GETTING-STARTED.md) — practical first implementation.
