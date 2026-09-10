@@ -3,34 +3,21 @@ package com.hereliesaz.conveyance
 /**
  * The framework describing a surface to something that will judge it.
  *
- * Two of the framework's rules cannot be settled by any structural check. *Not omit necessary
- * details* requires knowing which detail was necessary, and *the reader can tell beforehand what
- * each will do* requires a reader. Both were written off as human-only work — which was too quick.
- * A viewer given nothing but the pixels can attempt both, and the gap between what that viewer
- * predicts and what is actually true is the finding.
- *
- * The whole exercise depends on the viewer being **naive**: it must see the rendered surface and
- * nothing else. No element names, no act identifiers, no source. The moment it can read the code it
- * stops predicting and starts reciting, and the test measures nothing.
- *
- * This is the other half — the truth, held back from the viewer and used only to grade it. No
- * screenshot tool could produce it, and that is exactly what the semantic model was for.
+ * Some of Conveyance's most important questions are relational rather than structural: can a person
+ * tell what an act will do before taking it, are several under-employed fragments really one missing
+ * object, does the visible Act outline have one hero of the hill, and does a rendered hierarchy agree
+ * with the product's declared intent? [AuditFrame] is the semantic half of that evidence. A visual
+ * evaluator may see only pixels; Conscience gets the truth afterwards.
  */
 data class AuditFrame(
     val surface: String,
     val census: Census,
     val elements: List<AuditElement>,
-    /**
-     * Every address currently a gate's own.
-     *
-     * Carried out here, rather than left inside the registry that produced this frame, so a live
-     * whole-surface audit ([Conscience.audit]) can find a dead end -- a gate whose address never
-     * actually composed -- without needing anything but the frame itself.
-     */
+    /** Every address currently a gate's own. */
     val gateAddresses: Set<ElementId> = emptySet(),
 )
 
-/** One element as the framework knows it: where it is, and what it will actually do. */
+/** One element as the framework knows it: where it is, what it does, and what it offers. */
 data class AuditElement(
     val id: ElementId,
     val left: Float,
@@ -40,9 +27,19 @@ data class AuditElement(
     val visible: Boolean,
     /** Present when this element offers an act. Absent means it does nothing when touched. */
     val act: ActId? = null,
+    /**
+     * The Act lifecycle this element is rendered inside, when the binding can prove that relation.
+     *
+     * This is intentionally distinct from [act]: a progress or completion fragment may report an
+     * Act without itself offering that Act. Bindings should leave this null rather than guess when
+     * lifecycle membership cannot be observed directly.
+     */
+    val lifecycleAct: ActId? = null,
     val verb: Verb? = null,
-    /** What the act will change, and where. The thing a person should be able to predict. */
+    /** What the act will change, rendered for human-readable audit output. */
     val consequence: String? = null,
+    /** The actual semantic destination of the offered Act, preserved for relational analysis. */
+    val target: ElementId? = null,
     val weight: Weight? = null,
     /** Whether the act can be taken back. A person deserves to know this before acting. */
     val reversible: Boolean = false,
@@ -50,36 +47,22 @@ data class AuditElement(
     val blocked: Boolean = false,
     val jobs: Set<Job> = emptySet(),
     /**
-     * Whether the act this element offers is marked [Act.keystone].
+     * The functional emphasis declared by the offered Act.
      *
-     * Carried through so a live [AuditFrame] can eventually be judged against
-     * `Product.keystones`' own 1-to-3 budget for real, against what an app actually marks as a
-     * keystone rather than only against the count of a hand-written list. Absent an offered act,
-     * this is `false` the same way [act] itself is absent -- there is nothing to be a keystone.
+     * This is not a style measurement, Employment, or UI state. The binding can resolve the declared
+     * level against other visible Acts; Conscience keeps the declaration so conflicts such as two
+     * visible Heroic Acts can be explained without mutating either Act.
      */
-    val keystone: Boolean = false,
+    val emphasis: ActEmphasis? = null,
     /**
-     * Whether this element was explicitly declared [Employment.Ambient] -- the deliberate,
-     * budgeted exemption from Law 4, as opposed to simply not having reached four jobs.
+     * Whether this element was explicitly declared [Employment.Ambient].
      *
-     * Kept separate from [jobs] because the two answer different questions a live whole-surface
-     * audit needs told apart: [jobs] is what this element is actually observed doing; [ambient]
-     * is whether someone already decided, on purpose, that doing less than four things here is
-     * fine. An element with neither -- fewer than four jobs and no [ambient] declaration -- is
-     * exactly what [com.hereliesaz.conveyance.Audit.IdleWorker] exists to catch, and only
-     * catchable live: the static `Employment.Working` constructor already refuses to let that
-     * state exist in a hand-declared `Surface` at all.
+     * Kept separate from [jobs] because the two answer different questions: jobs are what the
+     * element is observed doing; Ambient says it intentionally is not a working element and therefore
+     * opts out of the four-job rule.
      */
     val ambient: Boolean = false,
 ) {
-    /**
-     * Whether this carries a cost a person cannot take back.
-     *
-     * Irreversibility alone, not weight. Weight is how an act *feels* — how much inertia it has
-     * under the finger — and a heavy act that can be undone is not a trap. Entering a place is the
-     * clearest case: it is deliberately weighty, because leaving what you were doing is
-     * consequential, and it is completely recoverable. Treating those as the same thing had the
-     * auditor demanding a warning before every tap.
-     */
+    /** Whether this carries a cost a person cannot take back. */
     val staked: Boolean get() = act != null && !reversible
 }

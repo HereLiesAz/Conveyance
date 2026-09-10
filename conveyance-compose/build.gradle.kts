@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
+
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.android.kmp.library)
@@ -15,6 +17,15 @@ kotlin {
         minSdk = libs.versions.minSdk.get().toInt()
     }
     jvm("desktop")
+    js {
+        browser()
+        binaries.executable()
+    }
+    @OptIn(ExperimentalWasmDsl::class)
+    wasmJs {
+        browser()
+        binaries.executable()
+    }
 
     sourceSets {
         commonMain.dependencies {
@@ -45,15 +56,13 @@ tasks.withType<Test>().configureEach {
     testLogging { events("passed", "failed", "skipped") }
 }
 
-// Kotlin Multiplatform registers one publication per target on its own; there is nothing to
-// create here, only a shared description for whichever one a consumer ends up resolving.
 publishing {
     publications.withType<MavenPublication>().configureEach {
         pom {
             name.set("Conveyance Compose")
             description.set(
-                "The Compose binding: the Escort, the Migration, the Ghost, Enter and Return, " +
-                    "rendered as motion the framework draws rather than the application.",
+                "The multiplatform Compose binding: the Escort, the Migration, the Ghost, Enter " +
+                    "and Return, rendered as motion the framework draws rather than the application.",
             )
         }
     }

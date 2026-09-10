@@ -10,39 +10,13 @@ class ConscienceTest {
     private val send = ElementId("invoice.send")
     private val field = ElementId("recipient.field")
 
-    private fun element(
-        id: ElementId,
-        rank: Rank = Rank.Tertiary,
-        chrome: List<Label> = emptyList(),
-    ) = DeclaredElement(
+    private fun element(id: ElementId) = DeclaredElement(
         id = id,
         employment = Employment.Working(Job.Invite, Job.Report, Job.Progress, Job.Interrupt),
-        rank = rank,
-        chrome = chrome,
     )
 
-    /**
-     * Every finding names the compliant construction. A build error that explains a philosophy is a
-     * tooltip, and this framework does not ship tooltips — it escorts the developer to the fix the
-     * same way a blocked act escorts a person to its gate.
-     */
     @Test
-    fun `every finding carries the fix, not just the complaint`() {
-        val surface = Surface(
-            name = "invoice",
-            elements = (1..3).map { DeclaredElement(ElementId("a$it"), Employment.Ambient) },
-            ambientBudget = 0,
-        )
-        val findings = Conscience.audit(surface)
-        assertTrue(findings.isNotEmpty())
-        findings.forEach {
-            assertTrue(it.instead.isNotBlank(), "${it.audit} complained without naming the fix.")
-            assertTrue(it.because.isNotBlank())
-        }
-    }
-
-    @Test
-    fun `a gate whose address is not on the surface is a dead end`() {
+    fun `a gate whose resolver is absent is reported`() {
         val gate = Gate("recipient", livesAt = ElementId("nowhere")) { false }
         val findings = Conscience.audit(
             Surface("s", elements = listOf(element(send)), gates = listOf(gate)),
@@ -51,89 +25,194 @@ class ConscienceTest {
     }
 
     @Test
-    fun `a clean surface is silent`() {
+    fun `a reachable gate produces no finding`() {
         val gate = Gate("recipient", livesAt = field) { true }
         val findings = Conscience.audit(
             Surface(
                 "invoice",
-                elements = listOf(
-                    element(send, rank = Rank.Primary, chrome = listOf(Label("Send"))),
-                    element(field, chrome = listOf(Label("Recipient"))),
-                ),
+                elements = listOf(element(send), element(field)),
                 gates = listOf(gate),
                 places = listOf(Place.from("invoice.detail", origin = send)),
             ),
         )
-        assertTrue(findings.isEmpty(), "A compliant surface should produce nothing to read: $findings")
-    }
-
-    @Test
-    fun `ambient elements are budgeted so the exemption cannot become the norm`() {
-        fun surfaceWith(n: Int) = Surface(
-            "s",
-            elements = (1..n).map { DeclaredElement(ElementId("a$it"), Employment.Ambient) },
-            ambientBudget = 2,
-        )
-        assertTrue(Conscience.audit(surfaceWith(2)).none { it.audit == Audit.IdleWorker })
-        val over = Conscience.audit(surfaceWith(5)).filter { it.audit == Audit.IdleWorker }
-        assertEquals(1, over.size)
-        assertEquals(Severity.Warning, over.single().severity, "What cannot be proven reports, not blocks.")
-    }
-
-    @Test
-    fun `a product may have one beginning`() {
-        val two = Surface("s", places = listOf(Place.root("a"), Place.root("b")))
-        assertTrue(Conscience.audit(two).any { it.audit == Audit.Teleport })
-
-        val one = Surface("s", places = listOf(Place.root("a"), Place.from("b", origin = send)))
-        assertTrue(Conscience.audit(one).none { it.audit == Audit.Teleport })
+        assertTrue(findings.isEmpty(), "A coherent surface should produce nothing to read: $findings")
     }
 
     private fun auditElement(
         id: ElementId,
         jobs: Set<Job> = setOf(Job.Invite, Job.Report, Job.Progress, Job.Interrupt),
         ambient: Boolean = false,
-    ) = AuditElement(id = id, left = 0f, top = 0f, width = 0f, height = 0f, visible = true, jobs = jobs, ambient = ambient)
+        left: Float = 0f,
+        top: Float = 0f,
+        width: Float = 20f,
+        height: Float = 20f,
+        act: ActId? = null,
+        emphasis: ActEmphasis? = null,
+    ) = AuditElement(
+        id = id,
+        left = left,
+        top = top,
+        width = width,
+        height = height,
+        visible = true,
+        act = act,
+        jobs = jobs,
+        emphasis = emphasis,
+        ambient = ambient,
+    )
 
-    /**
-     * The one finding a hand-declared [Surface] can never produce: [Employment.Working]'s own
-     * constructor already refuses fewer than four jobs, so this state is unconstructible there.
-     * A live [AuditFrame] carries no such guarantee -- it reports what actually rendered.
-     */
     @Test
-    fun `a live element doing fewer than four jobs with no ambient exemption is an idle worker`() {
+    fun `a live working element doing fewer than four jobs is an idle worker`() {
         val frame = AuditFrame(
             surface = "invoice",
             census = Census(0, 0, 0, 0, 0, 0, emptyList(), emptyList(), emptyList()),
             elements = listOf(auditElement(send, jobs = setOf(Job.Invite, Job.Report))),
         )
-        val findings = Conscience.audit(frame)
-        assertEquals(1, findings.count { it.audit == Audit.IdleWorker })
+        assertEquals(1, Conscience.audit(frame).count { it.audit == Audit.IdleWorker })
     }
 
     @Test
-    fun `a live element explicitly declared ambient is not an idle worker on its own`() {
+    fun `ambient explicitly opts out of the four job rule`() {
         val frame = AuditFrame(
             surface = "invoice",
             census = Census(0, 0, 0, 0, 0, 0, emptyList(), emptyList(), emptyList()),
-            elements = listOf(auditElement(send, jobs = setOf(Job.Invite), ambient = true)),
+            elements = listOf(auditElement(send, jobs = emptySet(), ambient = true)),
         )
-        assertTrue(Conscience.audit(frame, ambientBudget = 2).none { it.audit == Audit.IdleWorker })
+        assertTrue(Conscience.audit(frame).none { it.audit == Audit.IdleWorker })
     }
 
     @Test
-    fun `too many live ambient elements is still budgeted`() {
+    fun `related idle workers are consolidated into one surface-level recommendation`() {
+        val button = auditElement(
+            ElementId("invoice.button"),
+            jobs = setOf(Job.Invite, Job.Interrupt),
+            left = 0f,
+        )
+        val status = auditElement(
+            ElementId("invoice.status"),
+            jobs = setOf(Job.Report, Job.Progress),
+            left = 24f,
+        )
+        val identity = auditElement(
+            ElementId("invoice.identity"),
+            jobs = setOf(Job.Identify, Job.Confirm),
+            left = 48f,
+        )
         val frame = AuditFrame(
             surface = "invoice",
             census = Census(0, 0, 0, 0, 0, 0, emptyList(), emptyList(), emptyList()),
-            elements = (1..3).map { auditElement(ElementId("a$it"), jobs = emptySet(), ambient = true) },
+            elements = listOf(button, status, identity),
         )
-        val over = Conscience.audit(frame, ambientBudget = 2).filter { it.audit == Audit.IdleWorker }
-        assertEquals(1, over.size)
+
+        val findings = Conscience.audit(frame).filter { it.audit == Audit.IdleWorker }
+        assertEquals(1, findings.size)
+        val log = findings.single().toString()
+        assertTrue(log.contains("Combine"), log)
+        assertTrue(log.contains("invoice.button"), log)
+        assertTrue(log.contains("invoice.status"), log)
     }
 
     @Test
-    fun `a live gate address that never composed is a dead end`() {
+    fun `fragmented action feedback maps directly to the SDK Offer composable`() {
+        val action = auditElement(
+            ElementId("save.button"),
+            jobs = setOf(Job.Invite, Job.Interrupt),
+            left = 0f,
+        )
+        val progress = auditElement(
+            ElementId("save.spinner"),
+            jobs = setOf(Job.Progress),
+            left = 24f,
+        )
+        val success = auditElement(
+            ElementId("save.success"),
+            jobs = setOf(Job.Confirm),
+            left = 48f,
+        )
+        val frame = AuditFrame(
+            surface = "editor",
+            census = Census(0, 0, 0, 0, 0, 0, emptyList(), emptyList(), emptyList()),
+            elements = listOf(action, progress, success),
+        )
+
+        val log = Conscience.audit(frame).single { it.audit == Audit.IdleWorker }.toString()
+        assertTrue(log.contains("Replace"), log)
+        assertTrue(log.contains("save.button"), log)
+        assertTrue(log.contains("save.spinner"), log)
+        assertTrue(log.contains("save.success"), log)
+        assertTrue(log.contains("Conveyance Offer"), log)
+    }
+
+    @Test
+    fun `two visible heroic acts trigger HeroOfTheHill`() {
+        val publish = auditElement(
+            id = ElementId("publish"),
+            act = ActId("publish"),
+            emphasis = ActEmphasis.Heroic,
+        )
+        val share = auditElement(
+            id = ElementId("share"),
+            act = ActId("share"),
+            emphasis = ActEmphasis.Heroic,
+            left = 24f,
+        )
+        val primary = auditElement(
+            id = ElementId("preview"),
+            act = ActId("preview"),
+            emphasis = ActEmphasis.Primary,
+            left = 48f,
+        )
+
+        val frame = AuditFrame(
+            surface = "release",
+            census = Census(0, 0, 0, 0, 0, 0, emptyList(), emptyList(), emptyList()),
+            elements = listOf(publish, share, primary),
+        )
+
+        val finding = Conscience.audit(frame).single { it.audit == Audit.HeroOfTheHill }
+        val log = finding.toString()
+        assertTrue(log.startsWith("[Warning] HeroOfTheHill at release"), log)
+        assertTrue(log.contains("2 visible Acts claim Heroic"), log)
+        assertTrue(log.contains("Heroic→Primary"), log)
+        assertTrue(log.contains("Primary→Secondary"), log)
+        assertTrue(log.contains("RULES-AND-OPTOUTS.md#act-emphasis"), log)
+    }
+
+    @Test
+    fun `one visible heroic act owns the hill`() {
+        val frame = AuditFrame(
+            surface = "release",
+            census = Census(0, 0, 0, 0, 0, 0, emptyList(), emptyList(), emptyList()),
+            elements = listOf(
+                auditElement(
+                    id = ElementId("publish"),
+                    act = ActId("publish"),
+                    emphasis = ActEmphasis.Heroic,
+                ),
+                auditElement(
+                    id = ElementId("share"),
+                    act = ActId("share"),
+                    emphasis = ActEmphasis.Primary,
+                    left = 24f,
+                ),
+            ),
+        )
+
+        assertTrue(Conscience.audit(frame).none { it.audit == Audit.HeroOfTheHill })
+    }
+
+    @Test
+    fun `act emphasis demotes one rung when hero claims compete`() {
+        assertEquals(ActEmphasis.Heroic, ActEmphasis.Heroic.resolve(heroicClaims = 1))
+        assertEquals(ActEmphasis.Primary, ActEmphasis.Heroic.resolve(heroicClaims = 2))
+        assertEquals(ActEmphasis.Secondary, ActEmphasis.Primary.resolve(heroicClaims = 2))
+        assertEquals(ActEmphasis.Tertiary, ActEmphasis.Secondary.resolve(heroicClaims = 2))
+        assertEquals(ActEmphasis.Supporting, ActEmphasis.Tertiary.resolve(heroicClaims = 2))
+        assertEquals(ActEmphasis.Supporting, ActEmphasis.Supporting.resolve(heroicClaims = 2))
+    }
+
+    @Test
+    fun `a live gate resolver that did not compose is reported`() {
         val frame = AuditFrame(
             surface = "invoice",
             census = Census(0, 0, 0, 0, 0, 0, emptyList(), emptyList(), emptyList()),
@@ -144,33 +223,51 @@ class ConscienceTest {
     }
 
     @Test
-    fun `a clean live frame is silent`() {
+    fun `idle worker lint uses the compact four line format`() {
         val frame = AuditFrame(
             surface = "invoice",
             census = Census(0, 0, 0, 0, 0, 0, emptyList(), emptyList(), emptyList()),
-            elements = listOf(auditElement(send), auditElement(field)),
-            gateAddresses = setOf(field),
+            elements = listOf(auditElement(send, jobs = setOf(Job.Invite, Job.Report))),
         )
-        assertTrue(Conscience.audit(frame).isEmpty())
-    }
 
-    /** Teleport has no live counterpart: one running snapshot can never show two beginnings. */
-    @Test
-    fun `a live audit never reports a teleport`() {
-        val frame = AuditFrame(
-            surface = "invoice",
-            census = Census(0, 0, 0, 0, 0, 0, emptyList(), emptyList(), emptyList()),
-            elements = emptyList(),
+        val log = Conscience.audit(frame).single { it.audit == Audit.IdleWorker }.toString()
+
+        assertEquals(
+            "[Warning] IdleWorker at invoice\n" +
+                "Found: invoice.send is doing 2 jobs\n" +
+                "Try: Reimagine it until it honestly does four jobs. Enrich interface objects.\n" +
+                "Examples, ideas, and opt-out: https://github.com/HereLiesAz/Conveyance/blob/main/docs/RULES-AND-OPTOUTS.md#employment",
+            log,
         )
-        assertTrue(Conscience.audit(frame).none { it.audit == Audit.Teleport })
     }
 
     @Test
-    fun `warnings report and errors block`() {
+    fun `gate lint stays compact and links to examples ideas and opt-out`() {
+        val gate = Gate("recipient", livesAt = ElementId("nowhere")) { false }
+        val log = Conscience.audit(
+            Surface("s", elements = listOf(element(send)), gates = listOf(gate)),
+        ).single().toString()
+
+        assertTrue(log.contains("Found:"), log)
+        assertTrue(log.contains("Try:"), log)
+        assertTrue(log.contains("Examples, ideas, and opt-out:"), log)
+        assertTrue(log.contains("RULES-AND-OPTOUTS.md#gates"), log)
+        assertFalse(log.contains("Rule:"), log)
+        assertFalse(log.contains("Why:"), log)
+    }
+
+    @Test
+    fun `warnings inform but do not block`() {
         val warningOnly = listOf(
-            Finding(Audit.DeadEnd, Severity.Warning, "s", "because", "instead"),
+            Finding(
+                audit = Audit.DeadEnd,
+                severity = Severity.Warning,
+                where = "s",
+                because = "because",
+                instead = "instead",
+                guide = Conscience.gateGuide,
+            ),
         )
         assertFalse(Conscience.blocks(warningOnly))
-        assertTrue(Conscience.blocks(warningOnly + Finding(Audit.Teleport, Severity.Error, "s", "b", "i")))
     }
 }

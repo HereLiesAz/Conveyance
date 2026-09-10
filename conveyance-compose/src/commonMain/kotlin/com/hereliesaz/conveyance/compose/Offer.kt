@@ -4,6 +4,7 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.VectorConverter
 import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
@@ -126,40 +127,19 @@ fun Offer(
     val suppressed = rememberEscortSuppressed(suppression)
     val coroutineScope = rememberCoroutineScope()
 
-    var state by remember(act.id) { mutableStateOf<ActState>(ActState.Ready) }
+    var state by remember(act.id) { mutableStateOf<ActState>(act.state()) }
 
-    // The coroutine actually running Act.engage's suspending body right now, if any -- what
-    // ActScope.interrupt() cancels. Held per-act like `state` itself, and left to complete
-    // normally (never cleared to null on its own) since a fresh engage() always overwrites it
-    // with a new Job before this one could be read again.
     var activeJob by remember(act.id) { mutableStateOf<Job?>(null) }
-
-    // This call site's identity, which is what the registry tenants an ActId to -- the same
-    // pattern Modifier.element uses for ElementId. Two Offers may legitimately answer for the
-    // same act at once (a list row and the detail place growing out of it, mid-transition), and
-    // telling them apart is what stops one of them leaving the composition from wiping out a
-    // still-mounted sibling's registration.
     val claim = remember(act.id) { Any() }
 
-    // Registering the act against its element is what lets the surface be counted: how much is on
-    // screen, against how much can be done there.
     DisposableEffect(registry, act.id, element) {
         registry.offer(act, element, claim)
-        // A gate's address is doing a job -- it is where a person is carried when something is
-        // missing -- and nobody should have to write that down.
         act.requires.forEach { registry.markGate(it.livesAt) }
         onDispose { registry.withdraw(act.id, claim) }
     }
 
-    // The Refuse signature: resist at the point of contact, leaning toward the gate, before the
-    // escort carries the person over. Without this the refusal is silent and the escort looks like
-    // the screen moving on its own.
     val resist = remember(act.id) { Animatable(Offset.Zero, Offset.VectorConverter) }
 
-    // While at rest, track the world: a gate satisfied elsewhere unblocks this control with no
-    // notification, no refresh, and nothing for the person to dismiss -- whether that satisfaction
-    // was written through Compose snapshot state or through a plain var this act's gate happens to
-    // read. rememberLive is what makes the second case not depend on luck.
     val live by rememberLive(act.id) { act.state() }
     val atRest = state is ActState.Ready || state is ActState.Blocked
     LaunchedEffect(atRest, live) {
@@ -175,41 +155,19 @@ fun Offer(
             activeJob = coroutineScope.launch {
                 when (val terminal = act.engage { state = it }) {
                     is ActState.Blocked -> {
-                        // Not "where is the first thing that is missing" but "where is the first
-                        // thing they can actually do". When the missing thing is itself blocked,
-                        // those are different addresses, and only the second one is any use.
                         val destination = when (val step = Route.from(act, registry::offering)) {
                             is Step.Do -> step.opens.livesAt
                             is Step.Stranded -> step.gate.livesAt
                             Step.Ready -> terminal.gate.livesAt
                         }
-                        // The resistance is felt immediately -- that is contact, not travel, and
-                        // holding it back would make the refusal look like nothing happened. The
-                        // carry itself waits out any gesture still in progress, so arriving
-                        // somewhere new never snatches the screen out from under a person's finger.
                         registry.lean(resist, act, destination)
                         snapshotFlow { suppressed.value }.first { !it }
                         registry.escortTo(destination)
                     }
                     ActState.Settled -> {
-                        // Practice is earned by doing the thing, not by reaching for it.
                         practice.record(act.id)
-                        // If this was the thing an escort carried someone to, acting on it is the
-                        // job the emphasis was for. Settling it here rather than leaving it to the
-                        // next escort to overwrite is what keeps `articulating` an answer to "what
-                        // is the person's attention on right now" instead of a stale pointer at
-                        // whatever was last carried to, indefinitely, after the visible pulse has
-                        // long since finished.
                         if (registry.articulating == element) registry.settleArticulation()
                         when (val consequence = act.consequence) {
-                            // Entering is the one verb whose destination is not another element --
-                            // it is the whole window -- so it is the places host that renders it,
-                            // not the stage. Started on the places host's own scope
-                            // (enterAsync), never this control's: the moment the push this makes
-                            // reaches the stack, this very control is what recomposition replaces
-                            // with the place growing out of it -- a coroutine scoped here would
-                            // be cancelled by its own first effect, before the growth animation
-                            // ran a second frame.
                             is Consequence.Enter -> places?.enterAsync(consequence.place, act.weight)
                             else -> registry.carry(stage, act, reduced)
                         }
@@ -231,29 +189,17 @@ fun Offer(
             }
             .element(element, token = { ActScope.pinned(act, ActState.Ready).content() }),
     ) {
-        scope.content()
+        CompositionLocalProvider(LocalActLifecycle provides act.id) {
+            scope.content()
+        }
     }
 }
 
-/**
- * Render the act's consequence as motion, from the model alone.
- *
- * This is what the required [Consequence.target] field was always for. The act knows what changes
- * and where; the registry knows where everything is; the grammar knows what that verb looks like.
- * Nothing else has to be supplied, and in particular the application supplies no animation — which
- * is the difference between a framework that conveys and a framework that merely permits conveying.
- *
- * A journey with no resolvable endpoint is silently skipped. A verb aimed at something that is not
- * on screen has nothing truthful to say, and inventing a destination would teach a rule that is not
- * real.
- */
 internal fun ElementRegistry.carry(stage: Stage, act: Act, reduced: Boolean) {
     val signature = act.signature.let { if (reduced) it.reduced() else it }
     if (!signature.translates) return
 
     val origin: ElementId = when (val consequence = act.consequence) {
-        // Entering is rendered by the places host; a flight from an element to itself would be a
-        // motion that says nothing.
         is Consequence.Enter -> return
         is Consequence.Send -> subjectElement(consequence.subject)
         is Consequence.Destroy -> subjectElement(consequence.subject)
@@ -268,13 +214,6 @@ internal fun ElementRegistry.carry(stage: Stage, act: Act, reduced: Boolean) {
     stage.launch(signature, from, to, act.weight, token)
 }
 
-/**
- * Lean toward the gate and settle back.
- *
- * The direction is real: it is computed from where this act is to where its unmet condition lives,
- * so a person's hand is told which way they are about to be taken before they are taken there. A
- * refusal that recoils in a fixed direction would be decoration; this one is information.
- */
 internal suspend fun ElementRegistry.lean(
     resist: Animatable<Offset, *>,
     act: Act,

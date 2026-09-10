@@ -9,22 +9,19 @@ package com.hereliesaz.conveyance
  */
 
 /** A thing a person can do. Stable across every place the act is offered. */
-@JvmInline
-value class ActId(val value: String) {
+data class ActId(val value: String) {
     init { require(value.isNotBlank()) { "An act without an identity cannot be learned." } }
     override fun toString() = value
 }
 
 /** Somewhere a person can be. */
-@JvmInline
-value class PlaceId(val value: String) {
+data class PlaceId(val value: String) {
     init { require(value.isNotBlank()) { "A place without an identity cannot be returned to." } }
     override fun toString() = value
 }
 
 /** A thing in the product a person cares about: a document, a track, a friend. */
-@JvmInline
-value class SubjectId(val value: String) {
+data class SubjectId(val value: String) {
     init { require(value.isNotBlank()) { "A subject without an identity cannot be followed." } }
     override fun toString() = value
 }
@@ -36,8 +33,7 @@ value class SubjectId(val value: String) {
  * That is what lets motion be derived rather than configured: the framework always knows both
  * endpoints.
  */
-@JvmInline
-value class ElementId(val value: String) {
+data class ElementId(val value: String) {
     init { require(value.isNotBlank()) { "An element that cannot be named cannot be travelled to." } }
     override fun toString() = value
 }

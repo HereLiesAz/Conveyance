@@ -1,15 +1,16 @@
 package com.hereliesaz.conveyance.compose
 
 import androidx.compose.foundation.layout.Box
-import androidx.compose.runtime.Composable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.size
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.runComposeUiTest
 import androidx.compose.ui.unit.dp
 import com.hereliesaz.conveyance.Act
+import com.hereliesaz.conveyance.ActEmphasis
 import com.hereliesaz.conveyance.Census
 import com.hereliesaz.conveyance.ElementId
 import com.hereliesaz.conveyance.Gate
@@ -19,14 +20,9 @@ import com.hereliesaz.conveyance.SubjectId
 import kotlin.test.Test
 import kotlin.test.assertContains
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/**
- * How much is on screen, against how much can be done there.
- *
- * The framework does the counting because the framework already has both halves. Nothing in these
- * tests asks an application to describe itself.
- */
 @OptIn(ExperimentalTestApi::class)
 class CensusTest {
 
@@ -45,13 +41,8 @@ class CensusTest {
         )
     }
 
-    /**
-     * The point of the whole exercise: an element that backs an act invites, and nobody wrote that
-     * down. A declaration would have been a label, and labels go stale the moment an element
-     * changes what it does.
-     */
     @Test
-    fun `an element that offers an act is known to invite, undeclared`() = runComposeUiTest {
+    fun `offering and receiving are derived from the live Act graph`() = runComposeUiTest {
         val registry = ElementRegistry()
         val send = Act.send("photo.send", subject, to = tray)
 
@@ -66,39 +57,125 @@ class CensusTest {
         waitForIdle()
 
         assertContains(registry.jobsOf(send.elementId), Job.Invite)
+        assertContains(registry.jobsOf(tray), Job.Receive)
         assertEquals(1, registry.census().acts)
         assertEquals(1, registry.census().inviting)
     }
 
-    /**
-     * [Act.keystone] is set at construction and, on its own, read by nothing else in the
-     * framework -- [com.hereliesaz.conveyance.Product.keystones] only checks its own list's
-     * length. This is the one wire that makes a live cross-check possible at all: a real running
-     * act's own [Act.keystone] flag, carried all the way out to the [AuditElement] a
-     * [Product]-level audit would actually compare against.
-     */
     @Test
-    fun `a keystone act carries that flag out to its audit element`() = runComposeUiTest {
+    fun `named descendants of Offer inherit its lifecycle relation`() = runComposeUiTest {
         val registry = ElementRegistry()
-        val send = Act.send("photo.send", subject, to = tray, keystone = true)
-        val plain = Act.send("photo.discard", subject, to = tray)
+        val send = Act.send("photo.send", subject, to = tray)
+        val progress = ElementId("progress.fragment")
+        val unrelated = ElementId("outside.fragment")
 
         setContent {
             host(registry) {
                 Column {
-                    Offer(send, element = ElementId("keystone.control")) { Box(Modifier.size(40.dp)) }
-                    Offer(plain, element = ElementId("plain.control")) { Box(Modifier.size(40.dp)) }
+                    Offer(send) {
+                        Box(Modifier.size(40.dp).element(progress))
+                    }
+                    Box(Modifier.size(40.dp).element(unrelated))
+                    Box(Modifier.size(40.dp).element(tray))
                 }
             }
         }
         waitForIdle()
 
         val elements = registry.auditFrame("gallery").elements.associateBy { it.id }
-        assertTrue(elements.getValue(ElementId("keystone.control")).keystone)
-        assertTrue(!elements.getValue(ElementId("plain.control")).keystone)
+        assertEquals(send.id, elements.getValue(progress).lifecycleAct)
+        assertNull(elements.getValue(unrelated).lifecycleAct)
+        assertNull(elements.getValue(send.elementId).lifecycleAct)
     }
 
-    /** A gate's address is doing a job, and that is derivable from the act that names it. */
+    @Test
+    fun `act semantics carry through to the live audit element`() = runComposeUiTest {
+        val registry = ElementRegistry()
+        val heroic = Act.send(
+            "photo.send",
+            subject,
+            to = tray,
+            emphasis = ActEmphasis.Heroic,
+        )
+        val supporting = Act.send("photo.discard", subject, to = tray)
+
+        setContent {
+            host(registry) {
+                Column {
+                    Offer(heroic, element = ElementId("hero.control")) { Box(Modifier.size(40.dp)) }
+                    Offer(supporting, element = ElementId("support.control")) { Box(Modifier.size(40.dp)) }
+                    Box(Modifier.size(40.dp).element(tray))
+                }
+            }
+        }
+        waitForIdle()
+
+        val elements = registry.auditFrame("gallery").elements.associateBy { it.id }
+        val hero = elements.getValue(ElementId("hero.control"))
+        assertEquals(ActEmphasis.Heroic, hero.emphasis)
+        assertEquals(tray, hero.target)
+        assertEquals(ActEmphasis.Supporting, elements.getValue(ElementId("support.control")).emphasis)
+        assertContains(elements.getValue(tray).jobs, Job.Receive)
+    }
+
+    @Test
+    fun `one visible hero keeps the declared Act hierarchy`() = runComposeUiTest {
+        val registry = ElementRegistry()
+        val heroic = Act.send("hero", subject, tray, emphasis = ActEmphasis.Heroic)
+        val primary = Act.send("primary", subject, tray, emphasis = ActEmphasis.Primary)
+        val secondary = Act.send("secondary", subject, tray, emphasis = ActEmphasis.Secondary)
+
+        setContent {
+            host(registry) {
+                Column {
+                    Offer(heroic, element = ElementId("hero")) { Box(Modifier.size(40.dp)) }
+                    Offer(primary, element = ElementId("primary")) { Box(Modifier.size(40.dp)) }
+                    Offer(secondary, element = ElementId("secondary")) { Box(Modifier.size(40.dp)) }
+                }
+            }
+        }
+        waitForIdle()
+
+        assertEquals(ActEmphasis.Heroic, registry.resolvedEmphasis(heroic))
+        assertEquals(ActEmphasis.Primary, registry.resolvedEmphasis(primary))
+        assertEquals(ActEmphasis.Secondary, registry.resolvedEmphasis(secondary))
+    }
+
+    @Test
+    fun `competing visible heroes demote the whole Act outline one rung`() = runComposeUiTest {
+        val registry = ElementRegistry()
+        val firstHero = Act.send("hero.one", subject, tray, emphasis = ActEmphasis.Heroic)
+        val secondHero = Act.send("hero.two", subject, tray, emphasis = ActEmphasis.Heroic)
+        val primary = Act.send("primary", subject, tray, emphasis = ActEmphasis.Primary)
+        val secondary = Act.send("secondary", subject, tray, emphasis = ActEmphasis.Secondary)
+        val tertiary = Act.send("tertiary", subject, tray, emphasis = ActEmphasis.Tertiary)
+        val supporting = Act.send("supporting", subject, tray, emphasis = ActEmphasis.Supporting)
+
+        setContent {
+            host(registry) {
+                Column {
+                    Offer(firstHero, element = ElementId("hero.one")) { Box(Modifier.size(40.dp)) }
+                    Offer(secondHero, element = ElementId("hero.two")) { Box(Modifier.size(40.dp)) }
+                    Offer(primary, element = ElementId("primary")) { Box(Modifier.size(40.dp)) }
+                    Offer(secondary, element = ElementId("secondary")) { Box(Modifier.size(40.dp)) }
+                    Offer(tertiary, element = ElementId("tertiary")) { Box(Modifier.size(40.dp)) }
+                    Offer(supporting, element = ElementId("supporting")) { Box(Modifier.size(40.dp)) }
+                }
+            }
+        }
+        waitForIdle()
+
+        assertEquals(ActEmphasis.Primary, registry.resolvedEmphasis(firstHero))
+        assertEquals(ActEmphasis.Primary, registry.resolvedEmphasis(secondHero))
+        assertEquals(ActEmphasis.Secondary, registry.resolvedEmphasis(primary))
+        assertEquals(ActEmphasis.Tertiary, registry.resolvedEmphasis(secondary))
+        assertEquals(ActEmphasis.Supporting, registry.resolvedEmphasis(tertiary))
+        assertEquals(ActEmphasis.Supporting, registry.resolvedEmphasis(supporting))
+
+        assertEquals(ActEmphasis.Heroic, firstHero.emphasis)
+        assertEquals(ActEmphasis.Primary, primary.emphasis)
+    }
+
     @Test
     fun `a gate's address is known to be one, undeclared`() = runComposeUiTest {
         val registry = ElementRegistry()
@@ -123,10 +200,9 @@ class CensusTest {
         val jobs = registry.jobsOf(field)
         assertContains(jobs, Job.Invite)
         assertContains(jobs, Job.Locate)
-        assertTrue(jobs.size >= 2, "A gate's address is doing more than one job by definition.")
+        assertTrue(jobs.size >= 2)
     }
 
-    /** An element carrying a travelling token is identifying something particular. */
     @Test
     fun `an element with a token counts as content, not chrome`() = runComposeUiTest {
         val registry = ElementRegistry()
@@ -142,10 +218,6 @@ class CensusTest {
         assertEquals(0, registry.census().chrome)
     }
 
-    /**
-     * The measurement that matters. Content scales with data and must not count against a surface;
-     * chrome does not scale and must.
-     */
     @Test
     fun `chrome is counted per act, and content is not counted at all`() = runComposeUiTest {
         val registry = ElementRegistry()
@@ -155,7 +227,6 @@ class CensusTest {
             host(registry) {
                 Column {
                     Offer(send) { Box(Modifier.size(40.dp)) }
-                    // Content: three subjects, each identifying something.
                     repeat(3) { n ->
                         Box(
                             Modifier.size(40.dp).element(
@@ -164,7 +235,6 @@ class CensusTest {
                             ),
                         )
                     }
-                    // Chrome: on screen, accounted for by nothing.
                     repeat(5) { n -> Box(Modifier.size(10.dp).element(ElementId("rule.$n"))) }
                     Box(Modifier.size(40.dp).element(tray))
                 }
@@ -174,13 +244,12 @@ class CensusTest {
         val census = registry.census()
 
         assertEquals(1, census.acts)
-        assertEquals(3, census.content, "Subjects are the point of the screen, not clutter.")
-        assertTrue(census.chrome >= 5, "Unaccounted elements are chrome: ${census.chrome}")
-        assertTrue(census.chromePerAct >= 5f, "One act carrying six pieces of scaffolding.")
-        assertTrue(census.chromePerAct > Census.CROWDED, "This surface owes an explanation.")
+        assertEquals(3, census.content)
+        assertTrue(census.chrome >= 5)
+        assertTrue(census.chromePerAct >= 5f)
+        assertTrue(census.chromePerAct > Census.CROWDED)
     }
 
-    /** Two defects, not matters of taste: an act nobody can reach, and a promise behind nothing. */
     @Test
     fun `an act whose element is not composed reports as unreachable`() = runComposeUiTest {
         val registry = ElementRegistry()
@@ -193,18 +262,10 @@ class CensusTest {
         }
         waitForIdle()
 
-        // The act's own element is composed, so it is reachable; its consequence target is not.
         assertEquals(1, registry.census().acts)
         assertTrue(registry.bounds(ElementId("absent")) == null)
     }
 
-    /**
-     * Tenancy exists so a place transition can let a detail place share its subject's address with
-     * the thumbnail it grew out of -- but nothing about the mechanism itself distinguishes that from
-     * two unrelated elements that happened to pick the same [ElementId] by accident. Before tenancy,
-     * a flat map made that mistake invisible by construction: the second registration silently won.
-     * Tenancy without a report would have made it invisible on purpose. It is reported instead.
-     */
     @Test
     fun `two unrelated elements sharing one address are reported as contested`() = runComposeUiTest {
         val registry = ElementRegistry()
@@ -223,12 +284,6 @@ class CensusTest {
         val census = registry.census()
         assertTrue(census.hasContestedAddresses)
         assertContains(census.contested, collided)
-        assertEquals(
-            1,
-            census.elements,
-            "One address is still one composed element by count, however many things answer to it -- " +
-                "which is exactly why it needs its own report rather than showing up as a shortfall " +
-                "in a count nobody would think to double-check.",
-        )
+        assertEquals(1, census.elements)
     }
 }
