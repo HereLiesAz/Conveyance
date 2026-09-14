@@ -1,86 +1,26 @@
-# Publishes the Dokka-generated API reference (Markdown, via the DokkaMarkdownPlugin registered
-# in build.gradle.kts) to this repo's wiki on every push to main. Only touches the
-# `api-reference/` subtree of the wiki -- any hand-written wiki pages elsewhere are left alone.
-#
-# dokkaGenerateMarkdown's own root-level output is empty -- this repo's root project carries no
-# Kotlin source, and Dokka V2 doesn't automatically merge subproject output into a combined root
-# publication just because the plugin is applied at both levels. The real content lands in each
-# subproject's own build/dokka/markdown/ directory, so that's what gets published, one folder per
-# module.
-name: Publish API reference
-
+# centralized-by: HereLiesAz/workflows
+# central-source-path: .github/workflows/publish-docs.yml
+# central-source-sha256: 9d85c32169d31b6c25ceb2f0c6a397b099f2b5585ae600bfd571eba1e971e4be
+# This file intentionally contains no repository secrets.
+name: Publish API reference [central proxy]
 on:
   push:
     branches: [main]
   workflow_dispatch:
-
 permissions:
-  contents: write
-
-concurrency:
-  group: publish-docs-${{ github.ref }}
-  cancel-in-progress: true
-
+  contents: read
+  id-token: write
 jobs:
-  publish:
-    name: Publish API reference to wiki
+  central-dispatch:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
-
-      - name: Set up JDK
-        uses: actions/setup-java@v6
-        with:
-          distribution: temurin
-          java-version: '21'
-
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v6
-
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v4
-        with:
-          packages: 'platforms;android-37.0 platforms;android-37.1 build-tools;37.0.0'
-
-      - name: Generate API reference (Markdown)
-        run: ./gradlew dokkaGenerateMarkdown --stacktrace
-
-      - name: Clone wiki
-        run: |
-          git clone "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.wiki.git" wiki
+      - name: Dispatch to HereLiesAz/workflows
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Update api-reference/ in wiki
-        run: |
-          rm -rf wiki/api-reference
-          mkdir -p wiki/api-reference
-          for module in conveyance-core conveyance-compose conveyance-auditor; do
-            mkdir -p "wiki/api-reference/$module"
-            cp -r "$module/build/dokka/markdown/." "wiki/api-reference/$module/"
-          done
-          if [ ! -f wiki/Home.md ]; then
-            echo "# Conveyance" > wiki/Home.md
-            echo "" >> wiki/Home.md
-            echo "API reference: [conveyance-core](api-reference/conveyance-core/index)," >> wiki/Home.md
-            echo "[conveyance-compose](api-reference/conveyance-compose/index)," >> wiki/Home.md
-            echo "[conveyance-auditor](api-reference/conveyance-auditor/index)." >> wiki/Home.md
-          elif ! grep -q "api-reference" wiki/Home.md; then
-            echo "" >> wiki/Home.md
-            echo "API reference: [conveyance-core](api-reference/conveyance-core/index)," >> wiki/Home.md
-            echo "[conveyance-compose](api-reference/conveyance-compose/index)," >> wiki/Home.md
-            echo "[conveyance-auditor](api-reference/conveyance-auditor/index)." >> wiki/Home.md
-          fi
-
-      - name: Push wiki
-        working-directory: wiki
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add -A
-          if git diff --cached --quiet; then
-            echo "No changes to publish."
-          else
-            git commit -m "Update API reference from ${GITHUB_SHA}"
-            git push
-          fi
+          WORKFLOWS_GATEWAY_URL: ${{ vars.WORKFLOWS_GATEWAY_URL }}
+          EVENT_JSON: ${{ toJSON(github.event) }}
+          INPUTS_JSON: ${{ toJSON(inputs) }}
+          VARS_JSON: ${{ toJSON(vars) }}
+          SOURCE_WORKFLOW_PATH: .github/workflows/publish-docs.yml
+          SOURCE_SHA256: 9d85c32169d31b6c25ceb2f0c6a397b099f2b5585ae600bfd571eba1e971e4be
+        shell: bash
+        run: "set -euo pipefail\n[[ -n \"${WORKFLOWS_GATEWAY_URL:-}\" ]] || { echo \"Repository variable WORKFLOWS_GATEWAY_URL is not configured.\" >&2; exit 1; }\noidc_response=\"$(curl --fail-with-body --silent --show-error -H \"Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}\" \"${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=hereliesaz-workflows\")\"\noidc_token=\"$(jq -r '.value // empty' <<<\"$oidc_response\")\"\n[[ -n \"$oidc_token\" ]] || { echo \"GitHub did not issue an OIDC token.\" >&2; exit 1; }\necho \"::add-mask::$oidc_token\"\npayload=\"$(jq -n   --arg repository \"$GITHUB_REPOSITORY\" --arg repository_id \"$GITHUB_REPOSITORY_ID\"   --arg repository_owner \"$GITHUB_REPOSITORY_OWNER\" --arg repository_owner_id \"$GITHUB_REPOSITORY_OWNER_ID\"   --arg sha \"$GITHUB_SHA\" --arg ref \"$GITHUB_REF\" --arg ref_name \"$GITHUB_REF_NAME\" --arg ref_type \"$GITHUB_REF_TYPE\"   --arg head_ref \"$GITHUB_HEAD_REF\" --arg base_ref \"$GITHUB_BASE_REF\" --arg actor \"$GITHUB_ACTOR\" --arg actor_id \"$GITHUB_ACTOR_ID\"   --arg event_name \"$GITHUB_EVENT_NAME\" --arg run_id \"$GITHUB_RUN_ID\" --arg run_number \"$GITHUB_RUN_NUMBER\" --arg run_attempt \"$GITHUB_RUN_ATTEMPT\"   --arg workflow_ref \"$GITHUB_WORKFLOW_REF\" --arg workflow_name \"$GITHUB_WORKFLOW\" --arg source_workflow_path \"$SOURCE_WORKFLOW_PATH\"   --arg source_sha256 \"$SOURCE_SHA256\" --argjson event \"$EVENT_JSON\" --argjson inputs \"$INPUTS_JSON\" --argjson vars \"$VARS_JSON\"   '{repository:$repository,repository_id:$repository_id,repository_owner:$repository_owner,repository_owner_id:$repository_owner_id,sha:$sha,check_sha:($event.pull_request.head.sha // $sha),ref:$ref,ref_name:$ref_name,ref_type:$ref_type,head_ref:$head_ref,base_ref:$base_ref,actor:$actor,actor_id:$actor_id,event_name:$event_name,event:$event,inputs:$inputs,vars:$vars,run_id:$run_id,run_number:$run_number,run_attempt:$run_attempt,workflow_ref:$workflow_ref,workflow_name:$workflow_name,source_workflow_path:$source_workflow_path,source_sha256:$source_sha256}')\"\ncurl --fail-with-body --silent --show-error -X POST \"${WORKFLOWS_GATEWAY_URL%/}/dispatch\" -H \"Authorization: Bearer ${oidc_token}\" -H \"Content-Type: application/json\" --data-binary \"$payload\""
