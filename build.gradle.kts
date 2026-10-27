@@ -22,11 +22,19 @@ plugins {
 // static HTML site with its own CSS/JS assets. See .github/workflows/publish-docs.yml.
 apply<DokkaMarkdownPlugin>()
 
-// Coordinates every publishable module shares. A version bump or a group rename happens once,
-// here, rather than drifting across four build files that each remembered it differently.
+// Coordinates every publishable module shares. The version is read from version.properties --
+// the same file CI stamps releases from -- so there is exactly one place a version lives.
+// JitPack overrides both group and version from the git tag it builds; this is what a local
+// `publishToMavenLocal` produces.
+val conveyanceVersion: String = java.util.Properties().run {
+    rootProject.file("version.properties").inputStream().use { load(it) }
+    listOf("versionMajor", "versionMinor", "versionPatch", "versionBuild")
+        .joinToString(".") { getProperty(it).trim() }
+}
+
 allprojects {
     group = "com.hereliesaz.conveyance"
-    version = "0.1.0"
+    version = conveyanceVersion
 }
 
 // The KMP Security Pipeline workflow runs `./gradlew detekt`, so the task has to exist at the root
@@ -72,15 +80,18 @@ subprojects {
     // maven-publish and registering its own publication(s); what that publication says about the
     // project as a whole -- source repository, who to credit -- is answered once, here, rather
     // than by four build files that each had to remember to say the same thing.
-    //
-    // No `licenses { }` block: there is no LICENSE file in this repository yet. A POM that claims
-    // a license the repo doesn't actually carry is a worse state than a POM that says nothing --
-    // the license is the project owner's call to make, not a default this build should assume.
+    // License matches the LICENSE file at the repo root (Apache 2.0, same as convey/convey-web).
     pluginManager.withPlugin("maven-publish") {
         extensions.configure<PublishingExtension> {
             publications.withType<MavenPublication>().configureEach {
                 pom {
                     url.set("https://github.com/HereLiesAz/Conveyance")
+                    licenses {
+                        license {
+                            name.set("Apache License 2.0")
+                            url.set("https://www.apache.org/licenses/LICENSE-2.0")
+                        }
+                    }
                     developers {
                         developer {
                             id.set("HereLiesAz")
