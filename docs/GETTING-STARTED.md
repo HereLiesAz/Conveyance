@@ -8,7 +8,30 @@ For philosophy, read the [manifesto](../README.md). For the semantic model and a
 
 ## 1. Add the SDK
 
-Until published coordinates are available, the simplest route is to build against source:
+Via [JitPack](https://jitpack.io/#HereLiesAz/Conveyance):
+
+~~~kotlin
+// settings.gradle.kts
+dependencyResolutionManagement {
+    repositories {
+        google()
+        mavenCentral()
+        maven("https://jitpack.io")
+    }
+}
+
+// build.gradle.kts
+dependencies {
+    implementation("com.github.HereLiesAz.Conveyance:conveyance-core:<tag>")
+    implementation("com.github.HereLiesAz.Conveyance:conveyance-compose:<tag>")
+    // optional: the static auditor (plain JVM)
+    implementation("com.github.HereLiesAz.Conveyance:conveyance-auditor:<tag>")
+}
+~~~
+
+`<tag>` is a git tag, or `main-SNAPSHOT` for the tip of `main`.
+
+Or build against source:
 
 ```kotlin
 // settings.gradle.kts
