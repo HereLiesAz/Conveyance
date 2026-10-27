@@ -3,7 +3,7 @@
 # Kotlin 2.4.20 includes the fix for CVE-2026-53914 (unsafe build-cache deserialization).
 agp = "9.4.1"
 gradle = "9.7.1"
-kotlin = "2.4.20"
+kotlin = "2.4.21"
 # Compose Multiplatform: latest stable plugin.
 compose = "1.12.1"
 # material3 is taken at alpha deliberately: the Expressive shape-morph machinery
