@@ -92,10 +92,8 @@ dependencies {
 
 The group is JitPack's own `com.github.<owner>.<repo>` form, not the `com.hereliesaz.conveyance`
 group ID this build's POMs carry — JitPack rewrites it. `main-SNAPSHOT` tracks this repo's `main`
-branch; there is no tagged release to pin to yet. Note that the `0.1.0` this build's `version`
-is set to (root `build.gradle.kts`) is not a released version either, and disagrees with the
-release version CI actually stamps from `version.properties`/`.version-state.json` (`0.0.12.1` at
-the time of writing) — one more reason not to write a pinned number here.
+branch; swap it for a git tag once one exists. A local build's own version is read from
+`version.properties`, the same file CI stamps releases from.
 
 Or skip the coordinate entirely and build against source, per the
 [root quickstart](../docs/GETTING-STARTED.md): `includeBuild("../Conveyance")`, or
