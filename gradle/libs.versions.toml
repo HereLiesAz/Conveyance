@@ -20,7 +20,7 @@ detekt = "1.23.8"
 dokka = "2.2.0"
 # The auditor calls Claude to run the two rules no structural check can settle.
 anthropic = "3.3.0"
-jackson = "2.22.3"
+jackson = "2.22.4"
 jvmToolchain = "21"
 # The Android entry point (conveyance-demo-android) is a plain, non-KMP application module --
 # AGP 9 forbids com.android.application and the KMP library plugin in the same module -- so it
