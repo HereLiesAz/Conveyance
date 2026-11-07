@@ -48,7 +48,7 @@ class AnthropicJudge(
             MessageCreateParams.builder()
                 .model(model)
                 .maxTokens(MAX_TOKENS)
-                .addUserMessageOfBlockParams(blocks)
+                .addUserMessageOfContentBlockParams(blocks)
                 .build(),
         )
         return response.content()
