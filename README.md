@@ -1,3 +1,5 @@
+[![](https://jitpack.io/v/HereLiesAz/conveyance.svg)](https://jitpack.io/#HereLiesAz/conveyance)
+
 # The Conveyance Manifesto:
 ## Compassionate Design, Resourceful Minimalism, and Guiding by Example
 
