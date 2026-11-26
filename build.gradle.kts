@@ -34,7 +34,7 @@ val conveyanceVersion: String = java.util.Properties().run {
 
 allprojects {
     group = "com.hereliesaz.conveyance"
-    version = conveyanceVersion
+    version = providers.gradleProperty("publicationVersion").orElse(conveyanceVersion).get()
 }
 
 // The KMP Security Pipeline workflow runs `./gradlew detekt`, so the task has to exist at the root
@@ -83,6 +83,18 @@ subprojects {
     // License matches the LICENSE file at the repo root (Apache 2.0, same as convey/convey-web).
     pluginManager.withPlugin("maven-publish") {
         extensions.configure<PublishingExtension> {
+            if (providers.gradleProperty("publicationVersion").isPresent) {
+                repositories {
+                    maven {
+                        name = "GitHubPackages"
+                        url = uri("https://maven.pkg.github.com/HereLiesAz/Conveyance")
+                        credentials {
+                            username = System.getenv("GITHUB_ACTOR")
+                            password = System.getenv("GITHUB_TOKEN")
+                        }
+                    }
+                }
+            }
             publications.withType<MavenPublication>().configureEach {
                 pom {
                     url.set("https://github.com/HereLiesAz/Conveyance")
